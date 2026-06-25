@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Monthly Expense Tracker</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Link CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body class="auth-body">
+    <!-- Blurry blobs for styling -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    
+    <div class="auth-container">
+        <!-- Auth Card -->
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <h2>SpendSmart</h2>
+                <p>Track. Analyze. Save.</p>
+            </div>
+            
+            <!-- Alert message area -->
+            <div id="auth-alert" class="alert hidden">
+                <span class="alert-message"></span>
+                <button class="alert-close" onclick="closeAlert()">&times;</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form">
+                <div class="form-title">Welcome Back</div>
+                <div class="input-group">
+                    <i class="fa-solid fa-user input-icon"></i>
+                    <input type="text" id="login-username" placeholder="Username" required minlength="3">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    <input type="password" id="login-password" placeholder="Password" required minlength="6">
+                </div>
+                <button type="submit" class="btn-primary auth-submit">
+                    <span>Log In</span> <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                </button>
+                <div class="auth-switch">
+                    Don't have an account? <a href="#" id="show-register">Register</a>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form hidden">
+                <div class="form-title">Create Account</div>
+                <div class="input-group">
+                    <i class="fa-solid fa-user input-icon"></i>
+                    <input type="text" id="register-username" placeholder="Choose Username" required minlength="3">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    <input type="password" id="register-password" placeholder="Password (Min 6 chars)" required minlength="6">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock-open input-icon"></i>
+                    <input type="password" id="register-confirm" placeholder="Confirm Password" required minlength="6">
+                </div>
+                <button type="submit" class="btn-primary auth-submit">
+                    <span>Register</span> <i class="fa-solid fa-user-plus"></i>
+                </button>
+                <div class="auth-switch">
+                    Already have an account? <a href="#" id="show-login">Log In</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JS script for dynamic actions -->
+    <script>
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const showRegisterBtn = document.getElementById('show-register');
+        const showLoginBtn = document.getElementById('show-login');
+        const alertBox = document.getElementById('auth-alert');
+        const alertMsg = alertBox.querySelector('.alert-message');
+
+        function showAlert(msg, isSuccess = false) {
+            alertBox.className = 'alert ' + (isSuccess ? 'alert-success' : 'alert-error');
+            alertMsg.textContent = msg;
+            alertBox.classList.remove('hidden');
+        }
+
+        function closeAlert() {
+            alertBox.classList.add('hidden');
+        }
+
+        // Toggle between login and register
+        showRegisterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeAlert();
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            registerForm.style.animation = 'slideIn 0.4s ease forwards';
+        });
+
+        showLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeAlert();
+            registerForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            loginForm.style.animation = 'slideIn 0.4s ease forwards';
+        });
+
+        // Submit Login Form
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showAlert('Success! Redirecting...', true);
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    showAlert(result.message || 'Login failed.');
+                }
+            } catch (err) {
+                showAlert('Network error. Please try again.');
+            }
+        });
+
+        // Submit Register Form
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('register-username').value;
+            const password = document.getElementById('register-password').value;
+            const confirmPass = document.getElementById('register-confirm').value;
+
+            if (password !== confirmPass) {
+                showAlert('Passwords do not match.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showAlert('Account created! Redirecting...', true);
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    showAlert(result.message || 'Registration failed.');
+                }
+            } catch (err) {
+                showAlert('Network error. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

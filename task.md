@@ -1,0 +1,22 @@
+- `[x]` Add CSS styling to styles.css
+  - `[x]` Form layout for standalone Add Expense page
+  - `[x]` Admin Panel tab bar and content sections
+  - `[x]` Admin matrices, tables, checkboxes, order inputs, and status badges
+- `[x]` Update templates/index.html
+  - `[x]` Remove Add Expense modal popup (keep Edit modal)
+  - `[x]` Add Sidebar nav items for Add Expense and Admin
+  - `[x]` Add #section-add-expense content section
+  - `[x]` Add #section-admin content section with sub-tabs for Users, Roles, Categories
+- `[x]` Update static/js/app.js
+  - `[x]` Implement UI switching for Add Expense and Admin
+  - `[x]` Implement dynamic category loading from API
+  - `[x]` Fetch and store user permissions on load, dynamically hide/disable UI elements
+  - `[x]` Handle standalone Add Expense form submit
+  - `[x]` Admin Users management (list, role update, delete, create user form)
+  - `[x]` Admin Roles & Privileges management (list, role creation, update checkbox permissions)
+  - `[x]` Admin Categories management (list, create, update names/orders, delete)
+- `[x]` Update tests in verify_app.py
+  - `[x]` Add DB schemas & default seed checks
+  - `[x]` Add test cases for checking role-based API protection (403 Forbidden checks)
+  - `[x]` Add test cases for categories API order & CRUD
+- `[x]` Verify application functionality (automated & manual)

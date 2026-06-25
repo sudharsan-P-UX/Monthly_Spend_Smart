@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpendSmart - Monthly Expense Tracker</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Link CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body class="dashboard-body">
+    <!-- Blurry blobs for glassmorphic style -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fa-solid fa-wallet logo-icon"></i>
+                <h2>SpendSmart</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-target="dashboard" id="nav-dashboard">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-target="add-expense" id="nav-add-expense">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Expense</span>
+                </a>
+                <a href="#" class="nav-item" data-target="overview" id="nav-overview">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Overview</span>
+                </a>
+                <a href="#" class="nav-item hidden" data-target="admin" id="nav-admin">
+                    <i class="fa-solid fa-user-gear"></i>
+                    <span>Admin</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fa-regular fa-circle-user"></i>
+                    <span>Hi, {{ username }}</span>
+                </div>
+                <a href="/logout" class="logout-link">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Alert message area -->
+            <div id="app-alert" class="alert hidden">
+                <span class="alert-message"></span>
+                <button class="alert-close" onclick="closeAppAlert()">&times;</button>
+            </div>
+
+            <!-- DASHBOARD SECTION -->
+            <section id="section-dashboard" class="content-section">
+                <header class="section-header">
+                    <h1>Dashboard</h1>
+                    <p>Track your daily spendings and keep your finances healthy.</p>
+                </header>
+
+                <!-- Key Metrics Cards -->
+                <div class="metrics-grid">
+                    <div class="metric-card card-month">
+                        <div class="metric-info">
+                            <h3>This Month</h3>
+                            <span class="metric-value" id="month-total">$0.00</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </div>
+                    </div>
+                    <div class="metric-card card-all">
+                        <div class="metric-info">
+                            <h3>Total Spent</h3>
+                            <span class="metric-value" id="all-total">$0.00</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-coins"></i>
+                        </div>
+                    </div>
+                    <div class="metric-card card-count">
+                        <div class="metric-info">
+                            <h3>Transactions</h3>
+                            <span class="metric-value" id="transaction-count">0</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-receipt"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters & Expense List Card -->
+                <div class="content-card expense-list-card">
+                    <div class="card-header">
+                        <h2>Recent Expenses</h2>
+                        <div class="card-actions">
+                            <button class="btn-secondary" onclick="toggleFilters()">
+                                <i class="fa-solid fa-filter"></i> <span>Filter</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filters Panel (collapsible) -->
+                    <div id="filters-panel" class="filters-panel hidden">
+                        <div class="filters-grid">
+                            <div class="filter-group">
+                                <label for="filter-category">Category</label>
+                                <select id="filter-category">
+                                    <option value="">All Categories</option>
+                                    <!-- Dynamic Options -->
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="filter-bank-mode">Bank</label>
+                                <select id="filter-bank-mode">
+                                    <option value="">All Banks</option>
+                                    <!-- Dynamic Options -->
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="filter-payment-type">Payment Gateway</label>
+                                <select id="filter-payment-type">
+                                    <option value="">All Gateways</option>
+                                    <!-- Dynamic Options -->
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="filter-payment-method">Payment Method</label>
+                                <select id="filter-payment-method">
+                                    <option value="">All Methods</option>
+                                    <option value="Debit">Debit</option>
+                                    <option value="Credit">Credit</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="filter-payment-category">Payment Source</label>
+                                <select id="filter-payment-category">
+                                    <option value="">All Sources</option>
+                                    <!-- Dynamic Options -->
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="filter-month">Month</label>
+                                <select id="filter-month">
+                                    <option value="">All Months</option>
+                                    <option value="01">January</option>
+                                    <option value="02">February</option>
+                                    <option value="03">March</option>
+                                    <option value="04">April</option>
+                                    <option value="05">May</option>
+                                    <option value="06">June</option>
+                                    <option value="07">July</option>
+                                    <option value="08">August</option>
+                                    <option value="09">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="filter-year">Year</label>
+                                <select id="filter-year">
+                                    <option value="">All Years</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2026">2026</option>
+                                    <option value="2027">2027</option>
+                                    <option value="2028">2028</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="filter-start-date">From</label>
+                                <input type="date" id="filter-start-date">
+                            </div>
+                            <div class="filter-group">
+                                <label for="filter-end-date">To</label>
+                                <input type="date" id="filter-end-date">
+                            </div>
+                            <div class="filter-group search-group">
+                                <label for="filter-search">Search</label>
+                                <div class="search-input-wrapper">
+                                    <input type="text" id="filter-search" placeholder="Search desc...">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="filters-footer">
+                            <button class="btn-text" onclick="resetFilters()">Reset Filters</button>
+                            <button class="btn-primary btn-sm" onclick="fetchExpenses()">Apply Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Credit/Debit Totals & Year Totals summary bar -->
+                    <div class="dashboard-summary-bar">
+                        <div class="summary-item">
+                            <span class="summary-label">Filtered Debits:</span>
+                            <span class="summary-value debit-text" id="dashboard-filtered-debit">$0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Filtered Credits:</span>
+                            <span class="summary-value credit-text" id="dashboard-filtered-credit">$0.00</span>
+                        </div>
+                        <div class="summary-item year-total-item hidden" id="dashboard-year-total-wrapper">
+                            <span class="summary-label" id="dashboard-year-total-label">2026 Totals:</span>
+                            <span class="summary-value" id="dashboard-year-debit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Debits: $0.00</span>
+                            <span class="summary-value" id="dashboard-year-credit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Credits: $0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Expense Table Container -->
+                    <div class="table-container">
+                        <table class="expense-table" id="expense-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Gateway</th>
+                                    <th>Source</th>
+                                    <th class="text-center">Method</th>
+                                    <th class="text-right">Amount</th>
+                                    <th class="text-right">Interest</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expense-list-body">
+                                <!-- Dynamic entries go here -->
+                            </tbody>
+                        </table>
+                        <div id="no-expenses-msg" class="empty-state hidden">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <p>No expenses found. Add some to get started!</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- OVERVIEW SECTION -->
+            <section id="section-overview" class="content-section hidden">
+                <header class="section-header">
+                    <h1>Financial Overview</h1>
+                    <p>Analyze your spending distributions and trends over time.</p>
+                </header>
+
+                <!-- Overview Filters Panel -->
+                <div class="overview-filters-bar">
+                    <div class="filter-group">
+                        <label for="overview-month">Month</label>
+                        <select id="overview-month">
+                            <option value="">Current Month</option>
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="overview-year">Year</label>
+                        <select id="overview-year">
+                            <option value="">Current Year</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary btn-sm" onclick="loadCharts()" style="margin-top: auto; height: 38px;">Apply Filter</button>
+                </div>
+
+                <!-- Debit/Credit summary cards grid -->
+                <div class="metrics-grid">
+                    <div class="metric-card card-month">
+                        <div class="metric-info">
+                            <h3>Month Debits</h3>
+                            <span class="metric-value" id="overview-month-debit">$0.00</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-arrow-down-long" style="color: var(--color-secondary);"></i>
+                        </div>
+                    </div>
+                    <div class="metric-card card-all">
+                        <div class="metric-info">
+                            <h3>Month Credits</h3>
+                            <span class="metric-value" id="overview-month-credit">$0.00</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-arrow-up-long" style="color: var(--color-success);"></i>
+                        </div>
+                    </div>
+                    <div class="metric-card card-month" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2);">
+                        <div class="metric-info">
+                            <h3>Month Interest</h3>
+                            <span class="metric-value" id="overview-month-interest" style="color: var(--color-primary);">$0.00</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-percent" style="color: var(--color-primary);"></i>
+                        </div>
+                    </div>
+                    <div class="metric-card card-month">
+                        <div class="metric-info">
+                            <h3>Total Debits</h3>
+                            <span class="metric-value" id="overview-total-debit">$0.00</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                    </div>
+                    <div class="metric-card card-all">
+                        <div class="metric-info">
+                            <h3>Total Credits</h3>
+                            <span class="metric-value" id="overview-total-credit">$0.00</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-credit-card"></i>
+                        </div>
+                    </div>
+                    <div class="metric-card card-all" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2);">
+                        <div class="metric-info">
+                            <h3>Total Interest</h3>
+                            <span class="metric-value" id="overview-total-interest" style="color: var(--color-primary);">$0.00</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-coins" style="color: var(--color-primary);"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <!-- Category Chart Card -->
+                    <div class="content-card chart-card">
+                        <div class="card-header">
+                            <h2>Expenses by Category (Current Month)</h2>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Trend Chart Card -->
+                    <div class="content-card chart-card">
+                        <div class="card-header">
+                            <h2>Monthly Spending Trend (Last 6 Months)</h2>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ADD EXPENSE SECTION (STANDALONE PAGE VIEW) -->
+            <section id="section-add-expense" class="content-section hidden">
+                <header class="section-header">
+                    <h1>Add Expense</h1>
+                    <p>Create a new expense entry with categorization and details.</p>
+                </header>
+
+                <div class="content-card form-card">
+                    <form id="standalone-add-expense-form" class="standalone-form">
+                        <div class="input-group">
+                            <label for="add-amount">Amount ($) <span class="required">*</span></label>
+                            <input type="number" id="add-amount" step="0.01" min="0.01" required placeholder="0.00">
+                        </div>
+                        <div class="input-group">
+                            <label for="add-category">Category <span class="required">*</span></label>
+                            <select id="add-category" required>
+                                <option value="" disabled selected>Select Category</option>
+                                <!-- Dynamic Options -->
+                            </select>
+                        </div>
+                        <div class="input-group hidden" id="add-category-other-wrapper">
+                            <label for="add-category-other">Specify Custom Category <span class="required">*</span></label>
+                            <input type="text" id="add-category-other" placeholder="e.g. Stocks Gain">
+                        </div>
+                        <div class="input-group">
+                            <label for="add-date">Date <span class="required">*</span></label>
+                            <input type="date" id="add-date" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="add-bank-mode">Bank Mode</label>
+                            <select id="add-bank-mode">
+                                <option value="" selected>None / N/A</option>
+                                <!-- Dynamic Options -->
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="add-payment-type">Payment Gateway</label>
+                            <select id="add-payment-type">
+                                <option value="" selected>None / N/A</option>
+                                <!-- Dynamic Options -->
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="add-payment-method">Payment Method <span class="required">*</span></label>
+                            <select id="add-payment-method" required>
+                                <option value="Debit" selected>Debit</option>
+                                <option value="Credit">Credit</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="add-payment-category">Payment Source</label>
+                            <select id="add-payment-category">
+                                <option value="" selected>None / N/A</option>
+                                <!-- Dynamic Options -->
+                            </select>
+                        </div>
+                        <div class="input-group hidden" id="add-interest-wrapper">
+                            <label for="add-interest">Interest ($)</label>
+                            <input type="number" id="add-interest" step="0.01" min="0" value="0.00" placeholder="0.00">
+                        </div>
+                        <div class="input-group input-group-full">
+                            <label for="add-description">Description</label>
+                            <input type="text" id="add-description" placeholder="e.g. Grocery shopping">
+                        </div>
+                        <div class="form-actions">
+                            <button type="reset" class="btn-secondary" id="add-expense-reset-btn">Reset</button>
+                            <button type="submit" class="btn-primary">Add Expense</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ADMINISTRATION SECTION -->
+            <section id="section-admin" class="content-section hidden">
+                <header class="section-header">
+                    <h1>Administration Panel</h1>
+                    <p>Manage system users, roles, permissions, and category configurations.</p>
+                </header>
+
+                <!-- Admin sub-tabs -->
+                <div class="admin-tabs">
+                    <button class="admin-tab active" data-tab="admin-users">
+                        <i class="fa-solid fa-users"></i> Users
+                    </button>
+                    <button class="admin-tab" data-tab="admin-roles">
+                        <i class="fa-solid fa-shield-halved"></i> Roles & Privileges
+                    </button>
+                    <button class="admin-tab" data-tab="admin-categories">
+                        <i class="fa-solid fa-tags"></i> Categories
+                    </button>
+                    <button class="admin-tab" data-tab="admin-bank-modes">
+                        <i class="fa-solid fa-building-columns"></i> Bank Modes
+                    </button>
+                    <button class="admin-tab" data-tab="admin-payment-types">
+                        <i class="fa-solid fa-wallet"></i> Payment Gateways
+                    </button>
+                    <button class="admin-tab" data-tab="admin-payment-categories">
+                        <i class="fa-solid fa-layer-group"></i> Payment Sources
+                    </button>
+                </div>
+
+                <!-- Tab 1: Users Management -->
+                <div id="tab-admin-users" class="admin-sub-section">
+                    <div class="admin-grid">
+                        <!-- Users List Table -->
+                        <div class="content-card">
+                            <div class="card-header">
+                               <h2>System Users</h2>
+                            </div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Username</th>
+                                            <th>Current Role</th>
+                                            <th>Change Role</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-users-list">
+                                        <!-- Dynamic entries -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Create User Form -->
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Create New User</h2>
+                            </div>
+                            <form id="admin-create-user-form" class="modal-form">
+                                <div class="input-group">
+                                    <label for="admin-new-username">Username <span class="required">*</span></label>
+                                    <input type="text" id="admin-new-username" required placeholder="Enter username">
+                                </div>
+                                <div class="input-group">
+                                    <label for="admin-new-password">Password <span class="required">*</span></label>
+                                    <input type="password" id="admin-new-password" required placeholder="Enter password (min 6 chars)">
+                                </div>
+                                <div class="input-group">
+                                    <label for="admin-new-role">Role <span class="required">*</span></label>
+                                    <select id="admin-new-role" required>
+                                        <option value="" disabled selected>Select Role</option>
+                                        <!-- Dynamic Roles -->
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn-primary admin-full-width">Create User</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Roles & Privileges -->
+                <div id="tab-admin-roles" class="admin-sub-section hidden">
+                    <div class="admin-grid">
+                        <!-- Roles Privileges Matrix -->
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Role Permissions Matrix</h2>
+                            </div>
+                            <div class="table-container">
+                                <table class="privilege-matrix">
+                                    <thead>
+                                        <tr>
+                                            <th>Role</th>
+                                            <th>View</th>
+                                            <th>Add</th>
+                                            <th>Edit</th>
+                                            <th>Delete</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-privileges-matrix-body">
+                                        <!-- Dynamic Roles Matrix -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Create Role Form -->
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Create New Role</h2>
+                            </div>
+                            <form id="admin-create-role-form" class="modal-form">
+                                <div class="input-group">
+                                    <label for="admin-new-role-name">Role Name <span class="required">*</span></label>
+                                    <input type="text" id="admin-new-role-name" required placeholder="e.g. Manager">
+                                </div>
+                                <button type="submit" class="btn-primary admin-full-width">Create Role</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Expense Categories -->
+                <div id="tab-admin-categories" class="admin-sub-section hidden">
+                    <div class="admin-grid">
+                        <!-- Categories Listing & Order -->
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Expense Categories</h2>
+                                <button class="btn-primary btn-sm" id="btn-save-categories-order">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                                </button>
+                            </div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Category Name</th>
+                                            <th class="text-center">Display Order</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-categories-list">
+                                        <!-- Dynamic categories entries with inputs -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Create Category Form -->
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Create Category</h2>
+                            </div>
+                            <form id="admin-create-category-form" class="modal-form">
+                                <div class="input-group">
+                                    <label for="admin-new-cat-name">Category Name <span class="required">*</span></label>
+                                    <input type="text" id="admin-new-cat-name" required placeholder="e.g. Investments">
+                                </div>
+                                <div class="input-group">
+                                    <label for="admin-new-cat-order">Display Order</label>
+                                    <input type="number" id="admin-new-cat-order" value="0" placeholder="0">
+                                </div>
+                                <button type="submit" class="btn-primary admin-full-width">Create Category</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Bank Modes -->
+                <div id="tab-admin-bank-modes" class="admin-sub-section hidden">
+                    <div class="admin-grid">
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Bank Modes</h2>
+                                <button class="btn-primary btn-sm" id="btn-save-bank-modes">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                                </button>
+                            </div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Bank Name</th>
+                                            <th class="text-center">Display Order</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-bank-modes-list">
+                                        <!-- Dynamic rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Create Bank Mode</h2>
+                            </div>
+                            <form id="admin-create-bank-mode-form" class="modal-form">
+                                <div class="input-group">
+                                    <label for="admin-new-bm-name">Bank Name <span class="required">*</span></label>
+                                    <input type="text" id="admin-new-bm-name" required placeholder="e.g. HDFC">
+                                </div>
+                                <div class="input-group">
+                                    <label for="admin-new-bm-order">Display Order</label>
+                                    <input type="number" id="admin-new-bm-order" value="0" placeholder="0">
+                                </div>
+                                <button type="submit" class="btn-primary admin-full-width">Create Bank Mode</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 5: Payment Gateways -->
+                <div id="tab-admin-payment-types" class="admin-sub-section hidden">
+                    <div class="admin-grid">
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Payment Gateways</h2>
+                                <button class="btn-primary btn-sm" id="btn-save-payment-types">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                                </button>
+                            </div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Payment Gateway</th>
+                                            <th class="text-center">Display Order</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-payment-types-list">
+                                        <!-- Dynamic rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Create Payment Gateway</h2>
+                            </div>
+                            <form id="admin-create-payment-type-form" class="modal-form">
+                                <div class="input-group">
+                                    <label for="admin-new-pt-name">Payment Gateway <span class="required">*</span></label>
+                                    <input type="text" id="admin-new-pt-name" required placeholder="e.g. UPI">
+                                </div>
+                                <div class="input-group">
+                                    <label for="admin-new-pt-order">Display Order</label>
+                                    <input type="number" id="admin-new-pt-order" value="0" placeholder="0">
+                                </div>
+                                <button type="submit" class="btn-primary admin-full-width">Create Payment Gateway</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 6: Payment Sources -->
+                <div id="tab-admin-payment-categories" class="admin-sub-section hidden">
+                    <div class="admin-grid">
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Payment Sources</h2>
+                                <button class="btn-primary btn-sm" id="btn-save-payment-categories">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                                </button>
+                            </div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Payment Source</th>
+                                            <th class="text-center">Display Order</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-payment-categories-list">
+                                        <!-- Dynamic rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>Create Payment Source</h2>
+                            </div>
+                            <form id="admin-create-payment-category-form" class="modal-form">
+                                <div class="input-group">
+                                    <label for="admin-new-pc-name">Payment Source <span class="required">*</span></label>
+                                    <input type="text" id="admin-new-pc-name" required placeholder="e.g. Salary">
+                                </div>
+                                <div class="input-group">
+                                    <label for="admin-new-pc-order">Display Order</label>
+                                    <input type="number" id="admin-new-pc-order" value="0" placeholder="0">
+                                </div>
+                                <button type="submit" class="btn-primary admin-full-width">Create Payment Source</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+
+
+    <!-- EDIT EXPENSE MODAL -->
+    <div id="edit-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Edit Expense</h2>
+                <button class="btn-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="edit-expense-form" class="modal-form">
+                <input type="hidden" id="edit-id">
+                <div class="input-group">
+                    <label for="edit-amount">Amount ($) <span class="required">*</span></label>
+                    <input type="number" id="edit-amount" step="0.01" min="0.01" required placeholder="0.00">
+                </div>
+                <div class="input-group">
+                    <label for="edit-category">Category <span class="required">*</span></label>
+                    <select id="edit-category" required>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="input-group hidden" id="edit-category-other-wrapper">
+                    <label for="edit-category-other">Specify Custom Category <span class="required">*</span></label>
+                    <input type="text" id="edit-category-other" placeholder="e.g. Interest">
+                </div>
+                <div class="input-group">
+                    <label for="edit-date">Date <span class="required">*</span></label>
+                    <input type="date" id="edit-date" required>
+                </div>
+                <div class="input-group">
+                    <label for="edit-bank-mode">Bank Mode</label>
+                    <select id="edit-bank-mode">
+                        <option value="">None / N/A</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="edit-payment-type">Payment Gateway</label>
+                    <select id="edit-payment-type">
+                        <option value="">None / N/A</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="edit-payment-method">Payment Method <span class="required">*</span></label>
+                    <select id="edit-payment-method" required>
+                        <option value="Debit">Debit</option>
+                        <option value="Credit">Credit</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="edit-payment-category">Payment Source</label>
+                    <select id="edit-payment-category">
+                        <option value="">None / N/A</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="input-group hidden" id="edit-interest-wrapper">
+                    <label for="edit-interest">Interest ($)</label>
+                    <input type="number" id="edit-interest" step="0.01" min="0" value="0.00" placeholder="0.00">
+                </div>
+                <div class="input-group">
+                    <label for="edit-description">Description</label>
+                    <input type="text" id="edit-description" placeholder="e.g. Grocery shopping">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Link main script -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
