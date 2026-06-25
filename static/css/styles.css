@@ -1313,3 +1313,99 @@ body {
         max-width: 100%;
     }
 }
+
+/* Hard Mobile Responsiveness Tuning */
+@media (max-width: 768px) {
+    body {
+        height: auto !important;
+    }
+    .sidebar {
+        flex-direction: column !important;
+        align-items: center !important;
+        padding: 15px !important;
+        gap: 15px !important;
+    }
+    .sidebar-header {
+        margin-bottom: 0 !important;
+    }
+    .sidebar-nav {
+        margin: 0 !important;
+        width: 100% !important;
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    .nav-item {
+        padding: 8px 14px !important;
+        font-size: 0.85rem !important;
+        flex-grow: 1 !important;
+        justify-content: center !important;
+        gap: 8px !important;
+    }
+    .sidebar-footer {
+        width: 100% !important;
+        justify-content: space-between !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+        padding-top: 12px !important;
+        margin-top: 5px !important;
+    }
+    .main-content {
+        padding: 15px !important;
+    }
+    .metrics-grid {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+    .metric-card {
+        padding: 16px !important;
+    }
+    .metric-value {
+        font-size: 1.5rem !important;
+    }
+    .content-card {
+        padding: 16px !important;
+    }
+    .card-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        padding-bottom: 10px !important;
+    }
+    .admin-tabs {
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        gap: 5px !important;
+        padding-bottom: 8px !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .admin-tab {
+        padding: 8px 12px !important;
+        font-size: 0.8rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+    }
+    .expense-table th, .expense-table td {
+        padding: 10px 8px !important;
+        font-size: 0.8rem !important;
+    }
+    .category-tag {
+        padding: 2px 6px !important;
+        font-size: 0.7rem !important;
+    }
+    .btn-icon {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.8rem !important;
+    }
+    .auth-card {
+        padding: 30px 20px !important;
+    }
+    .modal-card {
+        padding: 20px !important;
+        width: 95% !important;
+        margin: 20px auto !important;
+    }
+}

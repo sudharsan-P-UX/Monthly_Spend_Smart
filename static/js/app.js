@@ -1076,9 +1076,13 @@ function initAdminTabs() {
 }
 
 async function loadAdminPanel() {
+    try {
+        await adminFetchRoles();
+    } catch (e) {
+        console.error("Failed to load roles:", e);
+    }
     await Promise.all([
         adminFetchUsers(),
-        adminFetchRoles(),
         adminFetchCategories(),
         adminFetchBankModes(),
         adminFetchPaymentTypes(),
