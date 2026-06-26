@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 import database
 
@@ -243,6 +243,243 @@ def get_overview_api():
     year = request.args.get('year')
     data = database.get_overview_data(session['user_id'], month=month, year=year)
     return jsonify(data)
+
+# EXCEL IMPORT/EXPORT API ENDPOINTS
+from io import BytesIO
+from openpyxl import Workbook, load_workbook
+import datetime
+
+@app.route('/api/expenses/import-template', methods=['GET'])
+def get_import_template():
+    if not is_logged_in():
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Import Template"
+    
+    # Headers
+    headers = ["Date", "Category", "Description", "Gateway", "Bank", "Source", "Method", "Amount", "Interest"]
+    ws.append(headers)
+    
+    # Add sample placeholder rows
+    ws.append(["2026-06-25", "Food & Dining", "Lunch with friends", "GPay", "SBI", "Salary", "Debit", 12.50, 0.00])
+    ws.append(["2026-06-26", "Shopping", "Bought a laptop", "Credit Card", "Kotak", "Credit Card", "Credit", 1200.00, 45.00])
+    
+    # Adjust column widths for readability
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = col[0].column_letter
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+        
+    out = BytesIO()
+    wb.save(out)
+    out.seek(0)
+    
+    return send_file(
+        out,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="spendsmart_import_template.xlsx"
+    )
+
+@app.route('/api/expenses/export', methods=['GET'])
+@require_privilege('can_view')
+def export_expenses():
+    category = request.args.get('category')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    search = request.args.get('search')
+    bank_mode = request.args.get('bank_mode')
+    payment_type = request.args.get('payment_type')
+    payment_category = request.args.get('payment_category')
+    payment_method = request.args.get('payment_method')
+    month = request.args.get('month')
+    year = request.args.get('year')
+    
+    expenses = database.get_expenses(
+        session['user_id'],
+        category=category,
+        start_date=start_date,
+        end_date=end_date,
+        search=search,
+        bank_mode=bank_mode,
+        payment_type=payment_type,
+        payment_category=payment_category,
+        month=month,
+        year=year,
+        payment_method=payment_method
+    )
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Expenses"
+    
+    # Headers
+    headers = ["Date", "Category", "Description", "Gateway", "Bank", "Source", "Method", "Amount", "Interest"]
+    ws.append(headers)
+    
+    # Write data
+    for exp in expenses:
+        ws.append([
+            exp.get('date', ''),
+            exp.get('category', ''),
+            exp.get('description', ''),
+            exp.get('payment_type', ''),
+            exp.get('bank_mode', ''),
+            exp.get('payment_category', ''),
+            exp.get('payment_method', 'Debit'),
+            float(exp.get('amount', 0.0)),
+            float(exp.get('interest', 0.0))
+        ])
+        
+    # Adjust column widths
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = col[0].column_letter
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+        
+    out = BytesIO()
+    wb.save(out)
+    out.seek(0)
+    
+    return send_file(
+        out,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"expenses_export_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
+    )
+
+@app.route('/api/expenses/import', methods=['POST'])
+@require_privilege('can_add')
+def import_expenses():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request'}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+        
+    if not file.filename.endswith('.xlsx'):
+        return jsonify({'error': 'Invalid file format. Please upload an Excel file (.xlsx).'}), 400
+        
+    try:
+        # Load workbook (in-memory bytes)
+        wb = load_workbook(file, data_only=True)
+        ws = wb.active
+        
+        rows_iter = ws.iter_rows(values_only=True)
+        try:
+            first_row = next(rows_iter)
+        except StopIteration:
+            return jsonify({'error': 'The uploaded Excel file is empty'}), 400
+            
+        # Locate columns in header
+        header_map = {}
+        for i, val in enumerate(first_row):
+            if val is not None:
+                header_map[str(val).strip().lower()] = i
+                
+        # Required columns mapping
+        col_date = header_map.get('date')
+        col_category = header_map.get('category')
+        col_amount = header_map.get('amount')
+        
+        if col_date is None or col_category is None or col_amount is None:
+            return jsonify({
+                'error': 'Required columns missing. Ensure your Excel sheet has "Date", "Category", and "Amount" in the first row.'
+            }), 400
+            
+        # Optional columns mapping
+        col_desc = header_map.get('description')
+        col_gateway = header_map.get('gateway') or header_map.get('payment type') or header_map.get('payment_type')
+        col_bank = header_map.get('bank') or header_map.get('bank mode') or header_map.get('bank_mode')
+        col_source = header_map.get('source') or header_map.get('payment category') or header_map.get('payment_category')
+        col_method = header_map.get('method') or header_map.get('payment method') or header_map.get('payment_method')
+        col_interest = header_map.get('interest')
+        
+        imported_count = 0
+        skipped_count = 0
+        
+        for r_idx, row in enumerate(rows_iter, start=2):
+            # Skip empty rows
+            if not any(val is not None for val in row):
+                continue
+                
+            date_val = row[col_date]
+            category_val = row[col_category]
+            amount_val = row[col_amount]
+            
+            # Simple validation checks
+            if date_val is None or category_val is None or amount_val is None:
+                skipped_count += 1
+                continue
+                
+            # Date validation and normalization
+            if isinstance(date_val, (datetime.datetime, datetime.date)):
+                date_str = date_val.strftime('%Y-%m-%d')
+            else:
+                date_str = str(date_val).strip()
+                # Basic YYYY-MM-DD string check
+                try:
+                    datetime.datetime.strptime(date_str, '%Y-%m-%d')
+                except ValueError:
+                    # Try other formats, or skip if invalid
+                    skipped_count += 1
+                    continue
+                    
+            # Amount normalization
+            try:
+                amount = float(amount_val)
+                if amount <= 0:
+                    skipped_count += 1
+                    continue
+            except (ValueError, TypeError):
+                skipped_count += 1
+                continue
+                
+            # Optional parameters
+            description = str(row[col_desc]).strip() if (col_desc is not None and row[col_desc] is not None) else ''
+            gateway = str(row[col_gateway]).strip() if (col_gateway is not None and row[col_gateway] is not None) else ''
+            bank = str(row[col_bank]).strip() if (col_bank is not None and row[col_bank] is not None) else ''
+            source = str(row[col_source]).strip() if (col_source is not None and row[col_source] is not None) else ''
+            method = str(row[col_method]).strip() if (col_method is not None and row[col_method] is not None) else 'Debit'
+            
+            # Ensure method is normalized to 'Debit' or 'Credit'
+            if method.lower() in ('credit', 'c'):
+                method = 'Credit'
+            else:
+                method = 'Debit'
+                
+            # Interest validation
+            interest = 0.0
+            if col_interest is not None and row[col_interest] is not None:
+                try:
+                    interest = float(row[col_interest])
+                    if interest < 0:
+                        interest = 0.0
+                except (ValueError, TypeError):
+                    interest = 0.0
+                    
+            # If method is Debit, override interest to 0.0 per business rules
+            if method == 'Debit':
+                interest = 0.0
+                
+            database.add_expense(
+                session['user_id'], amount, category_val, description, date_str,
+                bank_mode=bank, payment_type=gateway, payment_category=source,
+                interest=interest, payment_method=method
+            )
+            imported_count += 1
+            
+        return jsonify({
+            'success': True,
+            'message': f'Import completed. {imported_count} expenses imported successfully. {skipped_count} invalid rows skipped.',
+            'imported': imported_count,
+            'skipped': skipped_count
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to process file: {str(e)}'}), 500
 
 # ADMIN API ENDPOINTS
 

@@ -157,6 +157,72 @@ document.addEventListener('DOMContentLoaded', async () => {
         savePCBtn.addEventListener('click', saveAllPaymentCategories);
     }
 
+    // Excel Export binding
+    const btnExportExcel = document.getElementById('btn-export-excel');
+    if (btnExportExcel) {
+        btnExportExcel.addEventListener('click', () => {
+            const category = document.getElementById('filter-category').value;
+            const bankMode = document.getElementById('filter-bank-mode').value;
+            const paymentType = document.getElementById('filter-payment-type').value;
+            const paymentCategory = document.getElementById('filter-payment-category').value;
+            const paymentMethod = document.getElementById('filter-payment-method') ? document.getElementById('filter-payment-method').value : "";
+            const month = document.getElementById('filter-month') ? document.getElementById('filter-month').value : "";
+            const year = document.getElementById('filter-year') ? document.getElementById('filter-year').value : "";
+            const startDate = document.getElementById('filter-start-date').value;
+            const endDate = document.getElementById('filter-end-date').value;
+            const search = document.getElementById('filter-search').value;
+
+            let query = '';
+            if (category) query += `category=${encodeURIComponent(category)}&`;
+            if (bankMode) query += `bank_mode=${encodeURIComponent(bankMode)}&`;
+            if (paymentType) query += `payment_type=${encodeURIComponent(paymentType)}&`;
+            if (paymentCategory) query += `payment_category=${encodeURIComponent(paymentCategory)}&`;
+            if (paymentMethod) query += `payment_method=${encodeURIComponent(paymentMethod)}&`;
+            if (month) query += `month=${encodeURIComponent(month)}&`;
+            if (year) query += `year=${encodeURIComponent(year)}&`;
+            if (startDate) query += `start_date=${startDate}&`;
+            if (endDate) query += `end_date=${endDate}&`;
+            if (search) query += `search=${encodeURIComponent(search)}`;
+            
+            window.location.href = `/api/expenses/export?${query}`;
+        });
+    }
+
+    // Excel Import Form Submit binding
+    const importExpenseForm = document.getElementById('import-expense-form');
+    if (importExpenseForm) {
+        importExpenseForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('import-file');
+            if (!fileInput || fileInput.files.length === 0) {
+                showAppAlert('Please select a file.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/expenses/import', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showAppAlert(result.message, true);
+                    closeImportModal();
+                    // Reload data
+                    await fetchExpenses();
+                    await updateOverviewStats();
+                } else {
+                    showAppAlert(result.error || 'Failed to import expenses.');
+                }
+            } catch (err) {
+                showAppAlert('Network error importing expenses.');
+            }
+        });
+    }
+
     // Initial data fetch
     await fetchUserPrivileges();
     await fetchCategories();
@@ -204,6 +270,23 @@ function resetFilters() {
     document.getElementById('filter-end-date').value = "";
     document.getElementById('filter-search').value = "";
     fetchExpenses();
+}
+
+// IMPORT MODAL CONTROL
+function openImportModal() {
+    const importModal = document.getElementById('import-modal');
+    if (importModal) {
+        importModal.classList.remove('hidden');
+    }
+}
+
+function closeImportModal() {
+    const importModal = document.getElementById('import-modal');
+    if (importModal) {
+        importModal.classList.add('hidden');
+        const importForm = document.getElementById('import-expense-form');
+        if (importForm) importForm.reset();
+    }
 }
 
 // FETCH EXPENSES

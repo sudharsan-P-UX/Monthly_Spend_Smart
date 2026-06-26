@@ -109,6 +109,12 @@
                             <button class="btn-secondary" onclick="toggleFilters()">
                                 <i class="fa-solid fa-filter"></i> <span>Filter</span>
                             </button>
+                            <button class="btn-secondary" id="btn-export-excel">
+                                <i class="fa-solid fa-file-export"></i> <span>Export</span>
+                            </button>
+                            <button class="btn-secondary" onclick="openImportModal()">
+                                <i class="fa-solid fa-file-import"></i> <span>Import</span>
+                            </button>
                         </div>
                     </div>
 
@@ -815,6 +821,36 @@
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
                     <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- IMPORT EXPENSE MODAL -->
+    <div id="import-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Import Expenses</h2>
+                <button class="btn-close" onclick="closeImportModal()">&times;</button>
+            </div>
+            <form id="import-expense-form" class="modal-form" enctype="multipart/form-data">
+                <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.4;">
+                    Upload an Excel file (.xlsx) to import multiple expenses at once. The sheet should include headers: 
+                    <strong>Date</strong> (YYYY-MM-DD), <strong>Category</strong>, <strong>Amount</strong>. 
+                    Other optional columns: <strong>Description</strong>, <strong>Gateway</strong>, <strong>Bank</strong>, <strong>Source</strong>, <strong>Method</strong>, <strong>Interest</strong>.
+                </p>
+                <div style="margin: 5px 0 10px 0;">
+                    <a href="/api/expenses/import-template" class="btn-text" style="color: var(--color-accent); font-weight: 500; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-file-arrow-down"></i> Download Excel Template
+                    </a>
+                </div>
+                <div class="input-group">
+                    <label for="import-file">Select Excel File <span class="required">*</span></label>
+                    <input type="file" id="import-file" accept=".xlsx" required style="padding: 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); color: var(--text-primary); width: 100%;">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeImportModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Upload & Import</button>
                 </div>
             </form>
         </div>

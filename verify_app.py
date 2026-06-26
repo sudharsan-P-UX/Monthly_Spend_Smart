@@ -531,6 +531,92 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         exp_obj_updated = database.get_expense_by_id(exp_id, user_id)
         self.assertEqual(exp_obj_updated['interest'], 22.0)
 
+    def test_excel_import_export(self):
+        """Test excel import, export, and template download endpoints"""
+        from io import BytesIO
+        from openpyxl import Workbook
+        import datetime
+
+        # 1. Register and log in a user
+        h_pass = generate_password_hash('password123')
+        user_id = database.create_user('exceluser', h_pass, role_id=2)
+        self.assertIsNotNone(user_id)
+        
+        login_resp = self.app.post('/login', data=json.dumps({
+            'username': 'exceluser',
+            'password': 'password123'
+        }), content_type='application/json')
+        self.assertEqual(login_resp.status_code, 200)
+
+        # 2. Test template download
+        template_resp = self.app.get('/api/expenses/import-template')
+        self.assertEqual(template_resp.status_code, 200)
+        self.assertEqual(template_resp.mimetype, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        
+        # 3. Test export (empty first)
+        export_resp = self.app.get('/api/expenses/export')
+        self.assertEqual(export_resp.status_code, 200)
+        self.assertEqual(export_resp.mimetype, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+        # Add an expense and test export
+        database.add_expense(user_id, 80.0, 'Shopping', 'Export test', '2026-06-25', bank_mode='Kotak', payment_type='PhonePe', payment_category='Credit Card', payment_method='Credit', interest=5.0)
+        
+        export_resp = self.app.get('/api/expenses/export?category=Shopping')
+        self.assertEqual(export_resp.status_code, 200)
+        self.assertEqual(export_resp.mimetype, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+        # 4. Test import endpoint
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Import"
+        
+        # Headers
+        headers = ["Date", "Category", "Description", "Gateway", "Bank", "Source", "Method", "Amount", "Interest"]
+        ws.append(headers)
+        
+        # Row 1: Valid Debit, interest specified but should be overridden to 0
+        ws.append(["2026-06-25", "Food", "Lunch", "GPay", "SBI", "Salary", "Debit", 15.50, 2.00])
+        # Row 2: Valid Credit, datetime date, valid interest
+        ws.append([datetime.date(2026, 6, 26), "Shopping", "Clothes", "Credit Card", "Kotak", "Credit Card", "Credit", 120.00, 10.00])
+        # Row 3: Invalid amount (string instead of float, should be skipped)
+        ws.append(["2026-06-27", "Utilities", "Power", "Netbanking", "ICICI", "Savings", "Debit", "abc", 0.00])
+        # Row 4: Invalid date format (should be skipped)
+        ws.append(["2026/06/28", "Entertainment", "Movie", "Cash", "None", "None", "Debit", 20.00, 0.00])
+        # Row 5: Missing required column - Date (should be skipped)
+        ws.append([None, "Medical", "Checkup", "GPay", "SBI", "Salary", "Debit", 50.00, 0.00])
+        
+        excel_file = BytesIO()
+        wb.save(excel_file)
+        excel_file.seek(0)
+
+        # Post file
+        import_resp = self.app.post('/api/expenses/import', data={
+            'file': (excel_file, 'test_import.xlsx')
+        }, content_type='multipart/form-data')
+        
+        self.assertEqual(import_resp.status_code, 200)
+        import_data = json.loads(import_resp.data)
+        self.assertTrue(import_data['success'])
+        self.assertEqual(import_data['imported'], 2)  # Rows 1 and 2
+        self.assertEqual(import_data['skipped'], 3)   # Rows 3, 4, and 5
+
+        # Check DB entries for exceluser
+        expenses = database.get_expenses(user_id)
+        # Note: we added 1 manually before, plus 2 imported = 3 total
+        self.assertEqual(len(expenses), 3)
+
+        # Verify Row 1 details (Debit, interest overridden to 0)
+        lunch_exp = next(e for e in expenses if e['description'] == 'Lunch')
+        self.assertEqual(lunch_exp['amount'], 15.50)
+        self.assertEqual(lunch_exp['payment_method'], 'Debit')
+        self.assertEqual(lunch_exp['interest'], 0.0)
+
+        # Verify Row 2 details (Credit, interest remains 10)
+        clothes_exp = next(e for e in expenses if e['description'] == 'Clothes')
+        self.assertEqual(clothes_exp['amount'], 120.00)
+        self.assertEqual(clothes_exp['payment_method'], 'Credit')
+        self.assertEqual(clothes_exp['interest'], 10.0)
+
 if __name__ == '__main__':
     unittest.main()
 
