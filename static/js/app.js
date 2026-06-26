@@ -157,34 +157,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         savePCBtn.addEventListener('click', saveAllPaymentCategories);
     }
 
-    // Excel Export binding
-    const btnExportExcel = document.getElementById('btn-export-excel');
-    if (btnExportExcel) {
-        btnExportExcel.addEventListener('click', () => {
-            const category = document.getElementById('filter-category').value;
-            const bankMode = document.getElementById('filter-bank-mode').value;
-            const paymentType = document.getElementById('filter-payment-type').value;
-            const paymentCategory = document.getElementById('filter-payment-category').value;
-            const paymentMethod = document.getElementById('filter-payment-method') ? document.getElementById('filter-payment-method').value : "";
-            const month = document.getElementById('filter-month') ? document.getElementById('filter-month').value : "";
-            const year = document.getElementById('filter-year') ? document.getElementById('filter-year').value : "";
-            const startDate = document.getElementById('filter-start-date').value;
-            const endDate = document.getElementById('filter-end-date').value;
-            const search = document.getElementById('filter-search').value;
-
+    // Excel Export Form Submit binding (Month/Year selection)
+    const exportExpenseForm = document.getElementById('export-expense-form');
+    if (exportExpenseForm) {
+        exportExpenseForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const month = document.getElementById('export-month').value;
+            const year = document.getElementById('export-year').value;
+            
             let query = '';
-            if (category) query += `category=${encodeURIComponent(category)}&`;
-            if (bankMode) query += `bank_mode=${encodeURIComponent(bankMode)}&`;
-            if (paymentType) query += `payment_type=${encodeURIComponent(paymentType)}&`;
-            if (paymentCategory) query += `payment_category=${encodeURIComponent(paymentCategory)}&`;
-            if (paymentMethod) query += `payment_method=${encodeURIComponent(paymentMethod)}&`;
             if (month) query += `month=${encodeURIComponent(month)}&`;
-            if (year) query += `year=${encodeURIComponent(year)}&`;
-            if (startDate) query += `start_date=${startDate}&`;
-            if (endDate) query += `end_date=${endDate}&`;
-            if (search) query += `search=${encodeURIComponent(search)}`;
+            if (year) query += `year=${encodeURIComponent(year)}`;
             
             window.location.href = `/api/expenses/export?${query}`;
+            closeExportModal();
         });
     }
 
@@ -220,6 +206,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (err) {
                 showAppAlert('Network error importing expenses.');
             }
+        });
+    }
+
+    const excelColumnsFilter = document.getElementById('admin-excel-columns-filter');
+    if (excelColumnsFilter) {
+        excelColumnsFilter.addEventListener('change', () => {
+            adminFetchExcelColumns();
         });
     }
 
@@ -286,6 +279,23 @@ function closeImportModal() {
         importModal.classList.add('hidden');
         const importForm = document.getElementById('import-expense-form');
         if (importForm) importForm.reset();
+    }
+}
+
+// EXPORT MODAL CONTROL
+function openExportModal() {
+    const exportModal = document.getElementById('export-modal');
+    if (exportModal) {
+        exportModal.classList.remove('hidden');
+    }
+}
+
+function closeExportModal() {
+    const exportModal = document.getElementById('export-modal');
+    if (exportModal) {
+        exportModal.classList.add('hidden');
+        const exportForm = document.getElementById('export-expense-form');
+        if (exportForm) exportForm.reset();
     }
 }
 
@@ -893,6 +903,11 @@ function switchView(target) {
         loadCharts();
     } else if (target === 'admin') {
         loadAdminPanel();
+        if (!currentUserPrivileges.is_admin) {
+            switchAdminTab('admin-excel-columns');
+        } else {
+            switchAdminTab('admin-users');
+        }
     } else if (target === 'add-expense' || target === 'dashboard') {
         // Refresh dropdown configurations to guarantee they are in sync
         fetchCategories();
@@ -917,15 +932,26 @@ async function fetchUserPrivileges() {
 }
 
 function applyUserPrivileges() {
-    // Hide or show Admin sidebar item
+    // Show Admin sidebar item for everyone (admins edit, users view read-only column config)
     const navAdmin = document.getElementById('nav-admin');
     if (navAdmin) {
-        if (currentUserPrivileges.is_admin) {
-            navAdmin.classList.remove('hidden');
-        } else {
-            navAdmin.classList.add('hidden');
-        }
+        navAdmin.classList.remove('hidden');
     }
+
+    // Hide or show individual admin sub-tabs based on role
+    const adminTabs = document.querySelectorAll('.admin-tab');
+    adminTabs.forEach(tab => {
+        const targetTab = tab.getAttribute('data-tab');
+        if (targetTab === 'admin-excel-columns') {
+            tab.classList.remove('hidden');
+        } else {
+            if (currentUserPrivileges.is_admin) {
+                tab.classList.remove('hidden');
+            } else {
+                tab.classList.add('hidden');
+            }
+        }
+    });
 
     // Hide or show Add Expense sidebar item
     const navAddExpense = document.getElementById('nav-add-expense');
@@ -1158,6 +1184,26 @@ function initAdminTabs() {
     });
 }
 
+function switchAdminTab(tabName) {
+    const adminTabs = document.querySelectorAll('.admin-tab');
+    adminTabs.forEach(tab => {
+        if (tab.getAttribute('data-tab') === tabName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+
+    document.querySelectorAll('.admin-sub-section').forEach(sec => {
+        sec.classList.add('hidden');
+    });
+
+    const subSec = document.getElementById(`tab-${tabName}`);
+    if (subSec) {
+        subSec.classList.remove('hidden');
+    }
+}
+
 async function loadAdminPanel() {
     try {
         await adminFetchRoles();
@@ -1169,7 +1215,8 @@ async function loadAdminPanel() {
         adminFetchCategories(),
         adminFetchBankModes(),
         adminFetchPaymentTypes(),
-        adminFetchPaymentCategories()
+        adminFetchPaymentCategories(),
+        adminFetchExcelColumns()
     ]);
 }
 
@@ -1978,6 +2025,77 @@ async function handleAdminCreatePaymentCategory(e) {
         }
     } catch (err) {
         showAppAlert('Network error creating payment category.');
+    }
+}
+
+// ADMIN EXCEL COLUMNS
+async function adminFetchExcelColumns() {
+    try {
+        const response = await fetch('/api/admin/excel-columns');
+        if (response.ok) {
+            const cols = await response.json();
+            renderAdminExcelColumnsTable(cols);
+        }
+    } catch (err) {
+        console.error('Error fetching admin excel columns:', err);
+    }
+}
+
+function renderAdminExcelColumnsTable(columns) {
+    const tbody = document.getElementById('admin-excel-columns-list');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const filterSelect = document.getElementById('admin-excel-columns-filter');
+    const filterType = filterSelect ? filterSelect.value : 'import';
+    const isAdmin = currentUserPrivileges && currentUserPrivileges.is_admin;
+    const isDisabled = isAdmin ? '' : 'disabled';
+
+    columns.forEach(col => {
+        const tr = document.createElement('tr');
+        
+        const isReq = col.is_required === 1;
+        const requiredHtml = isReq 
+            ? `<span class="badge badge-admin"><i class="fa-solid fa-check"></i> Yes</span>` 
+            : `<span class="badge badge-viewer">No</span>`;
+            
+        const isChecked = (filterType === 'import' ? col.is_enabled_import : col.is_enabled_export) === 1 ? 'checked' : '';
+        
+        tr.innerHTML = `
+            <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
+            <td><code>${escapeHTML(col.column_key)}</code></td>
+            <td class="text-center">${requiredHtml}</td>
+            <td class="text-center">
+                <label class="checkbox-container" style="display: inline-block;">
+                    <input type="checkbox" ${isChecked} ${isDisabled} onchange="toggleExcelColumnStatus('${col.column_key}', this.checked)">
+                    <span class="checkmark"></span>
+                </label>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function toggleExcelColumnStatus(columnKey, isChecked) {
+    const filterSelect = document.getElementById('admin-excel-columns-filter');
+    const typeKey = filterSelect ? filterSelect.value : 'import';
+    try {
+        const response = await fetch('/api/admin/excel-columns/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ column_key: columnKey, is_enabled: isChecked ? 1 : 0, type_key: typeKey })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Column status updated successfully!', true);
+            await adminFetchExcelColumns();
+        } else {
+            showAppAlert(result.error || 'Failed to update column status.');
+            await adminFetchExcelColumns();
+        }
+    } catch (err) {
+        showAppAlert('Network error updating column status.');
+        await adminFetchExcelColumns();
     }
 }
 

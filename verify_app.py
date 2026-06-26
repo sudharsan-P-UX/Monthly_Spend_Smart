@@ -617,6 +617,155 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertEqual(clothes_exp['payment_method'], 'Credit')
         self.assertEqual(clothes_exp['interest'], 10.0)
 
+    def test_excel_columns_admin_configuration(self):
+        """Test excel columns admin toggle functionality and its effect on import/export"""
+        from io import BytesIO
+        from openpyxl import load_workbook, Workbook
+        import datetime
+
+        # 1. Login as admin
+        login_resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(login_resp.status_code, 200)
+
+        # 2. Get excel columns list
+        resp = self.app.get('/api/admin/excel-columns')
+        self.assertEqual(resp.status_code, 200)
+        cols = json.loads(resp.data)
+        self.assertEqual(len(cols), 9)
+
+        # Find "interest" and verify it's enabled by default
+        interest_col = next(c for c in cols if c['column_key'] == 'interest')
+        self.assertEqual(interest_col['is_enabled_import'], 1)
+        self.assertEqual(interest_col['is_enabled_export'], 1)
+        self.assertEqual(interest_col['is_required'], 0)
+
+        # 3. Toggle "interest" column to disabled for import & export
+        resp = self.app.post('/api/admin/excel-columns/toggle', data=json.dumps({
+            'column_key': 'interest',
+            'is_enabled': 0,
+            'type_key': 'import'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(json.loads(resp.data)['success'])
+
+        resp = self.app.post('/api/admin/excel-columns/toggle', data=json.dumps({
+            'column_key': 'interest',
+            'is_enabled': 0,
+            'type_key': 'export'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(json.loads(resp.data)['success'])
+
+        # Verify it was updated
+        resp = self.app.get('/api/admin/excel-columns')
+        cols = json.loads(resp.data)
+        interest_col = next(c for c in cols if c['column_key'] == 'interest')
+        self.assertEqual(interest_col['is_enabled_import'], 0)
+        self.assertEqual(interest_col['is_enabled_export'], 0)
+
+        # 4. Disable a required column for admin (should succeed since admin has "all access")
+        resp = self.app.post('/api/admin/excel-columns/toggle', data=json.dumps({
+            'column_key': 'date',
+            'is_enabled': 0,
+            'type_key': 'import'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(json.loads(resp.data)['success'])
+
+        # Verify date is disabled
+        resp = self.app.get('/api/admin/excel-columns')
+        cols = json.loads(resp.data)
+        date_col = next(c for c in cols if c['column_key'] == 'date')
+        self.assertEqual(date_col['is_enabled_import'], 0)
+
+        # 5. Check import template (interest and date should not be in the headers)
+        template_resp = self.app.get('/api/expenses/import-template')
+        self.assertEqual(template_resp.status_code, 200)
+        wb = load_workbook(BytesIO(template_resp.data), data_only=True)
+        ws = wb.active
+        headers = [cell.value for cell in ws[1]]
+        self.assertNotIn('Interest', headers)
+        self.assertNotIn('Date', headers)
+        self.assertIn('Amount', headers)
+
+        # 6. Check export (interest should not be in the headers)
+        export_resp = self.app.get('/api/expenses/export')
+        self.assertEqual(export_resp.status_code, 200)
+        wb_exp = load_workbook(BytesIO(export_resp.data), data_only=True)
+        ws_exp = wb_exp.active
+        headers_exp = [cell.value for cell in ws_exp[1]]
+        self.assertNotIn('Interest', headers_exp)
+
+        # 7. Check import with disabled column (and missing required date since date is disabled):
+        # If we upload a file, it will ignore interest and fallback to default date (today)
+        wb_imp = Workbook()
+        ws_imp = wb_imp.active
+        ws_imp.append(["Category", "Amount"]) # Date and Interest are omitted
+        ws_imp.append(["Food", 15.50])
+        excel_file = BytesIO()
+        wb_imp.save(excel_file)
+        excel_file.seek(0)
+
+        import_resp = self.app.post('/api/expenses/import', data={
+            'file': (excel_file, 'test_import.xlsx')
+        }, content_type='multipart/form-data')
+        self.assertEqual(import_resp.status_code, 200)
+        
+        # Verify expense is created with default today's date and interest is 0.0
+        expenses = database.get_expenses(1)
+        food_exp = next(e for e in expenses if e['category'] == 'Food' and e['amount'] == 15.50)
+        self.assertEqual(food_exp['interest'], 0.0)
+        self.assertEqual(food_exp['date'], datetime.date.today().strftime('%Y-%m-%d'))
+
+        # 8. Test read-only access for non-admin
+        self.app.get('/logout')
+        # Register a non-admin user
+        reg_resp = self.app.post('/register', data={
+            'username': 'normaluser',
+            'password': 'normaluser123'
+        })
+        self.assertEqual(reg_resp.status_code, 200)
+
+        # Non-admin gets excel-columns list successfully (returns 200)
+        resp = self.app.get('/api/admin/excel-columns')
+        self.assertEqual(resp.status_code, 200)
+
+        # Non-admin tries to toggle columns (should fail with 403 Forbidden)
+        resp = self.app.post('/api/admin/excel-columns/toggle', data=json.dumps({
+            'column_key': 'interest',
+            'is_enabled': 1,
+            'type_key': 'import'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 403)
+
+        # 9. Restore interest and date status for other tests
+        self.app.get('/logout')
+        # Login back as admin
+        login_resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(login_resp.status_code, 200)
+
+        self.app.post('/api/admin/excel-columns/toggle', data=json.dumps({
+            'column_key': 'interest',
+            'is_enabled': 1,
+            'type_key': 'import'
+        }), content_type='application/json')
+        self.app.post('/api/admin/excel-columns/toggle', data=json.dumps({
+            'column_key': 'interest',
+            'is_enabled': 1,
+            'type_key': 'export'
+        }), content_type='application/json')
+        self.app.post('/api/admin/excel-columns/toggle', data=json.dumps({
+            'column_key': 'date',
+            'is_enabled': 1,
+            'type_key': 'import'
+        }), content_type='application/json')
+
 if __name__ == '__main__':
     unittest.main()
 

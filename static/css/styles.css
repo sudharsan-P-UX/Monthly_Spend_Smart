@@ -1408,4 +1408,18 @@ body {
         width: 95% !important;
         margin: 20px auto !important;
     }
+    .card-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+        width: auto !important;
+    }
+}
+
+.card-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
 }

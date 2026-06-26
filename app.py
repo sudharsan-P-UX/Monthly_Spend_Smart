@@ -258,13 +258,43 @@ def get_import_template():
     ws = wb.active
     ws.title = "Import Template"
     
+    # Get active columns
+    db_cols = database.get_excel_columns()
+    active_cols = [c for c in db_cols if c['is_enabled_import'] == 1]
+    
     # Headers
-    headers = ["Date", "Category", "Description", "Gateway", "Bank", "Source", "Method", "Amount", "Interest"]
+    headers = [c['column_label'] for c in active_cols]
     ws.append(headers)
     
+    # Sample placeholders
+    placeholders = {
+        'date': "2026-06-25",
+        'category': "Food & Dining",
+        'description': "Lunch with friends",
+        'gateway': "GPay",
+        'bank': "SBI",
+        'source': "Salary",
+        'method': "Debit",
+        'amount': 12.50,
+        'interest': 0.00
+    }
+    placeholders2 = {
+        'date': "2026-06-26",
+        'category': "Shopping",
+        'description': "Bought a laptop",
+        'gateway': "Credit Card",
+        'bank': "Kotak",
+        'source': "Credit Card",
+        'method': "Credit",
+        'amount': 1200.00,
+        'interest': 45.00
+    }
+    
     # Add sample placeholder rows
-    ws.append(["2026-06-25", "Food & Dining", "Lunch with friends", "GPay", "SBI", "Salary", "Debit", 12.50, 0.00])
-    ws.append(["2026-06-26", "Shopping", "Bought a laptop", "Credit Card", "Kotak", "Credit Card", "Credit", 1200.00, 45.00])
+    row1 = [placeholders.get(c['column_key']) for c in active_cols]
+    row2 = [placeholders2.get(c['column_key']) for c in active_cols]
+    ws.append(row1)
+    ws.append(row2)
     
     # Adjust column widths for readability
     for col in ws.columns:
@@ -286,52 +316,52 @@ def get_import_template():
 @app.route('/api/expenses/export', methods=['GET'])
 @require_privilege('can_view')
 def export_expenses():
-    category = request.args.get('category')
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    search = request.args.get('search')
-    bank_mode = request.args.get('bank_mode')
-    payment_type = request.args.get('payment_type')
-    payment_category = request.args.get('payment_category')
-    payment_method = request.args.get('payment_method')
     month = request.args.get('month')
     year = request.args.get('year')
     
+    # Only filter by month and year, ignore other filters per instructions
     expenses = database.get_expenses(
         session['user_id'],
-        category=category,
-        start_date=start_date,
-        end_date=end_date,
-        search=search,
-        bank_mode=bank_mode,
-        payment_type=payment_type,
-        payment_category=payment_category,
         month=month,
-        year=year,
-        payment_method=payment_method
+        year=year
     )
     
     wb = Workbook()
     ws = wb.active
     ws.title = "Expenses"
     
+    # Get active columns
+    db_cols = database.get_excel_columns()
+    active_cols = [c for c in db_cols if c['is_enabled_export'] == 1]
+    
     # Headers
-    headers = ["Date", "Category", "Description", "Gateway", "Bank", "Source", "Method", "Amount", "Interest"]
+    headers = [c['column_label'] for c in active_cols]
     ws.append(headers)
     
     # Write data
     for exp in expenses:
-        ws.append([
-            exp.get('date', ''),
-            exp.get('category', ''),
-            exp.get('description', ''),
-            exp.get('payment_type', ''),
-            exp.get('bank_mode', ''),
-            exp.get('payment_category', ''),
-            exp.get('payment_method', 'Debit'),
-            float(exp.get('amount', 0.0)),
-            float(exp.get('interest', 0.0))
-        ])
+        row_data = []
+        for col in active_cols:
+            k = col['column_key']
+            if k == 'date':
+                row_data.append(exp.get('date', ''))
+            elif k == 'category':
+                row_data.append(exp.get('category', ''))
+            elif k == 'description':
+                row_data.append(exp.get('description', ''))
+            elif k == 'gateway':
+                row_data.append(exp.get('payment_type', ''))
+            elif k == 'bank':
+                row_data.append(exp.get('bank_mode', ''))
+            elif k == 'source':
+                row_data.append(exp.get('payment_category', ''))
+            elif k == 'method':
+                row_data.append(exp.get('payment_method', 'Debit'))
+            elif k == 'amount':
+                row_data.append(float(exp.get('amount', 0.0)))
+            elif k == 'interest':
+                row_data.append(float(exp.get('interest', 0.0)))
+        ws.append(row_data)
         
     # Adjust column widths
     for col in ws.columns:
@@ -343,11 +373,18 @@ def export_expenses():
     wb.save(out)
     out.seek(0)
     
+    download_name = f"expenses_export"
+    if year:
+        download_name += f"_{year}"
+    if month:
+        download_name += f"_{month}"
+    download_name += f"_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
+    
     return send_file(
         out,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         as_attachment=True,
-        download_name=f"expenses_export_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
+        download_name=download_name
     )
 
 @app.route('/api/expenses/import', methods=['POST'])
@@ -380,23 +417,33 @@ def import_expenses():
             if val is not None:
                 header_map[str(val).strip().lower()] = i
                 
-        # Required columns mapping
-        col_date = header_map.get('date')
-        col_category = header_map.get('category')
-        col_amount = header_map.get('amount')
+        # Get active columns configuration (specifically for Import)
+        db_cols = database.get_excel_columns()
+        enabled_keys = {c['column_key']: c['is_required'] for c in db_cols if c['is_enabled_import'] == 1}
         
-        if col_date is None or col_category is None or col_amount is None:
+        # Required columns mapping
+        col_date = header_map.get('date') if 'date' in enabled_keys else None
+        col_category = header_map.get('category') if 'category' in enabled_keys else None
+        col_amount = header_map.get('amount') if 'amount' in enabled_keys else None
+        
+        # Verify required headers are present (only if enabled)
+        missing_reqs = []
+        if 'date' in enabled_keys and col_date is None: missing_reqs.append('Date')
+        if 'category' in enabled_keys and col_category is None: missing_reqs.append('Category')
+        if 'amount' in enabled_keys and col_amount is None: missing_reqs.append('Amount')
+        
+        if missing_reqs:
             return jsonify({
-                'error': 'Required columns missing. Ensure your Excel sheet has "Date", "Category", and "Amount" in the first row.'
+                'error': f'Required columns missing in Excel: {", ".join(missing_reqs)}'
             }), 400
             
-        # Optional columns mapping
-        col_desc = header_map.get('description')
-        col_gateway = header_map.get('gateway') or header_map.get('payment type') or header_map.get('payment_type')
-        col_bank = header_map.get('bank') or header_map.get('bank mode') or header_map.get('bank_mode')
-        col_source = header_map.get('source') or header_map.get('payment category') or header_map.get('payment_category')
-        col_method = header_map.get('method') or header_map.get('payment method') or header_map.get('payment_method')
-        col_interest = header_map.get('interest')
+        # Optional columns mapping (if enabled)
+        col_desc = header_map.get('description') if 'description' in enabled_keys else None
+        col_gateway = (header_map.get('gateway') or header_map.get('payment type') or header_map.get('payment_type')) if 'gateway' in enabled_keys else None
+        col_bank = (header_map.get('bank') or header_map.get('bank mode') or header_map.get('bank_mode')) if 'bank' in enabled_keys else None
+        col_source = (header_map.get('source') or header_map.get('payment category') or header_map.get('payment_category')) if 'source' in enabled_keys else None
+        col_method = (header_map.get('method') or header_map.get('payment method') or header_map.get('payment_method')) if 'method' in enabled_keys else None
+        col_interest = header_map.get('interest') if 'interest' in enabled_keys else None
         
         imported_count = 0
         skipped_count = 0
@@ -406,37 +453,54 @@ def import_expenses():
             if not any(val is not None for val in row):
                 continue
                 
-            date_val = row[col_date]
-            category_val = row[col_category]
-            amount_val = row[col_amount]
+            date_val = row[col_date] if col_date is not None else None
+            category_val = row[col_category] if col_category is not None else None
+            amount_val = row[col_amount] if col_amount is not None else None
             
-            # Simple validation checks
-            if date_val is None or category_val is None or amount_val is None:
-                skipped_count += 1
-                continue
-                
-            # Date validation and normalization
-            if isinstance(date_val, (datetime.datetime, datetime.date)):
-                date_str = date_val.strftime('%Y-%m-%d')
+            # Date validation and normalization (fallback if disabled)
+            if 'date' in enabled_keys and col_date is not None:
+                if date_val is None:
+                    skipped_count += 1
+                    continue
+                if isinstance(date_val, (datetime.datetime, datetime.date)):
+                    date_str = date_val.strftime('%Y-%m-%d')
+                else:
+                    date_str = str(date_val).strip()
+                    try:
+                        datetime.datetime.strptime(date_str, '%Y-%m-%d')
+                    except ValueError:
+                        skipped_count += 1
+                        continue
             else:
-                date_str = str(date_val).strip()
-                # Basic YYYY-MM-DD string check
+                date_str = datetime.date.today().strftime('%Y-%m-%d')
+                
+            # Category validation and normalization (fallback if disabled)
+            if 'category' in enabled_keys and col_category is not None:
+                if category_val is None:
+                    skipped_count += 1
+                    continue
+                category_val = str(category_val).strip()
+                if not category_val:
+                    skipped_count += 1
+                    continue
+            else:
+                category_val = 'Other'
+                
+            # Amount normalization (fallback if disabled)
+            if 'amount' in enabled_keys and col_amount is not None:
+                if amount_val is None:
+                    skipped_count += 1
+                    continue
                 try:
-                    datetime.datetime.strptime(date_str, '%Y-%m-%d')
-                except ValueError:
-                    # Try other formats, or skip if invalid
+                    amount = float(amount_val)
+                    if amount <= 0:
+                        skipped_count += 1
+                        continue
+                except (ValueError, TypeError):
                     skipped_count += 1
                     continue
-                    
-            # Amount normalization
-            try:
-                amount = float(amount_val)
-                if amount <= 0:
-                    skipped_count += 1
-                    continue
-            except (ValueError, TypeError):
-                skipped_count += 1
-                continue
+            else:
+                amount = 0.01
                 
             # Optional parameters
             description = str(row[col_desc]).strip() if (col_desc is not None and row[col_desc] is not None) else ''
@@ -480,6 +544,34 @@ def import_expenses():
         })
     except Exception as e:
         return jsonify({'error': f'Failed to process file: {str(e)}'}), 500
+
+# EXCEL COLUMNS CONFIGURATION CRUD ENDPOINTS (Open to all logged-in users for viewing, toggle restricted to Admin)
+@app.route('/api/admin/excel-columns', methods=['GET'])
+def admin_get_excel_columns():
+    if not is_logged_in():
+        return jsonify({'error': 'Unauthorized'}), 401
+    cols = database.get_excel_columns()
+    return jsonify(cols)
+
+@app.route('/api/admin/excel-columns/toggle', methods=['POST'])
+@require_privilege('can_admin')
+def admin_toggle_excel_column():
+    data = request.get_json()
+    column_key = data.get('column_key')
+    is_enabled = data.get('is_enabled')
+    type_key = data.get('type_key')
+    
+    if column_key is None or is_enabled is None or type_key not in ('import', 'export'):
+        return jsonify({'error': 'Column key, is_enabled, and valid type_key ("import" or "export") are required.'}), 400
+        
+    db_cols = database.get_excel_columns()
+    target_col = next((c for c in db_cols if c['column_key'] == column_key), None)
+    if not target_col:
+        return jsonify({'error': 'Column not found.'}), 404
+        
+    # User is Admin since they passed @require_privilege('can_admin'), so they have "all access" (can toggle required columns if desired)
+    database.update_excel_column_status(column_key, type_key, int(is_enabled))
+    return jsonify({'success': True, 'message': 'Column status updated successfully.'})
 
 # ADMIN API ENDPOINTS
 

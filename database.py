@@ -102,6 +102,27 @@ def init_db():
         )
     ''')
     
+    # Create excel_columns table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS excel_columns (
+            column_key TEXT PRIMARY KEY,
+            column_label TEXT NOT NULL,
+            is_enabled_import INTEGER DEFAULT 1,
+            is_enabled_export INTEGER DEFAULT 1,
+            is_required INTEGER DEFAULT 0
+        )
+    ''')
+    
+    # Migrations for excel_columns table
+    try:
+        cursor.execute("ALTER TABLE excel_columns ADD COLUMN is_enabled_import INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE excel_columns ADD COLUMN is_enabled_export INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+    
     # Migrations for users and expenses columns
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN role_id INTEGER")
@@ -176,7 +197,6 @@ def init_db():
         ]
         cursor.executemany("INSERT INTO payment_types (name, display_order) VALUES (?, ?)", default_pt)
         
-    # Seed Default Payment Categories (Payment Sources)
     cursor.execute("DELETE FROM payment_categories WHERE name IN ('Debit', 'Credit')")
     pc_exist = cursor.execute("SELECT COUNT(*) FROM payment_categories").fetchone()[0]
     if pc_exist == 0:
@@ -187,6 +207,22 @@ def init_db():
             ('Loan', 4)
         ]
         cursor.executemany("INSERT INTO payment_categories (name, display_order) VALUES (?, ?)", default_pc)
+
+    # Seed Default Excel Columns
+    cols_exist = cursor.execute("SELECT COUNT(*) FROM excel_columns").fetchone()[0]
+    if cols_exist == 0:
+        default_cols = [
+            ('date', 'Date', 1, 1, 1),
+            ('category', 'Category', 1, 1, 1),
+            ('description', 'Description', 1, 1, 0),
+            ('gateway', 'Gateway', 1, 1, 0),
+            ('bank', 'Bank', 1, 1, 0),
+            ('source', 'Source', 1, 1, 0),
+            ('method', 'Method', 1, 1, 0),
+            ('amount', 'Amount', 1, 1, 1),
+            ('interest', 'Interest', 1, 1, 0)
+        ]
+        cursor.executemany("INSERT INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required) VALUES (?, ?, ?, ?, ?)", default_cols)
 
     conn.commit()
     conn.close()
@@ -746,6 +782,26 @@ def delete_payment_category(pc_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM payment_categories WHERE id = ?', (pc_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+# EXCEL COLUMNS CONFIGURATION HELPERS
+def get_excel_columns():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cols = cursor.execute("SELECT column_key, column_label, is_enabled_import, is_enabled_export, is_required FROM excel_columns").fetchall()
+    conn.close()
+    return [dict(c) for c in cols]
+
+def update_excel_column_status(column_key, type_key, is_enabled):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    field = 'is_enabled_import' if type_key == 'import' else 'is_enabled_export'
+    cursor.execute(
+        f"UPDATE excel_columns SET {field} = ? WHERE column_key = ?",
+        (int(is_enabled), column_key)
+    )
     conn.commit()
     conn.close()
     return True

@@ -6,17 +6,29 @@ This document outlines the containerization, dynamic role loading, mobile respon
 
 ## 1. Feature Additions & UX Updates
 
-### A. Excel Import and Export Capabilities (NEW)
+### A. Excel Import and Export Capabilities
 - **Backend API Endpoints (`app.py`)**:
-  - `GET /api/expenses/import-template`: Dynamically generates and returns a sample `.xlsx` template file with standard headers (`Date`, `Category`, `Amount` required; `Description`, `Gateway`, `Bank`, `Source`, `Method`, `Interest` optional) and two pre-filled placeholder rows.
-  - `GET /api/expenses/export`: Parses dashboard filter options, extracts the filtered database records, writes them to a new Excel sheet, dynamically adjusts column widths for legibility, and streams the `.xlsx` download.
-  - `POST /api/expenses/import`: Accepts an uploaded spreadsheet, normalizes and maps case-insensitive column headers, parses cell dates (supporting datetime objects and string formats), validates numeric amounts, skips empty/malformed rows, and inserts valid expenses into the database. Automatically overrides interest to `0.0` if the payment method is `Debit` per business rules.
+  - `GET /api/expenses/import-template`: Dynamically generates and returns a sample `.xlsx` template file containing headers only for active/enabled Excel columns (based on admin configuration) and two pre-filled placeholder rows.
+  - `GET /api/expenses/export`: Parses the chosen Month and Year filter options from the export modal, extracts database records, writes only active/enabled columns to the sheet, dynamically adjusts column widths, and streams the `.xlsx` download.
+  - `POST /api/expenses/import`: Accepts an uploaded spreadsheet, checks if active required columns (Date, Category, Amount) are present, parses cells, validates rows, and bulk inserts them. Optional columns that are disabled by the administrator are ignored during import and fallback to default safe values.
 - **Frontend Bindings (`app.js`, `index.html`)**:
-  - Add **Import** and **Export** buttons with elegant glassmorphic icons.
-  - Built an overlay dialog modal (`#import-modal`) with download instructions, a link to the sample template, and a file drop selection wrapper.
-  - Added JS handlers to open/close the modal, retrieve dashboard filter parameters dynamically for exports, upload files asynchronously using `FormData`, display alerts on success/failure, and reload statistics.
+  - Re-ordered dashboard buttons to: `Filter` | `Import` | `Export` horizontally.
+  - Built an overlay dialog modal (`#import-modal`) for selecting and importing spreadsheets.
+  - Built a new **Export modal dialog (`#export-modal`)** that opens on clicking "Export". It allows the user to select the Month and Year of data they want to export (leaving them blank downloads all transactions).
+  - Wired the Export modal submit action to download `/api/expenses/export?month=MM&year=YYYY`.
 
-### B. Mobile Responsiveness Tuning
+### B. Excel Columns Configuration Panel (NEW)
+- **Database Schema (`database.py`)**:
+  - Created the `excel_columns` table mapping column keys (`date`, `category`, `amount`, `description`, `gateway`, `bank`, `source`, `method`, `interest`) to labels, req-status, and active states (`is_enabled`).
+  - Automatically seeds default columns on DB initialisation.
+- **API Endpoints (`app.py`)**:
+  - `GET /api/admin/excel-columns`: Returns current column listings and required states (Admin only).
+  - `POST /api/admin/excel-columns/toggle`: Modifies enabled states for optional columns (blocks changes to required columns; Admin only).
+- **Admin panel interface (`index.html`, `app.js`)**:
+  - Added a 7th admin configuration tab: **Excel Columns**.
+  - Displays columns in a table. Optional columns show toggle checkboxes that save changes instantly. Required columns show active checks that are grayed out/locked.
+
+### C. Mobile Responsiveness Tuning
 - **File modified**: [styles.css](file:///C:/Users/sudharsanp/.gemini/antigravity/scratch/MonthlyExpenseNew/static/css/styles.css)
 - Added dedicated mobile media query rules (`@media (max-width: 768px)`) to optimize the interface for mobile and tablet viewports:
   - **Menu Stacking**: Modified the horizontal top navigation to fold into a vertical menu layout on mobile, preventing overlap and layout breakage.
@@ -25,21 +37,21 @@ This document outlines the containerization, dynamic role loading, mobile respon
   - **Card Header Wrap**: Configured panel headers to align vertically on thin screens to avoid action buttons overlapping with titles.
   - **Dialog & Modal Constraints**: Centered the Edit Modal and customized mobile scaling margins for a comfortable display.
 
-### C. Empty Role Dropdown Concurrency Fix
+### D. Empty Role Dropdown Concurrency Fix
 - **File modified**: [app.js](file:///C:/Users/sudharsanp/.gemini/antigravity/scratch/MonthlyExpenseNew/static/js/app.js)
 - **The Issue**: Previously, the Admin panel loaded user information and role profiles concurrently via `Promise.all()`. If users loaded faster than roles, the dropdown selectors in the users list rendered without options.
 - **The Solution**: Restructured `loadAdminPanel()` to await `adminFetchRoles()` sequentially first, ensuring `systemRoles` is fully loaded in memory before fetching the user list and rendering dropdowns.
 
-### D. Dockerization & Server Support
+### E. Dockerization & Server Support
 - **File created**: [Dockerfile](file:///C:/Users/sudharsanp/.gemini/antigravity/scratch/MonthlyExpenseNew/Dockerfile)
 - Configured a lightweight `python:3.11-slim` container utilizing `gunicorn` as the web application server.
 
-### E. Persistent Database Volume Support
+### F. Persistent Database Volume Support
 - **File modified**: [database.py](file:///C:/Users/sudharsanp/.gemini/antigravity/scratch/MonthlyExpenseNew/database.py)
 - Enabled check for `/data/expenses.db` (Render persistent volume) or custom `DATABASE_PATH` environment variables, falling back to local files in dev.
 - Opened permissions (`chmod 777`) on the `/data` container directory to avoid any permission conflicts with SQLite file writes on Render disks.
 
-### F. Session stability
+### G. Session stability
 - **File modified**: [app.py](file:///C:/Users/sudharsanp/.gemini/antigravity/scratch/MonthlyExpenseNew/app.py)
 - Enabled binding the Flask secret key to a persistent `SECRET_KEY` environment variable so container recycles/sleeps on Render do not log you out.
 
@@ -88,19 +100,14 @@ Once the deploy is complete, your SpendSmart instance will be live, and all expe
 ### Automated Tests
 Ran the full test suite after updates:
 ```text
-............
+.............
 ----------------------------------------------------------------------
-Ran 12 tests in 6.089s
+Ran 13 tests in 12.856s
 
 OK
 ```
 All unit tests are fully compliant and passing.
 
-#### Added Test Coverage
-- `test_excel_import_export`: 
-  - Downloads sample spreadsheet template and verifies MIME type headers.
-  - Adds expense records and exports filtered listings as Excel file stream.
-  - Uploads in-memory spreadsheet with:
-    - Valid Debit transaction (asserts interest auto-corrected to `0.00`).
-    - Valid Credit transaction (with date objects and valid interest).
-    - Invalid rows (corrupt dates, letters in amounts, missing fields) and asserts that exactly 3 rows are skipped and exactly 2 rows are imported.
+#### Test Coverage Added
+- `test_excel_import_export`: Validates template downloads, custom exports, and spreadsheet uploads parsing, skipping invalid rows.
+- `test_excel_columns_admin_configuration`: Logs in as Admin, retrieves column settings, disables the optional `interest` column, verifies it gets omitted from template headers and export sheets, ensures uploading without "Interest" defaults it safely, blocks disabling required fields, and restores settings status.
