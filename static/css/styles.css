@@ -212,7 +212,7 @@ body {
 .filter-group select option,
 .modal-form select option {
     background-color: var(--bg-dark);
-    color: var(--text-primary);
+    color: #090d16;
 }
 
 /* Regular inputs (without icon offset) in modals */
@@ -629,7 +629,7 @@ body {
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--border-glass);
     border-radius: var(--radius-sm);
-    color: var(--text-primary);
+    color: black;
     font-family: var(--font-family);
     font-size: 0.85rem;
     transition: var(--transition-smooth);
