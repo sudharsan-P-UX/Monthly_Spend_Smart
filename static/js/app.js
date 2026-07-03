@@ -13,14 +13,45 @@ let systemPaymentCategories = [];
 let adminBankModesLocal = [];
 let adminPaymentTypesLocal = [];
 let adminPaymentCategoriesLocal = [];
+let activeCurrencySymbol = '₹';
+let adminCurrenciesLocal = [];
 
 // Initialize Page
 document.addEventListener('DOMContentLoaded', async () => {
+    // Fetch active currency first to set dynamic labels
+    await fetchActiveCurrency();
+
     // Set default date to today in forms
     const today = new Date().toISOString().split('T')[0];
     const addDateInput = document.getElementById('add-date');
     if (addDateInput) {
         addDateInput.value = today;
+    }
+
+    // Initialize default filters to current month
+    const currentDate = new Date();
+    const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const currentYear = String(currentDate.getFullYear());
+    
+    const filterMonthSelect = document.getElementById('filter-month');
+    if (filterMonthSelect) {
+        filterMonthSelect.value = currentMonth;
+    }
+    const filterYearSelect = document.getElementById('filter-year');
+    if (filterYearSelect) {
+        filterYearSelect.value = currentYear;
+    }
+
+    const firstDay = `${currentYear}-${currentMonth}-01`;
+    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
+    
+    const filterStartInput = document.getElementById('filter-start-date');
+    if (filterStartInput) {
+        filterStartInput.value = firstDay;
+    }
+    const filterEndInput = document.getElementById('filter-end-date');
+    if (filterEndInput) {
+        filterEndInput.value = lastDay;
     }
     
     // Tab/Section switching
@@ -77,6 +108,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('add-interest').value = '0.00';
                 }
             }
+            const statusWrapper = document.getElementById('add-status-wrapper');
+            if (statusWrapper) {
+                if (val === 'Debit') {
+                    statusWrapper.classList.remove('hidden');
+                } else {
+                    statusWrapper.classList.add('hidden');
+                    const addStatus = document.getElementById('add-status');
+                    if (addStatus) addStatus.checked = true;
+                }
+            }
         });
     }
 
@@ -92,6 +133,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     wrapper.classList.add('hidden');
                     document.getElementById('edit-interest').value = '0.00';
+                }
+            }
+            const statusWrapper = document.getElementById('edit-status-wrapper');
+            if (statusWrapper) {
+                if (val === 'Debit') {
+                    statusWrapper.classList.remove('hidden');
+                } else {
+                    statusWrapper.classList.add('hidden');
+                    const editStatus = document.getElementById('edit-status');
+                    if (editStatus) editStatus.checked = true;
                 }
             }
         });
@@ -114,6 +165,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const adminCreateUserForm = document.getElementById('admin-create-user-form');
     if (adminCreateUserForm) {
         adminCreateUserForm.addEventListener('submit', handleAdminCreateUser);
+    }
+    const changeUserPasswordForm = document.getElementById('change-user-password-form');
+    if (changeUserPasswordForm) {
+        changeUserPasswordForm.addEventListener('submit', handleAdminChangeUserPassword);
     }
     const adminCreateRoleForm = document.getElementById('admin-create-role-form');
     if (adminCreateRoleForm) {
@@ -216,6 +271,107 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // EMI Form calculation triggers (user)
+    const emiForm = document.getElementById('emi-form');
+    if (emiForm) {
+        emiForm.addEventListener('submit', handleEmiSubmit);
+        
+        const emiPrincipal = document.getElementById('emi-principal');
+        const emiInterest = document.getElementById('emi-interest-rate');
+        const emiTenure = document.getElementById('emi-tenure');
+        const emiAmount = document.getElementById('emi-amount');
+        const emiStart = document.getElementById('emi-start-date');
+        const emiEnd = document.getElementById('emi-end-date');
+
+        function triggerUserEmiCalc() {
+            const principal = parseFloat(emiPrincipal.value) || 0;
+            const rate = parseFloat(emiInterest.value) || 0;
+            const tenure = parseInt(emiTenure.value) || 0;
+            if (principal > 0 && tenure > 0) {
+                const emi = calculateEMI(principal, rate, tenure);
+                emiAmount.value = emi.toFixed(2);
+            }
+        }
+
+        function triggerUserEndDateCalc() {
+            const startVal = emiStart.value;
+            const tenure = parseInt(emiTenure.value) || 0;
+            if (startVal && tenure > 0) {
+                emiEnd.value = calculateEndDate(startVal, tenure);
+            }
+        }
+
+        emiPrincipal.addEventListener('input', triggerUserEmiCalc);
+        emiInterest.addEventListener('input', triggerUserEmiCalc);
+        emiTenure.addEventListener('input', () => {
+            triggerUserEmiCalc();
+            triggerUserEndDateCalc();
+        });
+        emiStart.addEventListener('change', triggerUserEndDateCalc);
+    }
+
+    // Admin EMI form submission and calculations
+    const adminEmiForm = document.getElementById('admin-emi-form');
+    if (adminEmiForm) {
+        adminEmiForm.addEventListener('submit', handleAdminEmiSubmit);
+        
+        const adminEmiPrincipal = document.getElementById('admin-emi-principal');
+        const adminEmiInterest = document.getElementById('admin-emi-interest-rate');
+        const adminEmiTenure = document.getElementById('admin-emi-tenure');
+        const adminEmiAmount = document.getElementById('admin-emi-amount');
+        const adminEmiStart = document.getElementById('admin-emi-start-date');
+        const adminEmiEnd = document.getElementById('admin-emi-end-date');
+
+        function triggerAdminEmiCalc() {
+            const principal = parseFloat(adminEmiPrincipal.value) || 0;
+            const rate = parseFloat(adminEmiInterest.value) || 0;
+            const tenure = parseInt(adminEmiTenure.value) || 0;
+            if (principal > 0 && tenure > 0) {
+                const emi = calculateEMI(principal, rate, tenure);
+                adminEmiAmount.value = emi.toFixed(2);
+            }
+        }
+
+        function triggerAdminEndDateCalc() {
+            const startVal = adminEmiStart.value;
+            const tenure = parseInt(adminEmiTenure.value) || 0;
+            if (startVal && tenure > 0) {
+                adminEmiEnd.value = calculateEndDate(startVal, tenure);
+            }
+        }
+
+        adminEmiPrincipal.addEventListener('input', triggerAdminEmiCalc);
+        adminEmiInterest.addEventListener('input', triggerAdminEmiCalc);
+        adminEmiTenure.addEventListener('input', () => {
+            triggerAdminEmiCalc();
+            triggerAdminEndDateCalc();
+        });
+        adminEmiStart.addEventListener('change', triggerAdminEndDateCalc);
+
+        const adminCancelEmiBtn = document.getElementById('btn-admin-emi-cancel');
+        if (adminCancelEmiBtn) {
+            adminCancelEmiBtn.addEventListener('click', resetAdminEmiForm);
+        }
+    }
+
+    // User EMI Import Form
+    const emiImportForm = document.getElementById('emi-import-form');
+    if (emiImportForm) {
+        emiImportForm.addEventListener('submit', handleEmiImportSubmit);
+    }
+
+    // Admin EMI Import Form
+    const adminEmiImportForm = document.getElementById('admin-emi-import-form');
+    if (adminEmiImportForm) {
+        adminEmiImportForm.addEventListener('submit', handleAdminEmiImportSubmit);
+    }
+
+    // Currencies Config Form Submit
+    const currencyForm = document.getElementById('admin-currency-form');
+    if (currencyForm) {
+        currencyForm.addEventListener('submit', adminSaveCurrency);
+    }
+
     // Initial data fetch
     await fetchUserPrivileges();
     await fetchCategories();
@@ -224,6 +380,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetchPaymentCategories();
     await fetchExpenses();
     await updateOverviewStats();
+    if (currentUserPrivileges.is_admin) {
+        await adminFetchCurrencies();
+    }
 });
 
 // ALERTS HELPER
@@ -255,12 +414,23 @@ function resetFilters() {
     document.getElementById('filter-payment-category').value = "";
     const filterMethod = document.getElementById('filter-payment-method');
     if (filterMethod) filterMethod.value = "";
+    const filterStatus = document.getElementById('filter-status');
+    if (filterStatus) filterStatus.value = "";
+    
+    const currentDate = new Date();
+    const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const currentYear = String(currentDate.getFullYear());
+    
     const filterMonth = document.getElementById('filter-month');
-    if (filterMonth) filterMonth.value = "";
+    if (filterMonth) filterMonth.value = currentMonth;
     const filterYear = document.getElementById('filter-year');
-    if (filterYear) filterYear.value = "";
-    document.getElementById('filter-start-date').value = "";
-    document.getElementById('filter-end-date').value = "";
+    if (filterYear) filterYear.value = currentYear;
+    
+    const firstDay = `${currentYear}-${currentMonth}-01`;
+    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
+    
+    document.getElementById('filter-start-date').value = firstDay;
+    document.getElementById('filter-end-date').value = lastDay;
     document.getElementById('filter-search').value = "";
     fetchExpenses();
 }
@@ -306,6 +476,7 @@ async function fetchExpenses() {
     const paymentType = document.getElementById('filter-payment-type').value;
     const paymentCategory = document.getElementById('filter-payment-category').value;
     const paymentMethod = document.getElementById('filter-payment-method') ? document.getElementById('filter-payment-method').value : "";
+    const status = document.getElementById('filter-status') ? document.getElementById('filter-status').value : "";
     const month = document.getElementById('filter-month') ? document.getElementById('filter-month').value : "";
     const year = document.getElementById('filter-year') ? document.getElementById('filter-year').value : "";
     const startDate = document.getElementById('filter-start-date').value;
@@ -318,6 +489,7 @@ async function fetchExpenses() {
     if (paymentType) query += `payment_type=${encodeURIComponent(paymentType)}&`;
     if (paymentCategory) query += `payment_category=${encodeURIComponent(paymentCategory)}&`;
     if (paymentMethod) query += `payment_method=${encodeURIComponent(paymentMethod)}&`;
+    if (status) query += `status=${encodeURIComponent(status)}&`;
     if (month) query += `month=${encodeURIComponent(month)}&`;
     if (year) query += `year=${encodeURIComponent(year)}&`;
     if (startDate) query += `start_date=${startDate}&`;
@@ -342,7 +514,7 @@ async function fetchExpenses() {
         const yearResponse = await fetch(`/api/year_totals?year=${selectedYear}`);
         if (yearResponse.ok) {
             const yearData = await yearResponse.json();
-            const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+            const formatter = getCurrencyFormatter(activeCurrencySymbol);
             
             const yearWrapper = document.getElementById('dashboard-year-total-wrapper');
             const yearLabel = document.getElementById('dashboard-year-total-label');
@@ -378,7 +550,7 @@ function renderExpenseTable(expenses) {
         }
     });
 
-    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+    const formatter = getCurrencyFormatter(activeCurrencySymbol);
     const fdEl = document.getElementById('dashboard-filtered-debit');
     const fcEl = document.getElementById('dashboard-filtered-credit');
     if (fdEl) fdEl.textContent = formatter.format(filteredDebit);
@@ -453,6 +625,11 @@ function renderExpenseTable(expenses) {
             actionsHtml = `<span class="text-muted">-</span>`;
         }
 
+        // Status Badge
+        const statusVal = exp.status || 'Paid';
+        const statusBadgeClass = (statusVal === 'Paid') ? 'badge-credit' : 'badge-debit';
+        const statusHtml = `<span class="badge ${statusBadgeClass}">${statusVal}</span>`;
+
         tr.innerHTML = `
             <td>${formatDate(exp.date)}</td>
             <td><span class="category-tag ${catClass}">${exp.category}</span></td>
@@ -460,8 +637,9 @@ function renderExpenseTable(expenses) {
             <td>${escapeHTML(gateway)}</td>
             <td>${escapeHTML(paySource)}</td>
             <td class="text-center">${badgeHtml}</td>
-            <td class="text-right expense-amount">$${parseFloat(exp.amount).toFixed(2)}</td>
-            <td class="text-right expense-interest">$${parseFloat(exp.interest || 0).toFixed(2)}</td>
+            <td class="text-right expense-amount">${activeCurrencySymbol}${parseFloat(exp.amount).toFixed(2)}</td>
+            <td class="text-right expense-interest">${activeCurrencySymbol}${parseFloat(exp.interest || 0).toFixed(2)}</td>
+            <td class="text-center">${statusHtml}</td>
             <td class="text-center">${actionsHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -476,7 +654,7 @@ async function updateOverviewStats() {
             const data = await response.json();
             
             // Format currency
-            const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+            const formatter = getCurrencyFormatter(activeCurrencySymbol);
             
             document.getElementById('month-total').textContent = formatter.format(data.total_month);
             document.getElementById('all-total').textContent = formatter.format(data.total_all);
@@ -510,6 +688,7 @@ async function handleAddExpense(e) {
     const payment_type = document.getElementById('add-payment-type').value;
     const payment_category = document.getElementById('add-payment-category').value;
     const payment_method = document.getElementById('add-payment-method') ? document.getElementById('add-payment-method').value : 'Debit';
+    const status = document.getElementById('add-status') && document.getElementById('add-status').checked ? 'Paid' : 'Unpaid';
     const description = document.getElementById('add-description').value;
     const interest = document.getElementById('add-interest') ? document.getElementById('add-interest').value : 0.0;
 
@@ -526,7 +705,7 @@ async function handleAddExpense(e) {
         const response = await fetch('/api/expenses/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method })
+            body: JSON.stringify({ amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status })
         });
         const result = await response.json();
         
@@ -541,6 +720,12 @@ async function handleAddExpense(e) {
             document.getElementById('add-payment-category').value = "";
             if (document.getElementById('add-payment-method')) {
                 document.getElementById('add-payment-method').value = "Debit";
+            }
+            if (document.getElementById('add-status')) {
+                document.getElementById('add-status').checked = true;
+            }
+            if (document.getElementById('add-status-wrapper')) {
+                document.getElementById('add-status-wrapper').classList.remove('hidden');
             }
             document.getElementById('add-interest').value = "0.00";
             document.getElementById('add-interest-wrapper').classList.add('hidden');
@@ -571,6 +756,7 @@ async function handleEditExpense(e) {
     const payment_type = document.getElementById('edit-payment-type').value;
     const payment_category = document.getElementById('edit-payment-category').value;
     const payment_method = document.getElementById('edit-payment-method') ? document.getElementById('edit-payment-method').value : 'Debit';
+    const status = document.getElementById('edit-status') && document.getElementById('edit-status').checked ? 'Paid' : 'Unpaid';
     const description = document.getElementById('edit-description').value;
     const interest = document.getElementById('edit-interest') ? document.getElementById('edit-interest').value : 0.0;
 
@@ -587,7 +773,7 @@ async function handleEditExpense(e) {
         const response = await fetch(`/api/expenses/edit/${id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method })
+            body: JSON.stringify({ amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status })
         });
         const result = await response.json();
 
@@ -664,6 +850,9 @@ function openEditModal(id) {
     if (document.getElementById('edit-payment-method')) {
         document.getElementById('edit-payment-method').value = expense.payment_method || 'Debit';
     }
+    if (document.getElementById('edit-status')) {
+        document.getElementById('edit-status').checked = (expense.status === 'Paid');
+    }
     document.getElementById('edit-description').value = expense.description || '';
     
     // Populate interest amount and handle visibility wrapper
@@ -678,6 +867,14 @@ function openEditModal(id) {
             interestWrapper.classList.remove('hidden');
         } else {
             interestWrapper.classList.add('hidden');
+        }
+    }
+    const statusWrapper = document.getElementById('edit-status-wrapper');
+    if (statusWrapper) {
+        if (expense.payment_method === 'Debit' || !expense.payment_method) {
+            statusWrapper.classList.remove('hidden');
+        } else {
+            statusWrapper.classList.add('hidden');
         }
     }
     
@@ -705,7 +902,7 @@ async function loadCharts() {
         const data = await response.json();
         
         // Update Overview Credit/Debit/Interest totals reactively
-        const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+        const formatter = getCurrencyFormatter(activeCurrencySymbol);
         const ovMonthDebit = document.getElementById('overview-month-debit');
         const ovMonthCredit = document.getElementById('overview-month-credit');
         const ovMonthInterest = document.getElementById('overview-month-interest');
@@ -774,7 +971,7 @@ async function loadCharts() {
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return ` ${context.label}: $${context.raw.toFixed(2)}`;
+                                    return ` ${context.label}: ${activeCurrencySymbol}${context.raw.toFixed(2)}`;
                                 }
                             }
                         }
@@ -824,7 +1021,7 @@ async function loadCharts() {
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return ` Spent: $${context.raw.toFixed(2)}`;
+                                return ` Spent: ${activeCurrencySymbol}${context.raw.toFixed(2)}`;
                             }
                         }
                     }
@@ -840,7 +1037,7 @@ async function loadCharts() {
                             color: '#94a3b8',
                             font: { family: 'Poppins', size: 10 },
                             callback: function(value) {
-                                return '$' + value;
+                                return activeCurrencySymbol + value;
                             }
                         }
                     }
@@ -901,6 +1098,8 @@ function switchView(target) {
 
     if (target === 'overview') {
         loadCharts();
+    } else if (target === 'emi') {
+        fetchUserEMIs();
     } else if (target === 'admin') {
         loadAdminPanel();
         if (!currentUserPrivileges.is_admin) {
@@ -1212,6 +1411,7 @@ async function loadAdminPanel() {
     }
     await Promise.all([
         adminFetchUsers(),
+        adminFetchEMIs(),
         adminFetchCategories(),
         adminFetchBankModes(),
         adminFetchPaymentTypes(),
@@ -1260,6 +1460,9 @@ function renderAdminUsersTable(users) {
                 </select>
             </td>
             <td class="text-center">
+                <button class="btn-icon btn-icon-edit" onclick="openChangePasswordModal(${user.id}, '${escapeHTML(user.username)}')" title="Change Password" style="margin-right: 5px; color: var(--color-warning);">
+                    <i class="fa-solid fa-key"></i>
+                </button>
                 <button class="btn-icon btn-icon-delete" onclick="adminDeleteUser(${user.id}, '${escapeHTML(user.username)}')" title="Delete User">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
@@ -1331,6 +1534,56 @@ async function handleAdminCreateUser(e) {
         }
     } catch (err) {
         showAppAlert('Network error creating user.');
+    }
+}
+
+function openChangePasswordModal(userId, username) {
+    const modal = document.getElementById('change-user-password-modal');
+    if (!modal) return;
+    document.getElementById('change-user-id').value = userId;
+    document.getElementById('change-user-username').textContent = username;
+    document.getElementById('change-user-new-password').value = '';
+    document.getElementById('change-user-confirm-password').value = '';
+    modal.classList.remove('hidden');
+}
+
+function closeChangePasswordModal() {
+    const modal = document.getElementById('change-user-password-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+async function handleAdminChangeUserPassword(e) {
+    e.preventDefault();
+    const userId = document.getElementById('change-user-id').value;
+    const newPassword = document.getElementById('change-user-new-password').value;
+    const confirmPassword = document.getElementById('change-user-confirm-password').value;
+
+    if (newPassword !== confirmPassword) {
+        showAppAlert('Passwords do not match.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/users/change_password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userId,
+                new_password: newPassword,
+                confirm_password: confirmPassword
+            })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('User password changed successfully!', true);
+            closeChangePasswordModal();
+        } else {
+            showAppAlert(result.error || 'Failed to change password.');
+        }
+    } catch (err) {
+        showAppAlert('Network error changing password.');
     }
 }
 
@@ -2097,5 +2350,911 @@ async function toggleExcelColumnStatus(columnKey, isChecked) {
         showAppAlert('Network error updating column status.');
         await adminFetchExcelColumns();
     }
+}
+
+// ==========================================
+// EMI MANAGEMENT SYSTEM
+// ==========================================
+
+// Global state for user EMIs
+let userEMIs = [];
+
+// Fetch bank modes to populate Payment Bank dropdowns
+function populateEmiBankDropdowns() {
+    const userBankSelect = document.getElementById('emi-payment-bank');
+    const adminBankSelect = document.getElementById('admin-emi-payment-bank');
+    if (!userBankSelect && !adminBankSelect) return;
+    
+    let optionsHtml = '<option value="" selected>None / N/A</option>';
+    systemBankModes.forEach(bm => {
+        optionsHtml += `<option value="${escapeHTML(bm.name)}">${escapeHTML(bm.name)}</option>`;
+    });
+    
+    if (userBankSelect) userBankSelect.innerHTML = optionsHtml;
+    if (adminBankSelect) adminBankSelect.innerHTML = optionsHtml;
+}
+
+// Fetch EMIs for logged-in user
+async function fetchUserEMIs() {
+    try {
+        const response = await fetch('/api/emis');
+        if (response.ok) {
+            userEMIs = await response.json();
+            renderUserEMIsTable(userEMIs);
+            updateEmiSummaryCards(userEMIs);
+            populateEmiBankDropdowns();
+        }
+    } catch (err) {
+        console.error('Error fetching user EMIs:', err);
+    }
+}
+
+function calculateEmiPendingDetails(emi) {
+    const principal = parseFloat(emi.principal_amount || 0);
+    const rate = parseFloat(emi.interest_rate || 0);
+    const tenure = parseInt(emi.tenure_months) || 12;
+    const emiAmount = parseFloat(emi.emi_amount);
+    const r = rate / 12 / 100;
+    
+    let startDate = new Date(emi.start_date);
+    if (isNaN(startDate.getTime())) {
+        startDate = new Date();
+    }
+    
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const startYear = startDate.getFullYear();
+    const startMonth = startDate.getMonth();
+    
+    let monthsElapsed = (todayYear - startYear) * 12 + (todayMonth - startMonth);
+    if (today < startDate) {
+        monthsElapsed = 0;
+    } else {
+        const dueDay = parseInt(emi.due_date) || 1;
+        if (today.getDate() < dueDay) {
+            monthsElapsed = Math.max(0, monthsElapsed - 1);
+        }
+    }
+    monthsElapsed = Math.min(Math.max(0, monthsElapsed), tenure);
+    
+    let currentBalance = principal;
+    for (let i = 1; i <= monthsElapsed; i++) {
+        let interestPaid = currentBalance * r;
+        let principalPaid = emiAmount - interestPaid;
+        if (principalPaid > currentBalance || i === tenure) {
+            principalPaid = currentBalance;
+        }
+        currentBalance -= principalPaid;
+        if (currentBalance < 0) currentBalance = 0;
+    }
+    
+    const pendingMonths = tenure - monthsElapsed;
+    return {
+        pendingMonths: pendingMonths,
+        pendingPrincipal: currentBalance
+    };
+}
+
+// Render user EMIs table
+function renderUserEMIsTable(emis) {
+    const tbody = document.getElementById('user-emi-list');
+    const noEmisMsg = document.getElementById('no-emis-msg');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    if (emis.length === 0) {
+        if (noEmisMsg) noEmisMsg.classList.remove('hidden');
+        return;
+    }
+    if (noEmisMsg) noEmisMsg.classList.add('hidden');
+
+    const canEdit = currentUserPrivileges.can_edit;
+    const canDelete = currentUserPrivileges.can_delete;
+
+    emis.forEach(emi => {
+        const tr = document.createElement('tr');
+        
+        let actionsHtml = '';
+        actionsHtml += `
+            <button class="btn-icon btn-icon-info" onclick="openEmiCalendar(${emi.id}, false)" title="View EMI Calendar Schedule" style="color: var(--color-success);">
+                <i class="fa-solid fa-circle-info"></i>
+            </button>`;
+        if (canEdit) {
+            actionsHtml += `
+                <button class="btn-icon btn-icon-edit" onclick="openEmiModal(${emi.id})" title="Edit EMI" style="color: var(--color-primary);">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>`;
+        }
+        if (canDelete) {
+            actionsHtml += `
+                <button class="btn-icon btn-icon-delete" onclick="deleteUserEmi(${emi.id}, '${escapeHTML(emi.name)}')" title="Delete EMI">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>`;
+        }
+
+        const gatewayBank = [emi.payment_gateway, emi.payment_bank].filter(Boolean).join(' / ') || 'None';
+        const pending = calculateEmiPendingDetails(emi);
+
+        tr.innerHTML = `
+            <td><span style="font-weight: 500;">${escapeHTML(emi.name)}</span></td>
+            <td class="text-right">${activeCurrencySymbol}${parseFloat(emi.principal_amount || 0).toFixed(2)}</td>
+            <td class="text-right" style="font-weight: 600; color: var(--color-secondary);">${activeCurrencySymbol}${parseFloat(emi.emi_amount).toFixed(2)}</td>
+            <td class="text-center">${escapeHTML(emi.start_date)}</td>
+            <td class="text-center">${escapeHTML(emi.end_date)}</td>
+            <td class="text-center">${emi.tenure_months} months</td>
+            <td class="text-center" style="font-weight: 500; color: var(--color-accent);">${pending.pendingMonths} months</td>
+            <td class="text-right" style="font-weight: 500; color: var(--color-secondary);">${activeCurrencySymbol}${pending.pendingPrincipal.toFixed(2)}</td>
+            <td class="text-center">${parseFloat(emi.interest_rate || 0).toFixed(2)}%</td>
+            <td class="text-center">${escapeHTML(emi.due_date)}</td>
+            <td class="text-center"><span class="role-badge ${emi.payment_type === 'Auto' ? 'badge-admin' : 'badge-user'}">${escapeHTML(emi.payment_type)}</span></td>
+            <td>${escapeHTML(gatewayBank)}</td>
+            <td class="actions-cell">${actionsHtml}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Update EMI summary cards
+function updateEmiSummaryCards(emis) {
+    const activeCountEl = document.getElementById('emi-active-count');
+    const monthlyOutflowEl = document.getElementById('emi-monthly-outflow');
+    if (!activeCountEl || !monthlyOutflowEl) return;
+    
+    // Filter active EMIs based on today's date
+    const todayStr = new Date().toISOString().split('T')[0];
+    const activeEmis = emis.filter(emi => emi.end_date >= todayStr);
+    
+    activeCountEl.textContent = activeEmis.length;
+    
+    const totalOutflow = activeEmis.reduce((sum, emi) => sum + parseFloat(emi.emi_amount), 0);
+    monthlyOutflowEl.textContent = `${activeCurrencySymbol}${totalOutflow.toFixed(2)}`;
+}
+
+// Open/Close User EMI Modal
+function openEmiModal(emiId = null) {
+    const modal = document.getElementById('emi-modal');
+    if (!modal) return;
+    
+    // Populate dynamic banks
+    populateEmiBankDropdowns();
+    
+    if (emiId) {
+        document.getElementById('emi-modal-title').textContent = 'Edit EMI';
+        const emi = userEMIs.find(e => e.id === emiId);
+        if (emi) {
+            document.getElementById('emi-id').value = emi.id;
+            document.getElementById('emi-name').value = emi.name;
+            document.getElementById('emi-principal').value = emi.principal_amount;
+            document.getElementById('emi-interest-rate').value = emi.interest_rate;
+            document.getElementById('emi-tenure').value = emi.tenure_months;
+            document.getElementById('emi-amount').value = emi.emi_amount;
+            document.getElementById('emi-start-date').value = emi.start_date;
+            document.getElementById('emi-end-date').value = emi.end_date;
+            document.getElementById('emi-due-date').value = emi.due_date;
+            document.getElementById('emi-payment-type').value = emi.payment_type;
+            document.getElementById('emi-payment-gateway').value = emi.payment_gateway || '';
+            document.getElementById('emi-payment-bank').value = emi.payment_bank || '';
+        }
+    } else {
+        document.getElementById('emi-modal-title').textContent = 'Add EMI';
+        document.getElementById('emi-form').reset();
+        document.getElementById('emi-id').value = '';
+        document.getElementById('emi-start-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('emi-end-date').value = calculateEndDate(new Date().toISOString().split('T')[0], 12);
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function closeEmiModal() {
+    const modal = document.getElementById('emi-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Submit User EMI Form
+async function handleEmiSubmit(e) {
+    e.preventDefault();
+    const emiId = document.getElementById('emi-id').value;
+    const name = document.getElementById('emi-name').value;
+    const principal_amount = document.getElementById('emi-principal').value;
+    const interest_rate = document.getElementById('emi-interest-rate').value;
+    const tenure_months = document.getElementById('emi-tenure').value;
+    const emi_amount = document.getElementById('emi-amount').value;
+    const start_date = document.getElementById('emi-start-date').value;
+    const end_date = document.getElementById('emi-end-date').value;
+    const due_date = document.getElementById('emi-due-date').value;
+    const payment_type = document.getElementById('emi-payment-type').value;
+    const payment_gateway = document.getElementById('emi-payment-gateway').value;
+    const payment_bank = document.getElementById('emi-payment-bank').value;
+
+    const payload = {
+        name, principal_amount, interest_rate, tenure_months, emi_amount, start_date, end_date, due_date, payment_type, payment_gateway, payment_bank
+    };
+
+    const url = emiId ? `/api/emis/edit/${emiId}` : '/api/emis/add';
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (response.ok && (result.success || result.message)) {
+            showAppAlert(result.message || 'EMI saved successfully!', true);
+            closeEmiModal();
+            await fetchUserEMIs();
+        } else {
+            showAppAlert(result.error || 'Failed to save EMI.');
+        }
+    } catch (err) {
+        showAppAlert('Network error saving EMI.');
+    }
+}
+
+// Delete User EMI
+async function deleteUserEmi(emiId, name) {
+    if (!confirm(`Are you sure you want to delete EMI "${name}"?`)) return;
+    try {
+        const response = await fetch(`/api/emis/delete/${emiId}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('EMI deleted successfully.', true);
+            await fetchUserEMIs();
+        } else {
+            showAppAlert(result.error || 'Failed to delete EMI.');
+        }
+    } catch (err) {
+        showAppAlert('Network error deleting EMI.');
+    }
+}
+
+// ==========================================
+// ADMIN EMI CONTROLS
+// ==========================================
+
+let adminEMIsList = [];
+
+// Fetch EMIs for Admin panel
+async function adminFetchEMIs() {
+    try {
+        const response = await fetch('/api/admin/emis');
+        if (response.ok) {
+            adminEMIsList = await response.json();
+            renderAdminEMIsTable(adminEMIsList);
+            populateAdminUserDropdown();
+            populateEmiBankDropdowns();
+        }
+    } catch (err) {
+        console.error('Error fetching admin EMIs:', err);
+    }
+}
+
+// Populate users dropdown in Admin EMI Form
+function populateAdminUserDropdown() {
+    const select = document.getElementById('admin-emi-user');
+    if (!select) return;
+    
+    fetch('/api/admin/users')
+        .then(res => res.json())
+        .then(users => {
+            let options = '<option value="" disabled selected>Select User</option>';
+            users.forEach(u => {
+                options += `<option value="${u.id}">${escapeHTML(u.username)}</option>`;
+            });
+            select.innerHTML = options;
+        })
+        .catch(err => console.error('Error populating users dropdown:', err));
+}
+
+// Render Admin EMIs Table
+function renderAdminEMIsTable(emis) {
+    const tbody = document.getElementById('admin-emis-list');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    emis.forEach(emi => {
+        const tr = document.createElement('tr');
+        const gatewayBank = [emi.payment_gateway, emi.payment_bank].filter(Boolean).join(' / ') || 'None';
+        
+        let actionsHtml = '';
+        actionsHtml += `
+            <button class="btn-icon btn-icon-info" onclick="openEmiCalendar(${emi.id}, true)" title="View EMI Calendar Schedule" style="color: var(--color-success);">
+                <i class="fa-solid fa-circle-info"></i>
+            </button>`;
+        actionsHtml += `
+            <button class="btn-icon btn-icon-edit" onclick="adminEditEmi(${emi.id})" title="Edit EMI" style="color: var(--color-primary);">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>`;
+        actionsHtml += `
+            <button class="btn-icon btn-icon-delete" onclick="adminDeleteEmi(${emi.id}, '${escapeHTML(emi.name)}')" title="Delete EMI">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>`;
+
+        tr.innerHTML = `
+            <td><strong style="color: var(--color-accent);">${escapeHTML(emi.username)}</strong></td>
+            <td><span style="font-weight: 500;">${escapeHTML(emi.name)}</span></td>
+            <td class="text-right" style="font-weight: 600; color: var(--color-secondary);">${activeCurrencySymbol}${parseFloat(emi.emi_amount).toFixed(2)}</td>
+            <td class="text-center">${escapeHTML(emi.due_date)}</td>
+            <td><span class="role-badge ${emi.payment_type === 'Auto' ? 'badge-admin' : 'badge-user'}">${escapeHTML(emi.payment_type)}</span></td>
+            <td>${escapeHTML(gatewayBank)}</td>
+            <td class="actions-cell">${actionsHtml}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Admin Edit EMI (Populate form)
+function adminEditEmi(emiId) {
+    const emi = adminEMIsList.find(e => e.id === emiId);
+    if (!emi) return;
+    
+    document.getElementById('admin-emi-id').value = emi.id;
+    document.getElementById('admin-emi-user').value = emi.user_id;
+    document.getElementById('admin-emi-user-group').style.display = 'none';
+    document.getElementById('admin-emi-user').required = false;
+
+    document.getElementById('admin-emi-name').value = emi.name;
+    document.getElementById('admin-emi-principal').value = emi.principal_amount;
+    document.getElementById('admin-emi-interest-rate').value = emi.interest_rate;
+    document.getElementById('admin-emi-tenure').value = emi.tenure_months;
+    document.getElementById('admin-emi-amount').value = emi.emi_amount;
+    document.getElementById('admin-emi-start-date').value = emi.start_date;
+    document.getElementById('admin-emi-end-date').value = emi.end_date;
+    document.getElementById('admin-emi-due-date').value = emi.due_date;
+    document.getElementById('admin-emi-payment-type').value = emi.payment_type;
+    document.getElementById('admin-emi-payment-gateway').value = emi.payment_gateway || '';
+    document.getElementById('admin-emi-payment-bank').value = emi.payment_bank || '';
+    
+    document.getElementById('admin-emi-form-title').textContent = 'Edit EMI Details';
+    document.getElementById('btn-admin-emi-cancel').style.display = 'block';
+}
+
+// Reset Admin EMI Form
+function resetAdminEmiForm() {
+    document.getElementById('admin-emi-form').reset();
+    document.getElementById('admin-emi-id').value = '';
+    document.getElementById('admin-emi-user-group').style.display = 'block';
+    document.getElementById('admin-emi-user').required = true;
+    document.getElementById('admin-emi-form-title').textContent = 'Create EMI for User';
+    document.getElementById('btn-admin-emi-cancel').style.display = 'none';
+}
+
+// Submit Admin EMI Form
+async function handleAdminEmiSubmit(e) {
+    e.preventDefault();
+    const emiId = document.getElementById('admin-emi-id').value;
+    const user_id = document.getElementById('admin-emi-user').value;
+    const name = document.getElementById('admin-emi-name').value;
+    const principal_amount = document.getElementById('admin-emi-principal').value;
+    const interest_rate = document.getElementById('admin-emi-interest-rate').value;
+    const tenure_months = document.getElementById('admin-emi-tenure').value;
+    const emi_amount = document.getElementById('admin-emi-amount').value;
+    const start_date = document.getElementById('admin-emi-start-date').value;
+    const end_date = document.getElementById('admin-emi-end-date').value;
+    const due_date = document.getElementById('admin-emi-due-date').value;
+    const payment_type = document.getElementById('admin-emi-payment-type').value;
+    const payment_gateway = document.getElementById('admin-emi-payment-gateway').value;
+    const payment_bank = document.getElementById('admin-emi-payment-bank').value;
+
+    const payload = {
+        user_id, name, principal_amount, interest_rate, tenure_months, emi_amount, start_date, end_date, due_date, payment_type, payment_gateway, payment_bank
+    };
+
+    const url = emiId ? `/api/admin/emis/edit/${emiId}` : '/api/admin/emis/create';
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (response.ok && (result.success || result.message)) {
+            showAppAlert(result.message || 'EMI saved successfully!', true);
+            resetAdminEmiForm();
+            await adminFetchEMIs();
+        } else {
+            showAppAlert(result.error || 'Failed to save EMI.');
+        }
+    } catch (err) {
+        showAppAlert('Network error saving EMI.');
+    }
+}
+
+// Delete Admin EMI
+async function adminDeleteEmi(emiId, name) {
+    if (!confirm(`Are you sure you want to delete EMI "${name}"?`)) return;
+    try {
+        const response = await fetch(`/api/admin/emis/delete/${emiId}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('EMI deleted successfully.', true);
+            await adminFetchEMIs();
+        } else {
+            showAppAlert(result.error || 'Failed to delete EMI.');
+        }
+    } catch (err) {
+        showAppAlert('Network error deleting EMI.');
+    }
+}
+
+// Math Calculators
+function calculateEMI(principal, annualRate, tenureMonths) {
+    if (!principal || !tenureMonths) return 0;
+    const r = annualRate / 12 / 100;
+    if (r === 0) return principal / tenureMonths;
+    const emi = (principal * r * Math.pow(1 + r, tenureMonths)) / (Math.pow(1 + r, tenureMonths) - 1);
+    return emi;
+}
+
+function calculateEndDate(startDateStr, months) {
+    if (!startDateStr || !months) return '';
+    const date = new Date(startDateStr);
+    date.setMonth(date.getMonth() + months);
+    return date.toISOString().split('T')[0];
+}
+
+// EMI Actions and Calendars
+
+function toggleEmiOverview() {
+    const grid = document.getElementById('emi-metrics-grid');
+    if (grid) {
+        grid.classList.toggle('hidden');
+    }
+}
+
+function openEmiImportModal() {
+    const modal = document.getElementById('emi-import-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeEmiImportModal() {
+    const modal = document.getElementById('emi-import-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function handleEmiImportSubmit(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('emi-import-file');
+    if (!fileInput || fileInput.files.length === 0) {
+        showAppAlert('Please select a file.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    try {
+        const response = await fetch('/api/emis/import', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert(result.message, true);
+            closeEmiImportModal();
+            await fetchUserEMIs();
+        } else {
+            showAppAlert(result.error || 'Failed to import EMIs.');
+        }
+    } catch (err) {
+        showAppAlert('Network error importing EMIs.');
+    }
+}
+
+function openAdminEmiImportModal() {
+    const modal = document.getElementById('admin-emi-import-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeAdminEmiImportModal() {
+    const modal = document.getElementById('admin-emi-import-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function handleAdminEmiImportSubmit(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('admin-emi-import-file');
+    if (!fileInput || fileInput.files.length === 0) {
+        showAppAlert('Please select a file.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    try {
+        const response = await fetch('/api/admin/emis/import', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert(result.message, true);
+            closeAdminEmiImportModal();
+            await adminFetchEMIs();
+        } else {
+            showAppAlert(result.error || 'Failed to import EMIs.');
+        }
+    } catch (err) {
+        showAppAlert('Network error importing EMIs.');
+    }
+}
+
+function exportUserEMIs() {
+    window.location.href = '/api/emis/export';
+}
+
+function exportAdminEMIs() {
+    window.location.href = '/api/admin/emis/export';
+}
+
+function openEmiCalendar(emiId, isAdminView = false) {
+    const emi = isAdminView 
+        ? adminEMIsList.find(e => e.id === emiId)
+        : userEMIs.find(e => e.id === emiId);
+    if (!emi) return;
+
+    document.getElementById('cal-emi-name').textContent = emi.name;
+    document.getElementById('cal-emi-principal').textContent = `${activeCurrencySymbol}${parseFloat(emi.principal_amount || 0).toFixed(2)}`;
+    document.getElementById('cal-emi-interest').textContent = `${parseFloat(emi.interest_rate || 0).toFixed(2)}%`;
+    document.getElementById('cal-emi-amount').textContent = `${activeCurrencySymbol}${parseFloat(emi.emi_amount).toFixed(2)}`;
+
+    const tbody = document.getElementById('emi-calendar-tbody');
+    tbody.innerHTML = '';
+
+    let principal = parseFloat(emi.principal_amount || 0);
+    const rate = parseFloat(emi.interest_rate || 0);
+    const tenure = parseInt(emi.tenure_months) || 12;
+    const emiAmount = parseFloat(emi.emi_amount);
+    const r = rate / 12 / 100;
+
+    let currentBalance = principal;
+    let startDate = new Date(emi.start_date);
+    if (isNaN(startDate.getTime())) {
+        startDate = new Date();
+    }
+
+    for (let i = 1; i <= tenure; i++) {
+        let interestPaid = currentBalance * r;
+        let principalPaid = emiAmount - interestPaid;
+
+        if (principalPaid > currentBalance || i === tenure) {
+            principalPaid = currentBalance;
+            interestPaid = Math.max(0, emiAmount - principalPaid);
+        }
+
+        currentBalance -= principalPaid;
+        if (currentBalance < 0) currentBalance = 0;
+
+        const pDate = new Date(startDate);
+        pDate.setMonth(pDate.getMonth() + (i - 1));
+        
+        const dueDay = parseInt(emi.due_date);
+        if (!isNaN(dueDay) && dueDay > 0 && dueDay <= 31) {
+            pDate.setDate(dueDay);
+        }
+        const dateStr = pDate.toISOString().split('T')[0];
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="text-center">${i}</td>
+            <td class="text-center">${dateStr}</td>
+            <td class="text-right">${activeCurrencySymbol}${principalPaid.toFixed(2)}</td>
+            <td class="text-right">${activeCurrencySymbol}${interestPaid.toFixed(2)}</td>
+            <td class="text-right" style="font-weight: 500; color: var(--color-secondary);">${activeCurrencySymbol}${emiAmount.toFixed(2)}</td>
+            <td class="text-right">${activeCurrencySymbol}${currentBalance.toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    const modal = document.getElementById('emi-calendar-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeEmiCalendarModal() {
+    const modal = document.getElementById('emi-calendar-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// CURRENCIES MANAGEMENT FUNCTIONS
+
+async function fetchActiveCurrency() {
+    try {
+        const response = await fetch('/api/active-currency');
+        if (response.ok) {
+            const data = await response.json();
+            activeCurrencySymbol = data.symbol || '₹';
+            
+            const addAmtLabel = document.querySelector('label[for="add-amount"]');
+            if (addAmtLabel) addAmtLabel.innerHTML = `Amount (${activeCurrencySymbol}) <span class="required">*</span>`;
+            const addIntLabel = document.querySelector('label[for="add-interest"]');
+            if (addIntLabel) addIntLabel.textContent = `Interest (${activeCurrencySymbol})`;
+            
+            const editAmtLabel = document.querySelector('label[for="edit-amount"]');
+            if (editAmtLabel) editAmtLabel.innerHTML = `Amount (${activeCurrencySymbol}) <span class="required">*</span>`;
+            const editIntLabel = document.querySelector('label[for="edit-interest"]');
+            if (editIntLabel) editIntLabel.textContent = `Interest (${activeCurrencySymbol})`;
+        }
+    } catch (err) {
+        console.error('Error fetching active currency:', err);
+    }
+}
+
+function getCurrencyFormatter(symbol) {
+    let locale = 'en-US';
+    let currency = 'USD';
+    if (symbol === '₹') {
+        locale = 'en-IN';
+        currency = 'INR';
+    } else if (symbol === '€') {
+        locale = 'en-DE';
+        currency = 'EUR';
+    } else if (symbol === '£') {
+        locale = 'en-GB';
+        currency = 'GBP';
+    } else if (symbol === '¥') {
+        locale = 'ja-JP';
+        currency = 'JPY';
+    } else {
+        return {
+            format: (value) => `${symbol}${parseFloat(value).toFixed(2)}`
+        };
+    }
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: currency });
+}
+
+async function adminFetchCurrencies() {
+    try {
+        const response = await fetch('/api/admin/currencies');
+        if (response.ok) {
+            adminCurrenciesLocal = await response.json();
+            adminRenderCurrenciesTable(adminCurrenciesLocal);
+        }
+    } catch (err) {
+        console.error('Error fetching admin currencies:', err);
+    }
+}
+
+function adminRenderCurrenciesTable(currencies) {
+    const tbody = document.getElementById('admin-currencies-list');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    currencies.forEach(curr => {
+        const tr = document.createElement('tr');
+        const checked = curr.is_active ? 'checked' : '';
+        
+        let actionsHtml = `
+            <button class="btn-icon btn-icon-edit" onclick="adminEditCurrency(${curr.id})" title="Edit Currency" style="color: var(--color-primary);">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button class="btn-icon btn-icon-delete" onclick="adminDeleteCurrency(${curr.id}, '${escapeHTML(curr.country)}')" title="Delete Currency">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        `;
+        
+        tr.innerHTML = `
+            <td><strong>${escapeHTML(curr.country)}</strong></td>
+            <td>${escapeHTML(curr.country_desc)}</td>
+            <td class="text-center"><span style="font-weight: 600; color: var(--color-accent); font-size: 1.1rem;">${escapeHTML(curr.symbol)}</span></td>
+            <td class="text-center">
+                <input type="radio" name="active_currency_radio" ${checked} onchange="adminSetActiveCurrency(${curr.id})">
+            </td>
+            <td class="actions-cell">${actionsHtml}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function adminSaveCurrency(e) {
+    e.preventDefault();
+    const currId = document.getElementById('admin-currency-id').value;
+    const country = document.getElementById('admin-currency-country').value.trim();
+    const countryDesc = document.getElementById('admin-currency-desc').value.trim();
+    const symbol = document.getElementById('admin-currency-symbol').value.trim();
+    
+    if (!country || !countryDesc || !symbol) {
+        showAppAlert('Please fill out all fields.');
+        return;
+    }
+    
+    const payload = { country, country_desc: countryDesc, symbol };
+    const url = currId ? `/api/admin/currencies/edit/${currId}` : '/api/admin/currencies/add';
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert(result.message || 'Currency saved successfully!', true);
+            resetCurrencyForm();
+            await adminFetchCurrencies();
+            if (currId) {
+                const activeCurr = adminCurrenciesLocal.find(c => c.id == currId);
+                if (activeCurr && activeCurr.is_active) {
+                    await fetchActiveCurrency();
+                    await fetchExpenses();
+                    await updateOverviewStats();
+                }
+            }
+        } else {
+            showAppAlert(result.error || 'Failed to save currency.');
+        }
+    } catch (err) {
+        showAppAlert('Network error saving currency.');
+    }
+}
+
+function adminEditCurrency(id) {
+    const curr = adminCurrenciesLocal.find(c => c.id === id);
+    if (!curr) return;
+    
+    document.getElementById('admin-currency-id').value = curr.id;
+    document.getElementById('admin-currency-country').value = curr.country;
+    document.getElementById('admin-currency-desc').value = curr.country_desc;
+    document.getElementById('admin-currency-symbol').value = curr.symbol;
+    
+    document.getElementById('admin-currency-form-title').textContent = 'Edit Currency';
+    document.getElementById('admin-currency-submit-btn').textContent = 'Update Currency';
+    document.getElementById('admin-currency-cancel-btn').classList.remove('hidden');
+}
+
+async function adminSetActiveCurrency(id) {
+    try {
+        const response = await fetch(`/api/admin/currencies/set_active/${id}`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Active currency updated successfully!', true);
+            await fetchActiveCurrency();
+            await adminFetchCurrencies();
+            await fetchExpenses();
+            await updateOverviewStats();
+            if (typeof fetchUserEMIs === 'function') await fetchUserEMIs();
+            if (typeof adminFetchEMIs === 'function') await adminFetchEMIs();
+        } else {
+            showAppAlert(result.error || 'Failed to update active currency.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating active currency.');
+    }
+}
+
+async function adminDeleteCurrency(id, country) {
+    if (!confirm(`Are you sure you want to delete the currency configuration for "${country}"?`)) return;
+    try {
+        const response = await fetch(`/api/admin/currencies/delete/${id}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Currency configuration deleted.', true);
+            resetCurrencyForm();
+            await fetchActiveCurrency();
+            await adminFetchCurrencies();
+            await fetchExpenses();
+            await updateOverviewStats();
+        } else {
+            showAppAlert(result.error || 'Failed to delete currency.');
+        }
+    } catch (err) {
+        showAppAlert('Network error deleting currency.');
+    }
+}
+
+function resetCurrencyForm() {
+    document.getElementById('admin-currency-id').value = '';
+    document.getElementById('admin-currency-form').reset();
+    document.getElementById('admin-currency-form-title').textContent = 'Add Currency';
+    document.getElementById('admin-currency-submit-btn').textContent = 'Add Currency';
+    document.getElementById('admin-currency-cancel-btn').classList.add('hidden');
+}
+
+// OVERVIEW CALCULATION DETAILS MODAL
+
+async function showOverviewDetails(metricType) {
+    let query = '/api/expenses?';
+    let title = '';
+    let formula = '';
+    
+    const currentDate = new Date();
+    const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const currentYear = String(currentDate.getFullYear());
+    
+    if (metricType === 'month-debits') {
+        query += `month=${currentMonth}&year=${currentYear}&payment_method=Debit`;
+        title = 'Month Debits Calculation Details';
+        formula = 'Sum of all Debit expenses in current month';
+    } else if (metricType === 'month-credits') {
+        query += `month=${currentMonth}&year=${currentYear}&payment_method=Credit`;
+        title = 'Month Credits Calculation Details';
+        formula = 'Sum of all Credit gains in current month';
+    } else if (metricType === 'month-interest') {
+        query += `month=${currentMonth}&year=${currentYear}`;
+        title = 'Month Interest Calculation Details';
+        formula = 'Sum of all interest charges in current month';
+    } else if (metricType === 'total-debits') {
+        query += `payment_method=Debit`;
+        title = 'Total Debits Calculation Details';
+        formula = 'Sum of all Debit expenses in lifetime';
+    } else if (metricType === 'total-credits') {
+        query += `payment_method=Credit`;
+        title = 'Total Credits Calculation Details';
+        formula = 'Sum of all Credit gains in lifetime';
+    } else if (metricType === 'total-interest') {
+        title = 'Total Interest Calculation Details';
+        formula = 'Sum of all interest charges in lifetime';
+    }
+
+    try {
+        const response = await fetch(query);
+        if (response.ok) {
+            let data = await response.json();
+            
+            if (metricType.includes('interest')) {
+                data = data.filter(item => parseFloat(item.interest || 0) > 0);
+            }
+            
+            let sum = 0;
+            if (metricType.includes('interest')) {
+                sum = data.reduce((acc, item) => acc + parseFloat(item.interest || 0), 0);
+            } else {
+                sum = data.reduce((acc, item) => acc + parseFloat(item.amount || 0), 0);
+            }
+
+            const tbody = document.getElementById('overview-details-tbody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                if (data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: var(--text-secondary); padding: 20px;">No transactions found contributing to this metric.</td></tr>`;
+                } else {
+                    data.forEach(item => {
+                        const tr = document.createElement('tr');
+                        const gateway = [item.payment_type, item.bank_mode].filter(Boolean).join(' / ') || '-';
+                        tr.innerHTML = `
+                            <td class="text-center">${formatDate(item.date)}</td>
+                            <td><span class="category-tag">${escapeHTML(item.category)}</span></td>
+                            <td>${escapeHTML(item.description || '-')}</td>
+                            <td class="text-center"><span class="role-badge ${item.payment_method === 'Credit' ? 'badge-user' : 'badge-admin'}">${escapeHTML(item.payment_method)}</span></td>
+                            <td>${escapeHTML(gateway)}</td>
+                            <td class="text-right">${activeCurrencySymbol}${parseFloat(item.amount).toFixed(2)}</td>
+                            <td class="text-right">${activeCurrencySymbol}${parseFloat(item.interest || 0).toFixed(2)}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            }
+            
+            const titleEl = document.getElementById('overview-details-title');
+            if (titleEl) titleEl.textContent = title;
+            
+            const formulaEl = document.getElementById('overview-details-formula');
+            if (formulaEl) formulaEl.textContent = formula;
+            
+            const totalEl = document.getElementById('overview-details-total');
+            if (totalEl) totalEl.textContent = `Total: ${activeCurrencySymbol}${sum.toFixed(2)}`;
+            
+            const modal = document.getElementById('overview-details-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+    } catch (err) {
+        console.error('Error fetching overview details:', err);
+    }
+}
+
+function closeOverviewDetailsModal() {
+    const modal = document.getElementById('overview-details-modal');
+    if (modal) modal.classList.add('hidden');
 }
 

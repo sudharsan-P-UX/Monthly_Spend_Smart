@@ -75,7 +75,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         user_id = database.create_user('expuser', h_pass)
         
         # Add expense with new fields
-        exp_id = database.add_expense(user_id, 45.50, 'Food & Dining', 'Dinner with team', '2026-06-25', bank_mode='SBI', payment_type='GPay', payment_category='Salary', payment_method='Debit')
+        exp_id = database.add_expense(user_id, 45.50, 'Food & Dining', 'Dinner with team', '2026-06-25', bank_mode='SBI', payment_type='GPay', payment_category='Salary', payment_method='Debit', status='Unpaid')
         self.assertIsNotNone(exp_id)
         
         # Get expense
@@ -87,16 +87,24 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertEqual(exp['payment_type'], 'GPay')
         self.assertEqual(exp['payment_category'], 'Salary')
         self.assertEqual(exp['payment_method'], 'Debit')
+        self.assertEqual(exp['status'], 'Unpaid')
         
         # Filter check
         expenses = database.get_expenses(user_id, bank_mode='SBI')
         self.assertEqual(len(expenses), 1)
         
+        # Filter check with status
+        expenses_unpaid = database.get_expenses(user_id, status='Unpaid')
+        self.assertEqual(len(expenses_unpaid), 1)
+        
+        expenses_paid = database.get_expenses(user_id, status='Paid')
+        self.assertEqual(len(expenses_paid), 0)
+        
         expenses_wrong = database.get_expenses(user_id, bank_mode='ICICI')
         self.assertEqual(len(expenses_wrong), 0)
         
         # Update expense
-        success = database.update_expense(exp_id, user_id, 50.00, 'Food & Dining', 'Dinner with team (updated)', '2026-06-25', bank_mode='Kotak', payment_type='PhonePe', payment_category='Loan', interest=5.00, payment_method='Credit')
+        success = database.update_expense(exp_id, user_id, 50.00, 'Food & Dining', 'Dinner with team (updated)', '2026-06-25', bank_mode='Kotak', payment_type='PhonePe', payment_category='Loan', interest=5.00, payment_method='Credit', status='Paid')
         self.assertTrue(success)
         
         updated_exp = database.get_expense_by_id(exp_id, user_id)
@@ -106,6 +114,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertEqual(updated_exp['payment_type'], 'PhonePe')
         self.assertEqual(updated_exp['payment_category'], 'Loan')
         self.assertEqual(updated_exp['payment_method'], 'Credit')
+        self.assertEqual(updated_exp['status'], 'Paid')
         
         # Delete expense
         del_success = database.delete_expense(exp_id, user_id)
@@ -634,7 +643,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         resp = self.app.get('/api/admin/excel-columns')
         self.assertEqual(resp.status_code, 200)
         cols = json.loads(resp.data)
-        self.assertEqual(len(cols), 9)
+        self.assertEqual(len(cols), 10)
 
         # Find "interest" and verify it's enabled by default
         interest_col = next(c for c in cols if c['column_key'] == 'interest')
@@ -765,6 +774,376 @@ class ExpenseTrackerTestCase(unittest.TestCase):
             'is_enabled': 1,
             'type_key': 'import'
         }), content_type='application/json')
+
+    def test_change_password_flow(self):
+        """Test username verification and password change flows"""
+        # 1. Verify non-existent username
+        resp = self.app.get('/api/verify-username?username=doesnotexist')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertFalse(data['exists'])
+
+        # 2. Verify existing admin username
+        resp = self.app.get('/api/verify-username?username=admin')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['exists'])
+
+        # 3. Change password for non-existent username
+        resp = self.app.post('/api/change-password', data=json.dumps({
+            'username': 'doesnotexist',
+            'new_password': 'newpassword123',
+            'confirm_password': 'newpassword123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 404)
+
+        # 4. Change password with mismatched passwords
+        resp = self.app.post('/api/change-password', data=json.dumps({
+            'username': 'admin',
+            'new_password': 'newpassword123',
+            'confirm_password': 'mismatched123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+
+        # 5. Change password with short password
+        resp = self.app.post('/api/change-password', data=json.dumps({
+            'username': 'admin',
+            'new_password': '123',
+            'confirm_password': '123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+
+        # 6. Change password successfully
+        resp = self.app.post('/api/change-password', data=json.dumps({
+            'username': 'admin',
+            'new_password': 'newadmin12345',
+            'confirm_password': 'newadmin12345'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['success'])
+
+        # 7. Try login with old password (should fail)
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 401)
+
+        # 8. Try login with new password (should succeed)
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'newadmin12345'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # Log out
+        self.app.get('/logout')
+
+        # 9. Create a test user, log in as admin, and change that user's password via Admin API
+        h_pass = generate_password_hash('user123')
+        test_user_id = database.create_user('testpwduser', h_pass, role_id=2)
+        self.assertIsNotNone(test_user_id)
+
+        # Try admin change password without admin login (should return 401)
+        resp = self.app.post('/api/admin/users/change_password', data=json.dumps({
+            'user_id': test_user_id,
+            'new_password': 'newuser123',
+            'confirm_password': 'newuser123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 401)
+
+        # Log in as admin
+        self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'newadmin12345'
+        }), content_type='application/json')
+
+        # Change password via Admin API
+        resp = self.app.post('/api/admin/users/change_password', data=json.dumps({
+            'user_id': test_user_id,
+            'new_password': 'newuser123',
+            'confirm_password': 'newuser123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['success'])
+
+        # Log out admin
+        self.app.get('/logout')
+
+        # Verify new user password works
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'testpwduser',
+            'password': 'newuser123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+    def test_emi_flow(self):
+        """Test EMI CRUD operations for both normal users and administrators"""
+        # 1. Fetch EMIs without login
+        resp = self.app.get('/api/emis')
+        self.assertEqual(resp.status_code, 401)
+
+        # 2. Register/Login a user
+        self.app.post('/register', data=json.dumps({
+            'username': 'emiuser',
+            'password': 'password123'
+        }), content_type='application/json')
+
+        # 3. Fetch EMIs (should be empty initially)
+        resp = self.app.get('/api/emis')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(len(data), 0)
+
+        # 4. Add an EMI
+        resp = self.app.post('/api/emis/add', data=json.dumps({
+            'name': 'Car Loan',
+            'principal_amount': 20000.0,
+            'emi_amount': 500.0,
+            'start_date': '2026-07-01',
+            'end_date': '2029-07-01',
+            'tenure_months': 36,
+            'interest_rate': 8.5,
+            'due_date': '5',
+            'payment_type': 'Auto',
+            'payment_gateway': 'GPay',
+            'payment_bank': 'SBI'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['success'])
+        emi_id = data['id']
+
+        # 5. Add an EMI with missing fields (should fail)
+        resp = self.app.post('/api/emis/add', data=json.dumps({
+            'name': 'Invalid Loan'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+
+        # 6. Fetch EMIs (should return 1 EMI)
+        resp = self.app.get('/api/emis')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['name'], 'Car Loan')
+        self.assertEqual(data[0]['emi_amount'], 500.0)
+
+        # 7. Edit the EMI
+        resp = self.app.post(f'/api/emis/edit/{emi_id}', data=json.dumps({
+            'name': 'Car Loan (Updated)',
+            'principal_amount': 20000.0,
+            'emi_amount': 450.0,
+            'start_date': '2026-07-01',
+            'end_date': '2029-07-01',
+            'tenure_months': 36,
+            'interest_rate': 8.5,
+            'due_date': '10',
+            'payment_type': 'Manual',
+            'payment_gateway': 'PhonePe',
+            'payment_bank': 'Kotak'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # Verify edits
+        resp = self.app.get('/api/emis')
+        data = json.loads(resp.data)
+        self.assertEqual(data[0]['name'], 'Car Loan (Updated)')
+        self.assertEqual(data[0]['emi_amount'], 450.0)
+        self.assertEqual(data[0]['due_date'], '10')
+        self.assertEqual(data[0]['payment_type'], 'Manual')
+
+        # Test user EMI export
+        resp = self.app.get('/api/emis/export')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.mimetype, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+        # Test user EMI import
+        from openpyxl import Workbook
+        from io import BytesIO
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["EMI Name", "Loan Amount", "Interest Rate", "Tenure", "Monthly EMI", "Start Date", "End Date", "Due Date", "Payment Type"])
+        ws.append(["Imported User Loan", 10000.0, 5.0, 10, 1050.0, "2026-07-01", "2027-05-01", "5", "Auto"])
+        
+        out = BytesIO()
+        wb.save(out)
+        out.seek(0)
+        
+        resp = self.app.post('/api/emis/import', data={
+            'file': (out, 'test.xlsx')
+        }, content_type='multipart/form-data')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['success'])
+
+        # Log out user
+        self.app.get('/logout')
+
+        # 8. Log in as Admin
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # 9. Admin fetch EMIs
+        resp = self.app.get('/api/admin/emis')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertGreaterEqual(len(data), 1)
+        # Verify user association in admin view
+        user_emi = next(e for e in data if e['id'] == emi_id)
+        self.assertEqual(user_emi['username'], 'emiuser')
+
+        # 10. Admin create EMI for user emiuser
+        user = database.get_user_by_username('emiuser')
+        user_id = user['id']
+        resp = self.app.post('/api/admin/emis/create', data=json.dumps({
+            'user_id': user_id,
+            'name': 'Admin Created Loan',
+            'principal_amount': 5000.0,
+            'emi_amount': 150.0,
+            'start_date': '2026-08-01',
+            'end_date': '2027-08-01',
+            'tenure_months': 12,
+            'interest_rate': 10.0,
+            'due_date': '1',
+            'payment_type': 'Auto',
+            'payment_gateway': 'Paytm',
+            'payment_bank': 'ICICI'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        admin_emi_id = data['id']
+
+        # 11. Admin edit EMI
+        resp = self.app.post(f'/api/admin/emis/edit/{admin_emi_id}', data=json.dumps({
+            'name': 'Admin Created Loan (Updated)',
+            'principal_amount': 5000.0,
+            'emi_amount': 160.0,
+            'start_date': '2026-08-01',
+            'end_date': '2027-08-01',
+            'tenure_months': 12,
+            'interest_rate': 10.0,
+            'due_date': '1',
+            'payment_type': 'Auto',
+            'payment_gateway': 'Paytm',
+            'payment_bank': 'ICICI'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # Test admin EMI export
+        resp = self.app.get('/api/admin/emis/export')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.mimetype, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+        # Test admin EMI import
+        wb_admin = Workbook()
+        ws_admin = wb_admin.active
+        ws_admin.append(["Username", "EMI Name", "Loan Amount", "Interest Rate", "Tenure", "Monthly EMI", "Start Date", "End Date", "Due Date", "Payment Type"])
+        ws_admin.append(["emiuser", "Imported Admin Loan", 10000.0, 5.0, 10, 1050.0, "2026-07-01", "2027-05-01", "5", "Auto"])
+        
+        out_admin = BytesIO()
+        wb_admin.save(out_admin)
+        out_admin.seek(0)
+        
+        resp = self.app.post('/api/admin/emis/import', data={
+            'file': (out_admin, 'test.xlsx')
+        }, content_type='multipart/form-data')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['success'])
+
+        # 12. Admin delete EMI
+        resp = self.app.delete(f'/api/admin/emis/delete/{admin_emi_id}')
+        self.assertEqual(resp.status_code, 200)
+
+        # Log out admin
+        self.app.get('/logout')
+
+        # Log in back as user to delete their original EMI
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'emiuser',
+            'password': 'password123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # 13. User delete EMI
+        resp = self.app.delete(f'/api/emis/delete/{emi_id}')
+        self.assertEqual(resp.status_code, 200)
+
+        # 14. Fetch EMIs (should be empty after deleting remaining imported EMIs)
+        resp = self.app.get('/api/emis')
+        data = json.loads(resp.data)
+        for e in data:
+            self.app.delete(f'/api/emis/delete/{e["id"]}')
+            
+        resp = self.app.get('/api/emis')
+        data = json.loads(resp.data)
+        self.assertEqual(len(data), 0)
+
+    def test_currency_flow(self):
+        # 1. Fetch default active currency
+        resp = self.app.get('/api/active-currency')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data['symbol'], '₹')
+        self.assertEqual(data['country'], 'India')
+
+        # Log in as admin
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # 2. Get all currencies
+        resp = self.app.get('/api/admin/currencies')
+        self.assertEqual(resp.status_code, 200)
+        currs = json.loads(resp.data)
+        self.assertTrue(len(currs) >= 4)
+
+        # 3. Add a new currency
+        resp = self.app.post('/api/admin/currencies/add', data=json.dumps({
+            'country': 'Japan',
+            'country_desc': 'Japanese Yen',
+            'symbol': '¥'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['success'])
+        new_curr_id = data['id']
+
+        # 4. Set the new currency as active
+        resp = self.app.post(f'/api/admin/currencies/set_active/{new_curr_id}')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['success'])
+
+        # 5. Verify the active currency changed globally
+        resp = self.app.get('/api/active-currency')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data['symbol'], '¥')
+        self.assertEqual(data['country'], 'Japan')
+
+        # 6. Delete the currency configuration
+        resp = self.app.delete(f'/api/admin/currencies/delete/{new_curr_id}')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['success'])
+
+        # 7. Verify it falls back or reverts active currency
+        resp = self.app.get('/api/active-currency')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertNotEqual(data['country'], 'Japan')
+
+        # Log out admin
+        self.app.get('/logout')
 
 if __name__ == '__main__':
     unittest.main()

@@ -42,6 +42,7 @@ def init_db():
             payment_category TEXT,
             interest REAL DEFAULT 0.0,
             payment_method TEXT DEFAULT 'Debit',
+            status TEXT DEFAULT 'Paid',
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         )
     ''')
@@ -112,6 +113,38 @@ def init_db():
             is_required INTEGER DEFAULT 0
         )
     ''')
+
+    # Create emis table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS emis (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            principal_amount REAL DEFAULT 0.0,
+            emi_amount REAL NOT NULL,
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL,
+            tenure_months INTEGER NOT NULL,
+            interest_rate REAL NOT NULL,
+            due_date TEXT NOT NULL,
+            payment_type TEXT NOT NULL,
+            payment_gateway TEXT,
+            payment_bank TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+    ''')
+
+    # Create currencies table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS currencies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            country TEXT UNIQUE NOT NULL,
+            country_desc TEXT NOT NULL,
+            symbol TEXT NOT NULL,
+            is_active INTEGER DEFAULT 0
+        )
+    ''')
     
     # Migrations for excel_columns table
     try:
@@ -134,7 +167,8 @@ def init_db():
         ('payment_type', 'TEXT'),
         ('payment_category', 'TEXT'),
         ('interest', 'REAL DEFAULT 0.0'),
-        ('payment_method', 'TEXT DEFAULT \'Debit\'')
+        ('payment_method', 'TEXT DEFAULT \'Debit\''),
+        ('status', 'TEXT DEFAULT \'Paid\'')
     ]
     for name, dtype in new_cols:
         try:
@@ -165,6 +199,14 @@ def init_db():
             cursor.execute("INSERT INTO users (username, password_hash, role_id) VALUES ('admin', ?, 1)", (p_hash,))
         except sqlite3.IntegrityError:
             cursor.execute("UPDATE users SET role_id = 1 WHERE username = 'admin'")
+
+    # Seed Default Currencies
+    currencies_exist = cursor.execute("SELECT COUNT(*) FROM currencies").fetchone()[0]
+    if currencies_exist == 0:
+        cursor.execute("INSERT INTO currencies (country, country_desc, symbol, is_active) VALUES ('India', 'Indian Rupee', '₹', 1)")
+        cursor.execute("INSERT INTO currencies (country, country_desc, symbol, is_active) VALUES ('USA', 'US Dollar', '$', 0)")
+        cursor.execute("INSERT INTO currencies (country, country_desc, symbol, is_active) VALUES ('Europe', 'Euro', '€', 0)")
+        cursor.execute("INSERT INTO currencies (country, country_desc, symbol, is_active) VALUES ('UK', 'British Pound', '£', 0)")
 
     # Seed Default Categories
     cats_exist = cursor.execute("SELECT COUNT(*) FROM categories").fetchone()[0]
@@ -220,9 +262,12 @@ def init_db():
             ('source', 'Source', 1, 1, 0),
             ('method', 'Method', 1, 1, 0),
             ('amount', 'Amount', 1, 1, 1),
-            ('interest', 'Interest', 1, 1, 0)
+            ('interest', 'Interest', 1, 1, 0),
+            ('status', 'Status', 1, 1, 0)
         ]
         cursor.executemany("INSERT INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required) VALUES (?, ?, ?, ?, ?)", default_cols)
+    else:
+        cursor.execute("INSERT OR IGNORE INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required) VALUES ('status', 'Status', 1, 1, 0)")
 
     conn.commit()
     conn.close()
@@ -263,21 +308,21 @@ def get_user_by_id(user_id):
     conn.close()
     return user
 
-def add_expense(user_id, amount, category, description, date, bank_mode=None, payment_type=None, payment_category=None, interest=0.0, payment_method='Debit'):
+def add_expense(user_id, amount, category, description, date, bank_mode=None, payment_type=None, payment_category=None, interest=0.0, payment_method='Debit', status='Paid'):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
         '''INSERT INTO expenses (
-            user_id, amount, category, description, date, bank_mode, payment_type, payment_category, interest, payment_method
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        (user_id, amount, category, description, date, bank_mode, payment_type, payment_category, interest, payment_method)
+            user_id, amount, category, description, date, bank_mode, payment_type, payment_category, interest, payment_method, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (user_id, amount, category, description, date, bank_mode, payment_type, payment_category, interest, payment_method, status)
     )
     conn.commit()
     expense_id = cursor.lastrowid
     conn.close()
     return expense_id
 
-def get_expenses(user_id, category=None, start_date=None, end_date=None, search=None, bank_mode=None, payment_type=None, payment_category=None, month=None, year=None, payment_method=None):
+def get_expenses(user_id, category=None, start_date=None, end_date=None, search=None, bank_mode=None, payment_type=None, payment_category=None, month=None, year=None, payment_method=None, status=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -318,6 +363,10 @@ def get_expenses(user_id, category=None, start_date=None, end_date=None, search=
     if payment_method:
         query += ' AND payment_method = ?'
         params.append(payment_method)
+
+    if status:
+        query += ' AND status = ?'
+        params.append(status)
         
     if month:
         query += " AND strftime('%m', date) = ?"
@@ -343,15 +392,27 @@ def get_expense_by_id(expense_id, user_id):
     conn.close()
     return dict(expense) if expense else None
 
-def update_expense(expense_id, user_id, amount, category, description, date, bank_mode=None, payment_type=None, payment_category=None, interest=0.0, payment_method='Debit'):
+def update_expense(expense_id, user_id, amount, category, description, date, bank_mode=None, payment_type=None, payment_category=None, interest=0.0, payment_method='Debit', status='Paid'):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
         '''UPDATE expenses SET 
             amount = ?, category = ?, description = ?, date = ?, 
-            bank_mode = ?, payment_type = ?, payment_category = ?, interest = ?, payment_method = ? 
+            bank_mode = ?, payment_type = ?, payment_category = ?, interest = ?, payment_method = ?, status = ? 
         WHERE id = ? AND user_id = ?''',
-        (amount, category, description, date, bank_mode, payment_type, payment_category, interest, payment_method, expense_id, user_id)
+        (amount, category, description, date, bank_mode, payment_type, payment_category, interest, payment_method, status, expense_id, user_id)
+    )
+    conn.commit()
+    rows_affected = cursor.rowcount
+    conn.close()
+    return rows_affected > 0
+
+def update_expense_status(expense_id, user_id, status):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE expenses SET status = ? WHERE id = ? AND user_id = ?",
+        (status, expense_id, user_id)
     )
     conn.commit()
     rows_affected = cursor.rowcount
@@ -598,6 +659,24 @@ def delete_user(user_id):
     conn.close()
     return True
 
+def update_user_password_by_username(username, password_hash):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET password_hash = ? WHERE username = ?', (password_hash, username))
+    conn.commit()
+    rows_affected = cursor.rowcount
+    conn.close()
+    return rows_affected > 0
+
+def update_user_password(user_id, password_hash):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, user_id))
+    conn.commit()
+    rows_affected = cursor.rowcount
+    conn.close()
+    return rows_affected > 0
+
 # DYNAMIC CATEGORIES
 def get_categories():
     conn = get_db_connection()
@@ -805,6 +884,158 @@ def update_excel_column_status(column_key, type_key, is_enabled):
     conn.commit()
     conn.close()
     return True
+
+# EMI HELPERS
+def add_emi(user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        '''INSERT INTO emis (
+            user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank)
+    )
+    conn.commit()
+    emi_id = cursor.lastrowid
+    conn.close()
+    return emi_id
+
+def get_emis(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    emis = cursor.execute('SELECT * FROM emis WHERE user_id = ? ORDER BY start_date DESC', (user_id,)).fetchall()
+    conn.close()
+    return [dict(row) for row in emis]
+
+def get_all_emis():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    emis = cursor.execute(
+        '''SELECT emis.*, users.username 
+           FROM emis JOIN users ON emis.user_id = users.id 
+           ORDER BY emis.start_date DESC'''
+    ).fetchall()
+    conn.close()
+    return [dict(row) for row in emis]
+
+def get_emi_by_id(emi_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    emi = cursor.execute('SELECT * FROM emis WHERE id = ?', (emi_id,)).fetchone()
+    conn.close()
+    return dict(emi) if emi else None
+
+def update_emi(emi_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, user_id=None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if user_id is not None:
+        cursor.execute(
+            '''UPDATE emis SET 
+                name = ?, principal_amount = ?, emi_amount = ?, start_date = ?, end_date = ?, 
+                tenure_months = ?, interest_rate = ?, due_date = ?, payment_type = ?, payment_gateway = ?, payment_bank = ? 
+               WHERE id = ? AND user_id = ?''',
+            (name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, emi_id, user_id)
+        )
+    else:
+        cursor.execute(
+            '''UPDATE emis SET 
+                name = ?, principal_amount = ?, emi_amount = ?, start_date = ?, end_date = ?, 
+                tenure_months = ?, interest_rate = ?, due_date = ?, payment_type = ?, payment_gateway = ?, payment_bank = ? 
+               WHERE id = ?''',
+            (name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, emi_id)
+        )
+    conn.commit()
+    rows_affected = cursor.rowcount
+    conn.close()
+    return rows_affected > 0
+
+def delete_emi(emi_id, user_id=None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if user_id is not None:
+        cursor.execute('DELETE FROM emis WHERE id = ? AND user_id = ?', (emi_id, user_id))
+    else:
+        cursor.execute('DELETE FROM emis WHERE id = ?', (emi_id,))
+    conn.commit()
+    rows_affected = cursor.rowcount
+    conn.close()
+    return rows_affected > 0
+
+def get_all_currencies():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM currencies ORDER BY country ASC')
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_active_currency():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM currencies WHERE is_active = 1 LIMIT 1')
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return {'country': 'India', 'country_desc': 'Indian Rupee', 'symbol': '₹'}
+
+def add_currency(country, country_desc, symbol):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'INSERT INTO currencies (country, country_desc, symbol, is_active) VALUES (?, ?, ?, 0)',
+            (country, country_desc, symbol)
+        )
+        conn.commit()
+        last_id = cursor.lastrowid
+        conn.close()
+        return last_id
+    except sqlite3.IntegrityError:
+        conn.close()
+        return None
+
+def update_currency(currency_id, country, country_desc, symbol):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'UPDATE currencies SET country = ?, country_desc = ?, symbol = ? WHERE id = ?',
+            (country, country_desc, symbol, currency_id)
+        )
+        conn.commit()
+        rows_affected = cursor.rowcount
+        conn.close()
+        return rows_affected > 0
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False
+
+def delete_currency(currency_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    active = cursor.execute('SELECT is_active FROM currencies WHERE id = ?', (currency_id,)).fetchone()
+    cursor.execute('DELETE FROM currencies WHERE id = ?', (currency_id,))
+    conn.commit()
+    rows_affected = cursor.rowcount
+    if active and active[0] == 1:
+        cursor.execute('SELECT id FROM currencies LIMIT 1')
+        next_row = cursor.fetchone()
+        if next_row:
+            cursor.execute('UPDATE currencies SET is_active = 1 WHERE id = ?', (next_row[0],))
+            conn.commit()
+    conn.close()
+    return rows_affected > 0
+
+def set_active_currency(currency_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE currencies SET is_active = 0')
+    cursor.execute('UPDATE currencies SET is_active = 1 WHERE id = ?', (currency_id,))
+    conn.commit()
+    rows_affected = cursor.rowcount
+    conn.close()
+    return rows_affected > 0
 
 if __name__ == '__main__':
     init_db()

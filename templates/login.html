@@ -50,6 +50,9 @@
                 <div class="auth-switch">
                     Don't have an account? <a href="#" id="show-register">Register</a>
                 </div>
+                <div class="auth-switch" style="margin-top: 10px;">
+                    Forgot password? <a href="#" id="show-change-password">Change Password</a>
+                </div>
             </form>
 
             <!-- Register Form -->
@@ -74,6 +77,30 @@
                     Already have an account? <a href="#" id="show-login">Log In</a>
                 </div>
             </form>
+
+            <!-- Change Password Form -->
+            <form id="change-password-form" class="auth-form hidden">
+                <div class="form-title">Change Password</div>
+                <div class="input-group" style="position: relative;">
+                    <i class="fa-solid fa-user input-icon"></i>
+                    <input type="text" id="change-username" placeholder="Username" required minlength="3" style="padding-right: 110px;">
+                    <span id="username-verify-indicator" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; font-weight: 600; pointer-events: none;"></span>
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    <input type="password" id="change-password" placeholder="New Password (Min 6 chars)" required minlength="6">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock-open input-icon"></i>
+                    <input type="password" id="change-confirm" placeholder="Confirm New Password" required minlength="6">
+                </div>
+                <button type="submit" class="btn-primary auth-submit">
+                    <span>Submit</span> <i class="fa-solid fa-key"></i>
+                </button>
+                <div class="auth-switch">
+                    Remembered password? <a href="#" id="show-login-from-change">Log In</a>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -81,8 +108,16 @@
     <script>
         const loginForm = document.getElementById('login-form');
         const registerForm = document.getElementById('register-form');
+        const changePasswordForm = document.getElementById('change-password-form');
+        
         const showRegisterBtn = document.getElementById('show-register');
         const showLoginBtn = document.getElementById('show-login');
+        const showChangePasswordBtn = document.getElementById('show-change-password');
+        const showLoginFromChangeBtn = document.getElementById('show-login-from-change');
+        
+        const changeUsernameInput = document.getElementById('change-username');
+        const usernameVerifyIndicator = document.getElementById('username-verify-indicator');
+        
         const alertBox = document.getElementById('auth-alert');
         const alertMsg = alertBox.querySelector('.alert-message');
 
@@ -96,11 +131,12 @@
             alertBox.classList.add('hidden');
         }
 
-        // Toggle between login and register
+        // Toggle functions
         showRegisterBtn.addEventListener('click', (e) => {
             e.preventDefault();
             closeAlert();
             loginForm.classList.add('hidden');
+            changePasswordForm.classList.add('hidden');
             registerForm.classList.remove('hidden');
             registerForm.style.animation = 'slideIn 0.4s ease forwards';
         });
@@ -109,8 +145,60 @@
             e.preventDefault();
             closeAlert();
             registerForm.classList.add('hidden');
+            changePasswordForm.classList.add('hidden');
             loginForm.classList.remove('hidden');
             loginForm.style.animation = 'slideIn 0.4s ease forwards';
+        });
+
+        showChangePasswordBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeAlert();
+            loginForm.classList.add('hidden');
+            registerForm.classList.add('hidden');
+            changePasswordForm.classList.remove('hidden');
+            changePasswordForm.style.animation = 'slideIn 0.4s ease forwards';
+            changeUsernameInput.value = '';
+            usernameVerifyIndicator.textContent = '';
+        });
+
+        showLoginFromChangeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeAlert();
+            registerForm.classList.add('hidden');
+            changePasswordForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            loginForm.style.animation = 'slideIn 0.4s ease forwards';
+        });
+
+        // Real-time username verification on blur
+        changeUsernameInput.addEventListener('blur', async () => {
+            const username = changeUsernameInput.value.trim();
+            if (username.length < 3) {
+                usernameVerifyIndicator.textContent = '';
+                return;
+            }
+            usernameVerifyIndicator.textContent = 'Verifying...';
+            usernameVerifyIndicator.style.color = 'var(--text-secondary)';
+            
+            try {
+                const response = await fetch(`/api/verify-username?username=${encodeURIComponent(username)}`);
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.exists) {
+                        usernameVerifyIndicator.textContent = '✓ Verified';
+                        usernameVerifyIndicator.style.color = 'var(--color-success)';
+                    } else {
+                        usernameVerifyIndicator.textContent = '✗ Not Found';
+                        usernameVerifyIndicator.style.color = 'var(--color-secondary)';
+                    }
+                } else {
+                    usernameVerifyIndicator.textContent = '✗ Error';
+                    usernameVerifyIndicator.style.color = 'var(--color-secondary)';
+                }
+            } catch (err) {
+                usernameVerifyIndicator.textContent = '✗ Offline';
+                usernameVerifyIndicator.style.color = 'var(--color-secondary)';
+            }
         });
 
         // Submit Login Form
@@ -165,6 +253,43 @@
                     }, 1000);
                 } else {
                     showAlert(result.message || 'Registration failed.');
+                }
+            } catch (err) {
+                showAlert('Network error. Please try again.');
+            }
+        });
+
+        // Submit Change Password Form
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = changeUsernameInput.value.trim();
+            const newPassword = document.getElementById('change-password').value;
+            const confirmPassword = document.getElementById('change-confirm').value;
+
+            if (newPassword !== confirmPassword) {
+                showAlert('New passwords do not match.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, new_password: newPassword, confirm_password: confirmPassword })
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showAlert('Password updated successfully! Redirecting to login...', true);
+                    setTimeout(() => {
+                        // Switch back to login form
+                        registerForm.classList.add('hidden');
+                        changePasswordForm.classList.add('hidden');
+                        loginForm.classList.remove('hidden');
+                        loginForm.style.animation = 'slideIn 0.4s ease forwards';
+                        closeAlert();
+                    }, 1500);
+                } else {
+                    showAlert(result.message || 'Failed to change password.');
                 }
             } catch (err) {
                 showAlert('Network error. Please try again.');

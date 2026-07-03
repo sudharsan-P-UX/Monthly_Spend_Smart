@@ -34,6 +34,10 @@
                     <i class="fa-solid fa-plus"></i>
                     <span>Add Expense</span>
                 </a>
+                <a href="#" class="nav-item" data-target="emi" id="nav-emi">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>EMI</span>
+                </a>
                 <a href="#" class="nav-item" data-target="overview" id="nav-overview">
                     <i class="fa-solid fa-chart-pie"></i>
                     <span>Overview</span>
@@ -75,7 +79,7 @@
                     <div class="metric-card card-month">
                         <div class="metric-info">
                             <h3>This Month</h3>
-                            <span class="metric-value" id="month-total">$0.00</span>
+                            <span class="metric-value" id="month-total">₹0.00</span>
                         </div>
                         <div class="metric-icon">
                             <i class="fa-solid fa-calendar-days"></i>
@@ -84,7 +88,7 @@
                     <div class="metric-card card-all">
                         <div class="metric-info">
                             <h3>Total Spent</h3>
-                            <span class="metric-value" id="all-total">$0.00</span>
+                            <span class="metric-value" id="all-total">₹0.00</span>
                         </div>
                         <div class="metric-icon">
                             <i class="fa-solid fa-coins"></i>
@@ -151,6 +155,14 @@
                                 </select>
                             </div>
                             <div class="filter-group">
+                                <label for="filter-status">Payment Status</label>
+                                <select id="filter-status">
+                                    <option value="">All Statuses</option>
+                                    <option value="Paid">Paid</option>
+                                    <option value="Unpaid">Unpaid</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
                                 <label for="filter-payment-category">Payment Source</label>
                                 <select id="filter-payment-category">
                                     <option value="">All Sources</option>
@@ -212,16 +224,16 @@
                     <div class="dashboard-summary-bar">
                         <div class="summary-item">
                             <span class="summary-label">Filtered Debits:</span>
-                            <span class="summary-value debit-text" id="dashboard-filtered-debit">$0.00</span>
+                            <span class="summary-value debit-text" id="dashboard-filtered-debit">₹0.00</span>
                         </div>
                         <div class="summary-item">
                             <span class="summary-label">Filtered Credits:</span>
-                            <span class="summary-value credit-text" id="dashboard-filtered-credit">$0.00</span>
+                            <span class="summary-value credit-text" id="dashboard-filtered-credit">₹0.00</span>
                         </div>
                         <div class="summary-item year-total-item hidden" id="dashboard-year-total-wrapper">
                             <span class="summary-label" id="dashboard-year-total-label">2026 Totals:</span>
-                            <span class="summary-value" id="dashboard-year-debit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Debits: $0.00</span>
-                            <span class="summary-value" id="dashboard-year-credit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Credits: $0.00</span>
+                            <span class="summary-value" id="dashboard-year-debit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Debits: ₹0.00</span>
+                            <span class="summary-value" id="dashboard-year-credit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Credits: ₹0.00</span>
                         </div>
                     </div>
 
@@ -238,6 +250,7 @@
                                     <th class="text-center">Method</th>
                                     <th class="text-right">Amount</th>
                                     <th class="text-right">Interest</th>
+                                    <th class="text-center">Status</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -248,6 +261,86 @@
                         <div id="no-expenses-msg" class="empty-state hidden">
                             <i class="fa-solid fa-folder-open"></i>
                             <p>No expenses found. Add some to get started!</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- EMI SECTION -->
+            <section id="section-emi" class="content-section hidden">
+                <header class="section-header">
+                    <h1>EMI Management</h1>
+                    <p>Track your Equated Monthly Installments and recurring loans.</p>
+                </header>
+
+                <!-- EMI Summary Cards -->
+                <div class="metrics-grid" id="emi-metrics-grid">
+                    <div class="metric-card card-month" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2);">
+                        <div class="metric-info">
+                            <h3>Active EMIs</h3>
+                            <span class="metric-value" id="emi-active-count">0</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-file-invoice-dollar" style="color: var(--color-primary);"></i>
+                        </div>
+                    </div>
+                    <div class="metric-card card-all" style="background: rgba(244, 63, 94, 0.08); border-color: rgba(244, 63, 94, 0.2);">
+                        <div class="metric-info">
+                            <h3>Monthly EMI Outflow</h3>
+                            <span class="metric-value" id="emi-monthly-outflow" style="color: var(--color-secondary);">₹0.00</span>
+                        </div>
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-arrow-trend-up" style="color: var(--color-secondary);"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EMI Actions and List Card -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>My EMIs</h2>
+                        <div class="card-actions">
+                            <button class="btn-secondary btn-sm" onclick="toggleEmiOverview()" title="Toggle Overview Statistics">
+                                <i class="fa-solid fa-chart-simple"></i> <span>Overview</span>
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="openEmiImportModal()" title="Import EMIs from Excel">
+                                <i class="fa-solid fa-file-import"></i> <span>Import</span>
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="exportUserEMIs()" title="Export EMIs to Excel">
+                                <i class="fa-solid fa-file-export"></i> <span>Export</span>
+                            </button>
+                            <button class="btn-primary btn-sm" onclick="openEmiModal()">
+                                <i class="fa-solid fa-plus"></i> <span>Add EMI</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container emi-table-container">
+                        <table class="expense-table">
+                            <thead>
+                                <tr>
+                                    <th>EMI Name</th>
+                                    <th class="text-right">Loan Amount</th>
+                                    <th class="text-right">Monthly EMI</th>
+                                    <th class="text-center">Start Date</th>
+                                    <th class="text-center">End Date</th>
+                                    <th class="text-center">Tenure</th>
+                                    <th class="text-center">Pending Months</th>
+                                    <th class="text-right">Pending Balance</th>
+                                    <th class="text-center">Interest</th>
+                                    <th class="text-center">Due Day</th>
+                                    <th class="text-center">Type</th>
+                                    <th>Gateway/Bank</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-emi-list">
+                                <!-- Dynamic user EMI entries -->
+                            </tbody>
+                        </table>
+                        <div id="no-emis-msg" class="empty-state hidden">
+                            <i class="fa-solid fa-receipt"></i>
+                            <p>No active EMIs found. Add one to track your installment plans!</p>
                         </div>
                     </div>
                 </div>
@@ -296,55 +389,55 @@
 
                 <!-- Debit/Credit summary cards grid -->
                 <div class="metrics-grid">
-                    <div class="metric-card card-month">
+                    <div class="metric-card card-month" onclick="showOverviewDetails('month-debits')" style="cursor: pointer;">
                         <div class="metric-info">
                             <h3>Month Debits</h3>
-                            <span class="metric-value" id="overview-month-debit">$0.00</span>
+                             <span class="metric-value" id="overview-month-debit">₹0.00</span>
                         </div>
                         <div class="metric-icon">
                             <i class="fa-solid fa-arrow-down-long" style="color: var(--color-secondary);"></i>
                         </div>
                     </div>
-                    <div class="metric-card card-all">
+                    <div class="metric-card card-all" onclick="showOverviewDetails('month-credits')" style="cursor: pointer;">
                         <div class="metric-info">
                             <h3>Month Credits</h3>
-                            <span class="metric-value" id="overview-month-credit">$0.00</span>
+                            <span class="metric-value" id="overview-month-credit">₹0.00</span>
                         </div>
                         <div class="metric-icon">
                             <i class="fa-solid fa-arrow-up-long" style="color: var(--color-success);"></i>
                         </div>
                     </div>
-                    <div class="metric-card card-month" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2);">
+                    <div class="metric-card card-month" onclick="showOverviewDetails('month-interest')" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2); cursor: pointer;">
                         <div class="metric-info">
                             <h3>Month Interest</h3>
-                            <span class="metric-value" id="overview-month-interest" style="color: var(--color-primary);">$0.00</span>
+                            <span class="metric-value" id="overview-month-interest" style="color: var(--color-primary);">₹0.00</span>
                         </div>
                         <div class="metric-icon">
                             <i class="fa-solid fa-percent" style="color: var(--color-primary);"></i>
                         </div>
                     </div>
-                    <div class="metric-card card-month">
+                    <div class="metric-card card-month" onclick="showOverviewDetails('total-debits')" style="cursor: pointer;">
                         <div class="metric-info">
                             <h3>Total Debits</h3>
-                            <span class="metric-value" id="overview-total-debit">$0.00</span>
+                            <span class="metric-value" id="overview-total-debit">₹0.00</span>
                         </div>
                         <div class="metric-icon">
                             <i class="fa-solid fa-wallet"></i>
                         </div>
                     </div>
-                    <div class="metric-card card-all">
+                    <div class="metric-card card-all" onclick="showOverviewDetails('total-credits')" style="cursor: pointer;">
                         <div class="metric-info">
                             <h3>Total Credits</h3>
-                            <span class="metric-value" id="overview-total-credit">$0.00</span>
+                            <span class="metric-value" id="overview-total-credit">₹0.00</span>
                         </div>
                         <div class="metric-icon">
                             <i class="fa-solid fa-credit-card"></i>
                         </div>
                     </div>
-                    <div class="metric-card card-all" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2);">
+                    <div class="metric-card card-all" onclick="showOverviewDetails('total-interest')" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2); cursor: pointer;">
                         <div class="metric-info">
                             <h3>Total Interest</h3>
-                            <span class="metric-value" id="overview-total-interest" style="color: var(--color-primary);">$0.00</span>
+                            <span class="metric-value" id="overview-total-interest" style="color: var(--color-primary);">₹0.00</span>
                         </div>
                         <div class="metric-icon">
                             <i class="fa-solid fa-coins" style="color: var(--color-primary);"></i>
@@ -385,7 +478,7 @@
                 <div class="content-card form-card">
                     <form id="standalone-add-expense-form" class="standalone-form">
                         <div class="input-group">
-                            <label for="add-amount">Amount ($) <span class="required">*</span></label>
+                            <label for="add-amount">Amount (₹) <span class="required">*</span></label>
                             <input type="number" id="add-amount" step="0.01" min="0.01" required placeholder="0.00">
                         </div>
                         <div class="input-group">
@@ -432,8 +525,12 @@
                             </select>
                         </div>
                         <div class="input-group hidden" id="add-interest-wrapper">
-                            <label for="add-interest">Interest ($)</label>
+                            <label for="add-interest">Interest (₹)</label>
                             <input type="number" id="add-interest" step="0.01" min="0" value="0.00" placeholder="0.00">
+                        </div>
+                        <div class="input-group" id="add-status-wrapper" style="display: flex; align-items: center; gap: 8px; flex-direction: row; margin-top: 25px;">
+                            <input type="checkbox" id="add-status" checked style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+                            <label for="add-status" style="margin: 0; cursor: pointer; font-weight: 500; font-size: 0.95rem;">Paid</label>
                         </div>
                         <div class="input-group input-group-full">
                             <label for="add-description">Description</label>
@@ -459,6 +556,9 @@
                     <button class="admin-tab active" data-tab="admin-users">
                         <i class="fa-solid fa-users"></i> Users
                     </button>
+                    <button class="admin-tab" data-tab="admin-emis">
+                        <i class="fa-solid fa-receipt"></i> EMIs
+                    </button>
                     <button class="admin-tab" data-tab="admin-roles">
                         <i class="fa-solid fa-shield-halved"></i> Roles & Privileges
                     </button>
@@ -476,6 +576,9 @@
                     </button>
                     <button class="admin-tab" data-tab="admin-excel-columns">
                         <i class="fa-solid fa-table-list"></i> Excel Columns
+                    </button>
+                    <button class="admin-tab" data-tab="admin-currencies">
+                        <i class="fa-solid fa-coins"></i> Currencies
                     </button>
                 </div>
 
@@ -526,6 +629,133 @@
                                     </select>
                                 </div>
                                 <button type="submit" class="btn-primary admin-full-width">Create User</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: EMIs Management -->
+                <div id="tab-admin-emis" class="admin-sub-section hidden">
+                    <div class="admin-grid" style="grid-template-columns: 2fr 1fr; gap: 20px;">
+                        <!-- EMIs List -->
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>All System EMIs</h2>
+                                <div class="card-actions">
+                                    <button type="button" class="btn-secondary btn-sm" onclick="openAdminEmiImportModal()" title="Import EMIs for Users">
+                                        <i class="fa-solid fa-file-import"></i> <span>Import</span>
+                                    </button>
+                                    <button type="button" class="btn-secondary btn-sm" onclick="exportAdminEMIs()" title="Export all EMIs">
+                                        <i class="fa-solid fa-file-export"></i> <span>Export</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="table-container emi-table-container">
+                                <table class="expense-table">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>EMI Name</th>
+                                            <th class="text-right">Monthly EMI</th>
+                                            <th class="text-center">Due Day</th>
+                                            <th>Type</th>
+                                            <th>Gateway/Bank</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-emis-list">
+                                        <!-- Dynamic entries -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Add/Edit EMI Form for Admins -->
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2 id="admin-emi-form-title">Create EMI for User</h2>
+                            </div>
+                            <form id="admin-emi-form" class="modal-form">
+                                <input type="hidden" id="admin-emi-id">
+                                
+                                <div class="input-group" id="admin-emi-user-group">
+                                    <label for="admin-emi-user">Select User <span class="required">*</span></label>
+                                    <select id="admin-emi-user" required>
+                                        <option value="" disabled selected>Select User</option>
+                                        <!-- Dynamic User Options -->
+                                    </select>
+                                </div>
+                                
+                                <div class="input-group">
+                                    <label for="admin-emi-name">EMI Name <span class="required">*</span></label>
+                                    <input type="text" id="admin-emi-name" required placeholder="e.g. Car Loan">
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-principal">Loan Amount (Principal)</label>
+                                    <input type="number" id="admin-emi-principal" step="0.01" min="0" placeholder="0.00" value="0.00">
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-interest-rate">Interest (% Per Annum)</label>
+                                    <input type="number" id="admin-emi-interest-rate" step="0.01" min="0" placeholder="0.00" value="0.00">
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-tenure">Tenure (Months) <span class="required">*</span></label>
+                                    <input type="number" id="admin-emi-tenure" min="1" required placeholder="e.g. 12" value="12">
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-amount">Monthly EMI Amount <span class="required">*</span></label>
+                                    <input type="number" id="admin-emi-amount" step="0.01" min="0.01" required placeholder="0.00">
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-start-date">Start Date <span class="required">*</span></label>
+                                    <input type="date" id="admin-emi-start-date" required>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-end-date">End Date <span class="required">*</span></label>
+                                    <input type="date" id="admin-emi-end-date" required>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-due-date">Due Date <span class="required">*</span></label>
+                                    <input type="text" id="admin-emi-due-date" required placeholder="e.g. 5" value="5">
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-payment-type">Payment Type <span class="required">*</span></label>
+                                    <select id="admin-emi-payment-type" required>
+                                        <option value="Auto" selected>Auto</option>
+                                        <option value="Manual">Manual</option>
+                                    </select>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-payment-gateway">Payment Gateway</label>
+                                    <select id="admin-emi-payment-gateway">
+                                        <option value="" selected>None / N/A</option>
+                                        <option value="GPay">GPay</option>
+                                        <option value="PhonePe">PhonePe</option>
+                                        <option value="Paytm">Paytm</option>
+                                    </select>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="admin-emi-payment-bank">Payment Bank</label>
+                                    <select id="admin-emi-payment-bank">
+                                        <option value="" selected>None / N/A</option>
+                                        <!-- Dynamic Options populated by JS -->
+                                    </select>
+                                </div>
+
+                                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                    <button type="button" class="btn-secondary" id="btn-admin-emi-cancel" style="display: none; flex: 1;">Cancel Edit</button>
+                                    <button type="submit" class="btn-primary" id="btn-admin-emi-submit" style="flex: 2;">Save EMI</button>
+                                </div>
                             </form>
                         </div>
                     </div>
@@ -787,11 +1017,323 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Tab 8: Currencies Configuration -->
+                <div id="tab-admin-currencies" class="admin-sub-section hidden">
+                    <div class="admin-grid">
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2>All Currencies</h2>
+                            </div>
+                            <div class="table-container">
+                                <table class="expense-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Country</th>
+                                            <th>Description</th>
+                                            <th class="text-center">Symbol</th>
+                                            <th class="text-center">Active</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-currencies-list">
+                                        <!-- Dynamic currency rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="content-card">
+                            <div class="card-header">
+                                <h2 id="admin-currency-form-title">Add Currency</h2>
+                            </div>
+                            <form id="admin-currency-form" class="modal-form">
+                                <input type="hidden" id="admin-currency-id">
+                                <div class="input-group">
+                                    <label for="admin-currency-country">Country <span class="required">*</span></label>
+                                    <input type="text" id="admin-currency-country" required placeholder="e.g. India">
+                                </div>
+                                <div class="input-group">
+                                    <label for="admin-currency-desc">Country Description <span class="required">*</span></label>
+                                    <input type="text" id="admin-currency-desc" required placeholder="e.g. Indian Rupee">
+                                </div>
+                                <div class="input-group">
+                                    <label for="admin-currency-symbol">Currency Symbol <span class="required">*</span></label>
+                                    <input type="text" id="admin-currency-symbol" required placeholder="e.g. ₹">
+                                </div>
+                                <div class="form-actions-inline" style="display: flex; gap: 10px; margin-top: 15px;">
+                                    <button type="submit" id="admin-currency-submit-btn" class="btn-primary" style="flex: 1;">Add Currency</button>
+                                    <button type="button" id="admin-currency-cancel-btn" class="btn-secondary hidden" onclick="resetCurrencyForm()" style="flex: 1;">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
     </div>
 
 
+
+    <!-- CHANGE USER PASSWORD MODAL -->
+    <div id="change-user-password-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Change User Password</h2>
+                <button class="btn-close" onclick="closeChangePasswordModal()">&times;</button>
+            </div>
+            <form id="change-user-password-form" class="modal-form">
+                <input type="hidden" id="change-user-id">
+                <div style="margin-bottom: 20px;">
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">Change password for user: </span>
+                    <strong id="change-user-username" style="color: var(--text-primary); font-size: 0.95rem;"></strong>
+                </div>
+                <div class="input-group">
+                    <label for="change-user-new-password">New Password <span class="required">*</span></label>
+                    <input type="password" id="change-user-new-password" required placeholder="Enter new password (min 6 chars)">
+                </div>
+                <div class="input-group">
+                    <label for="change-user-confirm-password">Confirm Password <span class="required">*</span></label>
+                    <input type="password" id="change-user-confirm-password" required placeholder="Confirm new password">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Update Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EMI MODAL -->
+    <div id="emi-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="emi-modal-title">Add EMI</h2>
+                <button class="btn-close" onclick="closeEmiModal()">&times;</button>
+            </div>
+            <form id="emi-form" class="modal-form">
+                <input type="hidden" id="emi-id">
+                
+                <div class="input-group">
+                    <label for="emi-name">EMI Name <span class="required">*</span></label>
+                    <input type="text" id="emi-name" required placeholder="e.g. Home Loan">
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label for="emi-principal">Loan Amount (Principal)</label>
+                        <input type="number" id="emi-principal" step="0.01" min="0" placeholder="0.00" value="0.00">
+                    </div>
+                    <div class="input-group">
+                        <label for="emi-interest-rate">Interest (% Per Annum)</label>
+                        <input type="number" id="emi-interest-rate" step="0.01" min="0" placeholder="0.00" value="0.00">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label for="emi-tenure">Tenure (Months) <span class="required">*</span></label>
+                        <input type="number" id="emi-tenure" min="1" required placeholder="e.g. 12" value="12">
+                    </div>
+                    <div class="input-group">
+                        <label for="emi-amount">Monthly EMI Amount <span class="required">*</span></label>
+                        <input type="number" id="emi-amount" step="0.01" min="0.01" required placeholder="0.00">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label for="emi-start-date">Start Date <span class="required">*</span></label>
+                        <input type="date" id="emi-start-date" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="emi-end-date">End Date <span class="required">*</span></label>
+                        <input type="date" id="emi-end-date" required>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label for="emi-due-date">Due Date (Day of Month) <span class="required">*</span></label>
+                        <input type="text" id="emi-due-date" required placeholder="e.g. 5th or 5" value="5">
+                    </div>
+                    <div class="input-group">
+                        <label for="emi-payment-type">Payment Type <span class="required">*</span></label>
+                        <select id="emi-payment-type" required>
+                            <option value="Auto" selected>Auto</option>
+                            <option value="Manual">Manual</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label for="emi-payment-gateway">Payment Gateway</label>
+                        <select id="emi-payment-gateway">
+                            <option value="" selected>None / N/A</option>
+                            <option value="GPay">GPay</option>
+                            <option value="PhonePe">PhonePe</option>
+                            <option value="Paytm">Paytm</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="emi-payment-bank">Payment Bank</label>
+                        <select id="emi-payment-bank">
+                            <option value="" selected>None / N/A</option>
+                            <!-- Dynamic Options populated by JS -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeEmiModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="emi-submit-btn">Save EMI</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- USER EMI IMPORT MODAL -->
+    <div id="emi-import-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>Import EMIs</h2>
+                <button class="btn-close" onclick="closeEmiImportModal()">&times;</button>
+            </div>
+            <form id="emi-import-form" class="modal-form">
+                <div class="input-group">
+                    <label for="emi-import-file">Select Excel File (.xlsx) <span class="required">*</span></label>
+                    <input type="file" id="emi-import-file" accept=".xlsx" required>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px; line-height: 1.4;">
+                    <p>Make sure your Excel file has the following columns:</p>
+                    <code style="display: block; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-top: 5px; color: var(--color-accent);">
+                        EMI Name, Loan Amount, Interest Rate, Tenure, Monthly EMI, Start Date, End Date, Due Date, Payment Type, Payment Gateway, Payment Bank
+                    </code>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeEmiImportModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADMIN EMI IMPORT MODAL -->
+    <div id="admin-emi-import-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>Admin Import EMIs</h2>
+                <button class="btn-close" onclick="closeAdminEmiImportModal()">&times;</button>
+            </div>
+            <form id="admin-emi-import-form" class="modal-form">
+                <div class="input-group">
+                    <label for="admin-emi-import-file">Select Excel File (.xlsx) <span class="required">*</span></label>
+                    <input type="file" id="admin-emi-import-file" accept=".xlsx" required>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px; line-height: 1.4;">
+                    <p>Make sure your Excel file has the following columns:</p>
+                    <code style="display: block; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-top: 5px; color: var(--color-accent);">
+                        Username, EMI Name, Loan Amount, Interest Rate, Tenure, Monthly EMI, Start Date, End Date, Due Date, Payment Type, Payment Gateway, Payment Bank
+                    </code>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeAdminEmiImportModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- OVERVIEW DETAILS MODAL -->
+    <div id="overview-details-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 800px; width: 90%;">
+            <div class="modal-header">
+                <h2 id="overview-details-title">Calculation Details</h2>
+                <button class="btn-close" onclick="closeOverviewDetailsModal()">&times;</button>
+            </div>
+            <div style="padding: 15px 25px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <span style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Formula / Filter</span>
+                    <div style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary); margin-top: 2px;" id="overview-details-formula">Sum of contributing items</div>
+                </div>
+                <div class="text-right">
+                    <span style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Calculated Sum</span>
+                    <div style="font-weight: 600; font-size: 1.2rem; color: var(--color-success); margin-top: 2px;" id="overview-details-total">Total: ₹0.00</div>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                    <table class="expense-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Method</th>
+                                <th>Bank / Gateway</th>
+                                <th class="text-right">Amount</th>
+                                <th class="text-right">Interest</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overview-details-tbody">
+                            <!-- Dynamic items -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 15px 20px; display: flex; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="closeOverviewDetailsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMI CALENDAR DETAILS MODAL -->
+    <div id="emi-calendar-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 800px; width: 90%;">
+            <div class="modal-header">
+                <h2>EMI Calendar Details</h2>
+                <button class="btn-close" onclick="closeEmiCalendarModal()">&times;</button>
+            </div>
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 0.9rem;">
+                <div>
+                    <span style="color: var(--text-secondary);">EMI Name:</span>
+                    <strong id="cal-emi-name" style="color: var(--text-primary);"></strong>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Loan Amount:</span>
+                    <strong id="cal-emi-principal" style="color: var(--text-primary);"></strong>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Interest Rate:</span>
+                    <strong id="cal-emi-interest" style="color: var(--text-primary);"></strong>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Monthly EMI:</span>
+                    <strong id="cal-emi-amount" style="color: var(--text-primary);"></strong>
+                </div>
+            </div>
+            <div class="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px;">
+                <table class="expense-table">
+                    <thead style="position: sticky; top: 0; background: #0f131d !important; z-index: 10;">
+                        <tr>
+                            <th class="text-center">SI.No</th>
+                            <th class="text-center">EMI Date</th>
+                            <th class="text-right">Principal Paid</th>
+                            <th class="text-right">Interest Paid</th>
+                            <th class="text-right">EMI Amount</th>
+                            <th class="text-right">Remaining Principal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="emi-calendar-tbody">
+                        <!-- Dynamic schedule rows -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer" style="margin-top: 15px;">
+                <button type="button" class="btn-primary" onclick="closeEmiCalendarModal()">Close</button>
+            </div>
+        </div>
+    </div>
 
     <!-- EDIT EXPENSE MODAL -->
     <div id="edit-modal" class="modal-overlay hidden">
@@ -803,7 +1345,7 @@
             <form id="edit-expense-form" class="modal-form">
                 <input type="hidden" id="edit-id">
                 <div class="input-group">
-                    <label for="edit-amount">Amount ($) <span class="required">*</span></label>
+                    <label for="edit-amount">Amount (₹) <span class="required">*</span></label>
                     <input type="number" id="edit-amount" step="0.01" min="0.01" required placeholder="0.00">
                 </div>
                 <div class="input-group">
@@ -849,8 +1391,12 @@
                     </select>
                 </div>
                 <div class="input-group hidden" id="edit-interest-wrapper">
-                    <label for="edit-interest">Interest ($)</label>
+                    <label for="edit-interest">Interest (₹)</label>
                     <input type="number" id="edit-interest" step="0.01" min="0" value="0.00" placeholder="0.00">
+                </div>
+                <div class="input-group" id="edit-status-wrapper" style="display: flex; align-items: center; gap: 8px; flex-direction: row; margin-top: 15px;">
+                    <input type="checkbox" id="edit-status" checked style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+                    <label for="edit-status" style="margin: 0; cursor: pointer; font-weight: 500; font-size: 0.95rem;">Paid</label>
                 </div>
                 <div class="input-group">
                     <label for="edit-description">Description</label>

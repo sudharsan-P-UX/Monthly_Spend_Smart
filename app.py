@@ -96,6 +96,51 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+@app.route('/api/verify-username', methods=['GET', 'POST'])
+def verify_username():
+    if request.method == 'POST':
+        data = request.get_json() if request.is_json else request.form
+        username = data.get('username', '').strip()
+    else:
+        username = request.args.get('username', '').strip()
+        
+    if not username:
+        return jsonify({'exists': False, 'message': 'Username is required.'}), 400
+        
+    user = database.get_user_by_username(username)
+    if user:
+        return jsonify({'exists': True})
+    else:
+        return jsonify({'exists': False})
+
+@app.route('/api/change-password', methods=['POST'])
+def change_password():
+    data = request.get_json() if request.is_json else request.form
+    username = data.get('username', '').strip()
+    new_password = data.get('new_password', '')
+    confirm_password = data.get('confirm_password', '')
+    
+    if not username or not new_password or not confirm_password:
+        return jsonify({'success': False, 'message': 'Username, new password, and confirmation are required.'}), 400
+        
+    if len(new_password) < 6:
+        return jsonify({'success': False, 'message': 'New password must be at least 6 characters.'}), 400
+        
+    if new_password != confirm_password:
+        return jsonify({'success': False, 'message': 'Passwords do not match.'}), 400
+        
+    user = database.get_user_by_username(username)
+    if not user:
+        return jsonify({'success': False, 'message': 'Username does not exist.'}), 404
+        
+    hashed_password = generate_password_hash(new_password)
+    success = database.update_user_password_by_username(username, hashed_password)
+    
+    if success:
+        return jsonify({'success': True, 'message': 'Password changed successfully.'})
+    else:
+        return jsonify({'success': False, 'message': 'Failed to update password.'}), 500
+
 # USER PRIVILEGES CHECK & CATEGORIES API (OPEN TO LOGGED IN USERS)
 
 @app.route('/api/user/privileges', methods=['GET'])
@@ -128,6 +173,7 @@ def get_expenses_api():
     payment_type = request.args.get('payment_type')
     payment_category = request.args.get('payment_category')
     payment_method = request.args.get('payment_method')
+    status = request.args.get('status')
     month = request.args.get('month')
     year = request.args.get('year')
     
@@ -142,7 +188,8 @@ def get_expenses_api():
         payment_category=payment_category,
         month=month,
         year=year,
-        payment_method=payment_method
+        payment_method=payment_method,
+        status=status
     )
     return jsonify(expenses)
 
@@ -159,6 +206,7 @@ def add_expense_api():
     payment_category = data.get('payment_category', '')
     payment_method = data.get('payment_method', 'Debit')
     interest = data.get('interest', 0.0)
+    status = data.get('status', 'Paid')
     
     # Validations
     if amount is None or not category or not date:
@@ -181,7 +229,7 @@ def add_expense_api():
     expense_id = database.add_expense(
         session['user_id'], amount, category, description, date,
         bank_mode=bank_mode, payment_type=payment_type, payment_category=payment_category,
-        interest=interest, payment_method=payment_method
+        interest=interest, payment_method=payment_method, status=status
     )
     return jsonify({'success': True, 'id': expense_id, 'message': 'Expense added successfully.'})
 
@@ -198,6 +246,7 @@ def edit_expense_api(expense_id):
     payment_category = data.get('payment_category', '')
     payment_method = data.get('payment_method', 'Debit')
     interest = data.get('interest', 0.0)
+    status = data.get('status', 'Paid')
     
     # Validations
     if amount is None or not category or not date:
@@ -220,7 +269,7 @@ def edit_expense_api(expense_id):
     success = database.update_expense(
         expense_id, session['user_id'], amount, category, description, date,
         bank_mode=bank_mode, payment_type=payment_type, payment_category=payment_category,
-        interest=interest, payment_method=payment_method
+        interest=interest, payment_method=payment_method, status=status
     )
     if success:
         return jsonify({'success': True, 'message': 'Expense updated successfully.'})
@@ -243,6 +292,215 @@ def get_overview_api():
     year = request.args.get('year')
     data = database.get_overview_data(session['user_id'], month=month, year=year)
     return jsonify(data)
+
+# EMI API ENDPOINTS
+
+@app.route('/api/emis', methods=['GET'])
+@require_privilege('can_view')
+def get_emis_api():
+    emis = database.get_emis(session['user_id'])
+    return jsonify(emis)
+
+@app.route('/api/emis/export', methods=['GET'])
+@require_privilege('can_view')
+def export_emis():
+    user_id = session['user_id']
+    emis = database.get_emis(user_id)
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "EMIs"
+    
+    headers = [
+        "EMI Name", "Loan Amount", "Interest Rate", "Tenure", "Monthly EMI",
+        "Start Date", "End Date", "Due Date", "Payment Type", "Payment Gateway", "Payment Bank"
+    ]
+    ws.append(headers)
+    
+    for emi in emis:
+        ws.append([
+            emi.get('name', ''),
+            float(emi.get('principal_amount', 0.0)),
+            float(emi.get('interest_rate', 0.0)),
+            int(emi.get('tenure_months', 0)),
+            float(emi.get('emi_amount', 0.0)),
+            emi.get('start_date', ''),
+            emi.get('end_date', ''),
+            emi.get('due_date', ''),
+            emi.get('payment_type', ''),
+            emi.get('payment_gateway', ''),
+            emi.get('payment_bank', '')
+        ])
+        
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = col[0].column_letter
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+        
+    out = BytesIO()
+    wb.save(out)
+    out.seek(0)
+    
+    download_name = f"emis_export_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
+    return send_file(
+        out,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=download_name
+    )
+
+@app.route('/api/emis/import', methods=['POST'])
+@require_privilege('can_add')
+def import_emis():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request'}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+        
+    if not file.filename.endswith('.xlsx'):
+        return jsonify({'error': 'Invalid file format. Please upload an Excel file (.xlsx).'}), 400
+        
+    try:
+        wb = load_workbook(file, data_only=True)
+        ws = wb.active
+        
+        rows_iter = ws.iter_rows(values_only=True)
+        try:
+            first_row = next(rows_iter)
+        except StopIteration:
+            return jsonify({'error': 'The uploaded Excel file is empty'}), 400
+            
+        header_map = {}
+        for i, val in enumerate(first_row):
+            if val is not None:
+                header_map[str(val).strip().lower()] = i
+                
+        required_fields = ["emi name", "monthly emi", "start date", "end date", "tenure", "due date", "payment type"]
+        missing = [f for f in required_fields if f not in header_map]
+        if missing:
+            return jsonify({'error': f'Required columns missing in Excel: {", ".join(missing)}'}), 400
+            
+        imported_count = 0
+        user_id = session['user_id']
+        
+        for r_idx, row in enumerate(rows_iter, start=2):
+            if not any(val is not None for val in row):
+                continue
+                
+            name = str(row[header_map["emi name"]] or '').strip()
+            principal = float(row[header_map.get("loan amount")] or 0.0) if "loan amount" in header_map else 0.0
+            interest = float(row[header_map.get("interest rate")] or 0.0) if "interest rate" in header_map else 0.0
+            tenure = int(row[header_map["tenure"]] or 12)
+            emi_amount = float(row[header_map["monthly emi"]] or 0.0)
+            
+            start_date_val = row[header_map["start date"]]
+            end_date_val = row[header_map["end date"]]
+            
+            if isinstance(start_date_val, (datetime.datetime, datetime.date)):
+                start_date = start_date_val.strftime('%Y-%m-%d')
+            else:
+                start_date = str(start_date_val or '').strip()
+                
+            if isinstance(end_date_val, (datetime.datetime, datetime.date)):
+                end_date = end_date_val.strftime('%Y-%m-%d')
+            else:
+                end_date = str(end_date_val or '').strip()
+                
+            due_date = str(row[header_map["due date"]] or '5').strip()
+            payment_type = str(row[header_map["payment type"]] or 'Auto').strip()
+            gateway = str(row[header_map.get("payment gateway")] or '').strip() if "payment gateway" in header_map else ''
+            bank = str(row[header_map.get("payment bank")] or '').strip() if "payment bank" in header_map else ''
+            
+            if not name or not start_date or not end_date or not due_date or not payment_type:
+                continue
+                
+            database.add_emi(
+                user_id, name, principal, emi_amount, start_date, end_date, tenure, interest, due_date, payment_type, gateway, bank
+            )
+            imported_count += 1
+            
+        return jsonify({'success': True, 'message': f'Successfully imported {imported_count} EMIs.'})
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to process file: {str(e)}'}), 500
+
+@app.route('/api/emis/add', methods=['POST'])
+@require_privilege('can_add')
+def add_emi_api():
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    principal_amount = data.get('principal_amount', 0.0)
+    emi_amount = data.get('emi_amount')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    tenure_months = data.get('tenure_months')
+    interest_rate = data.get('interest_rate', 0.0)
+    due_date = data.get('due_date', '').strip()
+    payment_type = data.get('payment_type', '').strip()
+    payment_gateway = data.get('payment_gateway', '').strip()
+    payment_bank = data.get('payment_bank', '').strip()
+    
+    if not name or emi_amount is None or not start_date or not end_date or not tenure_months or not due_date or not payment_type:
+        return jsonify({'error': 'Name, EMI Amount, Start/End Date, Tenure, Due Date, and Payment Type are required.'}), 400
+        
+    try:
+        principal_amount = float(principal_amount)
+        emi_amount = float(emi_amount)
+        interest_rate = float(interest_rate)
+        tenure_months = int(tenure_months)
+    except ValueError:
+        return jsonify({'error': 'Numeric fields must contain valid numbers.'}), 400
+        
+    emi_id = database.add_emi(
+        session['user_id'], name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank
+    )
+    return jsonify({'success': True, 'id': emi_id, 'message': 'EMI added successfully.'})
+
+@app.route('/api/emis/edit/<int:emi_id>', methods=['POST'])
+@require_privilege('can_edit')
+def edit_emi_api(emi_id):
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    principal_amount = data.get('principal_amount', 0.0)
+    emi_amount = data.get('emi_amount')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    tenure_months = data.get('tenure_months')
+    interest_rate = data.get('interest_rate', 0.0)
+    due_date = data.get('due_date', '').strip()
+    payment_type = data.get('payment_type', '').strip()
+    payment_gateway = data.get('payment_gateway', '').strip()
+    payment_bank = data.get('payment_bank', '').strip()
+    
+    if not name or emi_amount is None or not start_date or not end_date or not tenure_months or not due_date or not payment_type:
+        return jsonify({'error': 'Name, EMI Amount, Start/End Date, Tenure, Due Date, and Payment Type are required.'}), 400
+        
+    try:
+        principal_amount = float(principal_amount)
+        emi_amount = float(emi_amount)
+        interest_rate = float(interest_rate)
+        tenure_months = int(tenure_months)
+    except ValueError:
+        return jsonify({'error': 'Numeric fields must contain valid numbers.'}), 400
+        
+    success = database.update_emi(
+        emi_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, user_id=session['user_id']
+    )
+    if success:
+        return jsonify({'success': True, 'message': 'EMI updated successfully.'})
+    else:
+        return jsonify({'error': 'EMI not found or update failed.'}), 404
+
+@app.route('/api/emis/delete/<int:emi_id>', methods=['POST', 'DELETE'])
+@require_privilege('can_delete')
+def delete_emi_api(emi_id):
+    success = database.delete_emi(emi_id, session['user_id'])
+    if success:
+        return jsonify({'success': True, 'message': 'EMI deleted successfully.'})
+    else:
+        return jsonify({'error': 'EMI not found or deletion failed.'}), 404
 
 # EXCEL IMPORT/EXPORT API ENDPOINTS
 from io import BytesIO
@@ -361,6 +619,8 @@ def export_expenses():
                 row_data.append(float(exp.get('amount', 0.0)))
             elif k == 'interest':
                 row_data.append(float(exp.get('interest', 0.0)))
+            elif k == 'status':
+                row_data.append(exp.get('status', 'Paid'))
         ws.append(row_data)
         
     # Adjust column widths
@@ -444,6 +704,7 @@ def import_expenses():
         col_source = (header_map.get('source') or header_map.get('payment category') or header_map.get('payment_category')) if 'source' in enabled_keys else None
         col_method = (header_map.get('method') or header_map.get('payment method') or header_map.get('payment_method')) if 'method' in enabled_keys else None
         col_interest = header_map.get('interest') if 'interest' in enabled_keys else None
+        col_status = header_map.get('status') if 'status' in enabled_keys else None
         
         imported_count = 0
         skipped_count = 0
@@ -529,10 +790,16 @@ def import_expenses():
             if method == 'Debit':
                 interest = 0.0
                 
+            status_val = 'Paid'
+            if col_status is not None and row[col_status] is not None:
+                status_raw = str(row[col_status]).strip().lower()
+                if status_raw in ('unpaid', 'u'):
+                    status_val = 'Unpaid'
+
             database.add_expense(
                 session['user_id'], amount, category_val, description, date_str,
                 bank_mode=bank, payment_type=gateway, payment_category=source,
-                interest=interest, payment_method=method
+                interest=interest, payment_method=method, status=status_val
             )
             imported_count += 1
             
@@ -628,6 +895,34 @@ def admin_edit_user_role():
     database.update_user_role(int(user_id), int(role_id))
     return jsonify({'success': True, 'message': 'User role updated successfully.'})
 
+@app.route('/api/admin/users/change_password', methods=['POST'])
+@require_privilege('can_admin')
+def admin_change_user_password():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    new_password = data.get('new_password')
+    confirm_password = data.get('confirm_password')
+    
+    if not user_id or not new_password or not confirm_password:
+        return jsonify({'error': 'User ID, new password, and confirmation are required.'}), 400
+        
+    if len(new_password) < 6:
+        return jsonify({'error': 'New password must be at least 6 characters.'}), 400
+        
+    if new_password != confirm_password:
+        return jsonify({'error': 'Passwords do not match.'}), 400
+        
+    user = database.get_user_by_id(int(user_id))
+    if not user:
+        return jsonify({'error': 'User not found.'}), 404
+        
+    hashed_password = generate_password_hash(new_password)
+    success = database.update_user_password(int(user_id), hashed_password)
+    if success:
+        return jsonify({'success': True, 'message': 'User password updated successfully.'})
+    else:
+        return jsonify({'error': 'Failed to update user password.'}), 500
+
 @app.route('/api/admin/users/delete/<int:user_id>', methods=['POST', 'DELETE'])
 @require_privilege('can_admin')
 def admin_delete_user(user_id):
@@ -636,6 +931,233 @@ def admin_delete_user(user_id):
         return jsonify({'success': True, 'message': 'User deleted successfully.'})
     else:
         return jsonify({'error': 'Failed to delete user. Ensure it is not the last Administrator.'}), 400
+
+# ADMIN EMI API ENDPOINTS
+
+@app.route('/api/admin/emis', methods=['GET'])
+@require_privilege('can_admin')
+def admin_get_emis():
+    emis = database.get_all_emis()
+    return jsonify(emis)
+
+@app.route('/api/admin/emis/export', methods=['GET'])
+@require_privilege('can_admin')
+def admin_export_emis():
+    emis = database.get_all_emis()
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "All EMIs"
+    
+    headers = [
+        "Username", "EMI Name", "Loan Amount", "Interest Rate", "Tenure", "Monthly EMI",
+        "Start Date", "End Date", "Due Date", "Payment Type", "Payment Gateway", "Payment Bank"
+    ]
+    ws.append(headers)
+    
+    for emi in emis:
+        ws.append([
+            emi.get('username', ''),
+            emi.get('name', ''),
+            float(emi.get('principal_amount', 0.0)),
+            float(emi.get('interest_rate', 0.0)),
+            int(emi.get('tenure_months', 0)),
+            float(emi.get('emi_amount', 0.0)),
+            emi.get('start_date', ''),
+            emi.get('end_date', ''),
+            emi.get('due_date', ''),
+            emi.get('payment_type', ''),
+            emi.get('payment_gateway', ''),
+            emi.get('payment_bank', '')
+        ])
+        
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = col[0].column_letter
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+        
+    out = BytesIO()
+    wb.save(out)
+    out.seek(0)
+    
+    download_name = f"admin_emis_export_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
+    return send_file(
+        out,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=download_name
+    )
+
+@app.route('/api/admin/emis/import', methods=['POST'])
+@require_privilege('can_admin')
+def admin_import_emis():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request'}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+        
+    if not file.filename.endswith('.xlsx'):
+        return jsonify({'error': 'Invalid file format. Please upload an Excel file (.xlsx).'}), 400
+        
+    try:
+        wb = load_workbook(file, data_only=True)
+        ws = wb.active
+        
+        rows_iter = ws.iter_rows(values_only=True)
+        try:
+            first_row = next(rows_iter)
+        except StopIteration:
+            return jsonify({'error': 'The uploaded Excel file is empty'}), 400
+            
+        header_map = {}
+        for i, val in enumerate(first_row):
+            if val is not None:
+                header_map[str(val).strip().lower()] = i
+                
+        required_fields = ["username", "emi name", "monthly emi", "start date", "end date", "tenure", "due date", "payment type"]
+        missing = [f for f in required_fields if f not in header_map]
+        if missing:
+            return jsonify({'error': f'Required columns missing in Excel: {", ".join(missing)}'}), 400
+            
+        imported_count = 0
+        skipped_count = 0
+        
+        for r_idx, row in enumerate(rows_iter, start=2):
+            if not any(val is not None for val in row):
+                continue
+                
+            username = str(row[header_map["username"]] or '').strip()
+            if not username:
+                skipped_count += 1
+                continue
+                
+            user = database.get_user_by_username(username)
+            if not user:
+                skipped_count += 1
+                continue
+                
+            user_id = user['id']
+            name = str(row[header_map["emi name"]] or '').strip()
+            principal = float(row[header_map.get("loan amount")] or 0.0) if "loan amount" in header_map else 0.0
+            interest = float(row[header_map.get("interest rate")] or 0.0) if "interest rate" in header_map else 0.0
+            tenure = int(row[header_map["tenure"]] or 12)
+            emi_amount = float(row[header_map["monthly emi"]] or 0.0)
+            
+            start_date_val = row[header_map["start date"]]
+            end_date_val = row[header_map["end date"]]
+            
+            if isinstance(start_date_val, (datetime.datetime, datetime.date)):
+                start_date = start_date_val.strftime('%Y-%m-%d')
+            else:
+                start_date = str(start_date_val or '').strip()
+                
+            if isinstance(end_date_val, (datetime.datetime, datetime.date)):
+                end_date = end_date_val.strftime('%Y-%m-%d')
+            else:
+                end_date = str(end_date_val or '').strip()
+                
+            due_date = str(row[header_map["due date"]] or '5').strip()
+            payment_type = str(row[header_map["payment type"]] or 'Auto').strip()
+            gateway = str(row[header_map.get("payment gateway")] or '').strip() if "payment gateway" in header_map else ''
+            bank = str(row[header_map.get("payment bank")] or '').strip() if "payment bank" in header_map else ''
+            
+            if not name or not start_date or not end_date or not due_date or not payment_type:
+                skipped_count += 1
+                continue
+                
+            database.add_emi(
+                user_id, name, principal, emi_amount, start_date, end_date, tenure, interest, due_date, payment_type, gateway, bank
+            )
+            imported_count += 1
+            
+        msg = f'Successfully imported {imported_count} EMIs.'
+        if skipped_count > 0:
+            msg += f' Skipped {skipped_count} rows due to invalid/missing username or data.'
+            
+        return jsonify({'success': True, 'message': msg})
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to process file: {str(e)}'}), 500
+
+@app.route('/api/admin/emis/create', methods=['POST'])
+@require_privilege('can_admin')
+def admin_create_emi():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    name = data.get('name', '').strip()
+    principal_amount = data.get('principal_amount', 0.0)
+    emi_amount = data.get('emi_amount')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    tenure_months = data.get('tenure_months')
+    interest_rate = data.get('interest_rate', 0.0)
+    due_date = data.get('due_date', '').strip()
+    payment_type = data.get('payment_type', '').strip()
+    payment_gateway = data.get('payment_gateway', '').strip()
+    payment_bank = data.get('payment_bank', '').strip()
+    
+    if not user_id or not name or emi_amount is None or not start_date or not end_date or not tenure_months or not due_date or not payment_type:
+        return jsonify({'error': 'User, Name, EMI Amount, Start/End Date, Tenure, Due Date, and Payment Type are required.'}), 400
+        
+    try:
+        user_id = int(user_id)
+        principal_amount = float(principal_amount)
+        emi_amount = float(emi_amount)
+        interest_rate = float(interest_rate)
+        tenure_months = int(tenure_months)
+    except ValueError:
+        return jsonify({'error': 'Numeric fields must contain valid numbers.'}), 400
+        
+    emi_id = database.add_emi(
+        user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank
+    )
+    return jsonify({'success': True, 'id': emi_id, 'message': 'EMI created successfully.'})
+
+@app.route('/api/admin/emis/edit/<int:emi_id>', methods=['POST'])
+@require_privilege('can_admin')
+def admin_edit_emi(emi_id):
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    principal_amount = data.get('principal_amount', 0.0)
+    emi_amount = data.get('emi_amount')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    tenure_months = data.get('tenure_months')
+    interest_rate = data.get('interest_rate', 0.0)
+    due_date = data.get('due_date', '').strip()
+    payment_type = data.get('payment_type', '').strip()
+    payment_gateway = data.get('payment_gateway', '').strip()
+    payment_bank = data.get('payment_bank', '').strip()
+    
+    if not name or emi_amount is None or not start_date or not end_date or not tenure_months or not due_date or not payment_type:
+        return jsonify({'error': 'Name, EMI Amount, Start/End Date, Tenure, Due Date, and Payment Type are required.'}), 400
+        
+    try:
+        principal_amount = float(principal_amount)
+        emi_amount = float(emi_amount)
+        interest_rate = float(interest_rate)
+        tenure_months = int(tenure_months)
+    except ValueError:
+        return jsonify({'error': 'Numeric fields must contain valid numbers.'}), 400
+        
+    success = database.update_emi(
+        emi_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank
+    )
+    if success:
+        return jsonify({'success': True, 'message': 'EMI updated successfully.'})
+    else:
+        return jsonify({'error': 'EMI not found or update failed.'}), 404
+
+@app.route('/api/admin/emis/delete/<int:emi_id>', methods=['POST', 'DELETE'])
+@require_privilege('can_admin')
+def admin_delete_emi(emi_id):
+    success = database.delete_emi(emi_id)
+    if success:
+        return jsonify({'success': True, 'message': 'EMI deleted successfully.'})
+    else:
+        return jsonify({'error': 'EMI not found or deletion failed.'}), 404
 
 @app.route('/api/admin/roles', methods=['GET'])
 @require_privilege('can_admin')
@@ -934,6 +1456,70 @@ def get_year_totals():
     conn.close()
     
     return jsonify({'year': year, 'debit': debit, 'credit': credit})
+
+# CURRENCY CONFIGURATION API
+@app.route('/api/active-currency', methods=['GET'])
+def api_get_active_currency():
+    curr = database.get_active_currency()
+    return jsonify(curr)
+
+@app.route('/api/admin/currencies', methods=['GET'])
+@require_privilege('can_admin')
+def admin_get_currencies():
+    currs = database.get_all_currencies()
+    return jsonify(currs)
+
+@app.route('/api/admin/currencies/add', methods=['POST'])
+@require_privilege('can_admin')
+def admin_add_currency():
+    data = request.get_json() or {}
+    country = data.get('country', '').strip()
+    country_desc = data.get('country_desc', '').strip()
+    symbol = data.get('symbol', '').strip()
+    
+    if not country or not country_desc or not symbol:
+        return jsonify({'error': 'Country, description, and symbol are required.'}), 400
+        
+    res_id = database.add_currency(country, country_desc, symbol)
+    if res_id is not None:
+        return jsonify({'success': True, 'id': res_id, 'message': 'Currency added successfully.'})
+    else:
+        return jsonify({'error': 'Failed to add currency. Ensure country name is unique.'}), 400
+
+@app.route('/api/admin/currencies/edit/<int:curr_id>', methods=['POST'])
+@require_privilege('can_admin')
+def admin_edit_currency(curr_id):
+    data = request.get_json() or {}
+    country = data.get('country', '').strip()
+    country_desc = data.get('country_desc', '').strip()
+    symbol = data.get('symbol', '').strip()
+    
+    if not country or not country_desc or not symbol:
+        return jsonify({'error': 'Country, description, and symbol are required.'}), 400
+        
+    success = database.update_currency(curr_id, country, country_desc, symbol)
+    if success:
+        return jsonify({'success': True, 'message': 'Currency updated successfully.'})
+    else:
+        return jsonify({'error': 'Failed to update. Ensure country name is unique.'}), 400
+
+@app.route('/api/admin/currencies/set_active/<int:curr_id>', methods=['POST'])
+@require_privilege('can_admin')
+def admin_set_active_currency(curr_id):
+    success = database.set_active_currency(curr_id)
+    if success:
+        return jsonify({'success': True, 'message': 'Active currency changed successfully.'})
+    else:
+        return jsonify({'error': 'Failed to set active currency.'}), 400
+
+@app.route('/api/admin/currencies/delete/<int:curr_id>', methods=['POST', 'DELETE'])
+@require_privilege('can_admin')
+def admin_delete_currency(curr_id):
+    success = database.delete_currency(curr_id)
+    if success:
+        return jsonify({'success': True, 'message': 'Currency deleted successfully.'})
+    else:
+        return jsonify({'error': 'Failed to delete currency.'}), 400
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
