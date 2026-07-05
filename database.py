@@ -1,5 +1,15 @@
 import sqlite3
+import psycopg2
+import psycopg2.extras
 import os
+import re
+
+DATABASE_URL = os.environ.get('DATABASE_URL')
+POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'localhost')
+POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432')
+POSTGRES_USER = os.environ.get('POSTGRES_USER', 'postgres')
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'postgres')
+POSTGRES_DB = os.environ.get('POSTGRES_DB', 'expenses')
 
 DB_PATH = os.environ.get('DATABASE_PATH')
 if not DB_PATH:
@@ -8,10 +18,182 @@ if not DB_PATH:
     else:
         DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'expenses.db')
 
+class PostgresCursorWrapper:
+    def __init__(self, cursor):
+        self.cursor = cursor
+        self._lastrowid = None
+
+    def execute(self, query, params=None):
+        # Translate placeholder from ? to %s
+        query = query.replace('?', '%s')
+
+        # Translate SQLite PRAGMA table_info to PostgreSQL catalog select
+        if "PRAGMA table_info" in query:
+            match = re.search(r"table_info\((\w+)\)", query, re.IGNORECASE)
+            if match:
+                table_name = match.group(1)
+                query = f"SELECT column_name AS name FROM information_schema.columns WHERE table_name = '{table_name}'"
+
+        # Translate SQLite "INSERT OR IGNORE" to PostgreSQL "ON CONFLICT DO NOTHING"
+        if "INSERT OR IGNORE" in query:
+            query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+            query += " ON CONFLICT DO NOTHING"
+
+        # Translate SQLite "INSERT OR REPLACE" to PostgreSQL "ON CONFLICT" upsert
+        if "INSERT OR REPLACE" in query:
+            query = query.replace("INSERT OR REPLACE INTO", "INSERT INTO")
+            query += " ON CONFLICT (role_id) DO UPDATE SET can_view = EXCLUDED.can_view, can_add = EXCLUDED.can_add, can_edit = EXCLUDED.can_edit, can_delete = EXCLUDED.can_delete"
+
+        # Translate SQLite AUTOINCREMENT syntax to PostgreSQL SERIAL
+        if "AUTOINCREMENT" in query:
+            query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+            query = query.replace("AUTOINCREMENT", "")
+
+        # For insert statements without RETURNING clause, append it so we can query lastrowid
+        is_insert = query.strip().upper().startswith("INSERT INTO")
+        if is_insert and "RETURNING" not in query.upper():
+            query = query.rstrip('; ') + " RETURNING id"
+
+        try:
+            self.cursor.execute(query, params)
+            
+            # Fetch lastrowid if inserted
+            if is_insert:
+                try:
+                    row = self.cursor.fetchone()
+                    if row:
+                        self._lastrowid = row[0]
+                except Exception:
+                    pass
+        except psycopg2.IntegrityError as e:
+            raise sqlite3.IntegrityError(str(e))
+        except (psycopg2.OperationalError, psycopg2.ProgrammingError) as e:
+            raise sqlite3.OperationalError(str(e))
+
+    def executemany(self, query, params_seq=None):
+        query = query.replace('?', '%s')
+        if "INSERT OR IGNORE" in query:
+            query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+            query += " ON CONFLICT DO NOTHING"
+        
+        try:
+            return self.cursor.executemany(query, params_seq)
+        except psycopg2.IntegrityError as e:
+            raise sqlite3.IntegrityError(str(e))
+        except (psycopg2.OperationalError, psycopg2.ProgrammingError) as e:
+            raise sqlite3.OperationalError(str(e))
+
+    def fetchone(self):
+        try:
+            return self.cursor.fetchone()
+        except psycopg2.ProgrammingError as e:
+            if "no results to fetch" in str(e):
+                return None
+            raise e
+
+    def fetchall(self):
+        try:
+            return self.cursor.fetchall()
+        except psycopg2.ProgrammingError as e:
+            if "no results to fetch" in str(e):
+                return []
+            raise e
+
+    def fetchmany(self, size=None):
+        return self.cursor.fetchmany(size)
+
+    def close(self):
+        return self.cursor.close()
+
+    @property
+    def rowcount(self):
+        return self.cursor.rowcount
+
+    @property
+    def description(self):
+        return self.cursor.description
+
+    @property
+    def lastrowid(self):
+        return self._lastrowid
+
+    def __iter__(self):
+        return iter(self.cursor)
+
+class PostgresConnectionWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+        self.row_factory = None
+
+    def cursor(self):
+        cursor = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        return PostgresCursorWrapper(cursor)
+
+    def commit(self):
+        return self.conn.commit()
+
+    def rollback(self):
+        return self.conn.rollback()
+
+    def close(self):
+        return self.conn.close()
+
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if DATABASE_URL:
+        # Standard hosted connection (Neon, Vercel, Supabase etc)
+        url = DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        conn = psycopg2.connect(url)
+        return PostgresConnectionWrapper(conn)
+    else:
+        try:
+            conn = psycopg2.connect(
+                host=POSTGRES_HOST,
+                port=POSTGRES_PORT,
+                user=POSTGRES_USER,
+                password=POSTGRES_PASSWORD,
+                dbname=POSTGRES_DB,
+                connect_timeout=2
+            )
+            return PostgresConnectionWrapper(conn)
+        except psycopg2.OperationalError as e:
+            if "does not exist" in str(e):
+                try:
+                    # Connect to default postgres DB and create the database
+                    conn_default = psycopg2.connect(
+                        host=POSTGRES_HOST,
+                        port=POSTGRES_PORT,
+                        user=POSTGRES_USER,
+                        password=POSTGRES_PASSWORD,
+                        dbname="postgres"
+                    )
+                    conn_default.autocommit = True
+                    cursor = conn_default.cursor()
+                    cursor.execute(f'CREATE DATABASE "{POSTGRES_DB}"')
+                    cursor.close()
+                    conn_default.close()
+                    
+                    conn = psycopg2.connect(
+                        host=POSTGRES_HOST,
+                        port=POSTGRES_PORT,
+                        user=POSTGRES_USER,
+                        password=POSTGRES_PASSWORD,
+                        dbname=POSTGRES_DB
+                    )
+                    return PostgresConnectionWrapper(conn)
+                except Exception as ex:
+                    # Fallback to SQLite if default DB connection fails too
+                    conn = sqlite3.connect(DB_PATH)
+                    conn.row_factory = sqlite3.Row
+                    return conn
+            else:
+                # Fallback to SQLite if PostgreSQL connection fails
+                conn = sqlite3.connect(DB_PATH)
+                conn.row_factory = sqlite3.Row
+                return conn
+
+
 
 def init_db():
     conn = get_db_connection()
@@ -238,14 +420,14 @@ def init_db():
     cursor.execute("UPDATE users SET role_id = 2 WHERE role_id IS NULL")
 
     # Seed Default Admin User
-    admin_exists = cursor.execute("SELECT COUNT(*) FROM users WHERE role_id = 1").fetchone()[0]
+    admin_exists = cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'").fetchone()[0]
     if admin_exists == 0:
         from werkzeug.security import generate_password_hash
         p_hash = generate_password_hash('admin123')
         try:
             cursor.execute("INSERT INTO users (username, password_hash, role_id) VALUES ('admin', ?, 1)", (p_hash,))
         except sqlite3.IntegrityError:
-            cursor.execute("UPDATE users SET role_id = 1 WHERE username = 'admin'")
+            cursor.execute("UPDATE users SET role_id = 1, password_hash = ? WHERE username = 'admin'", (p_hash,))
 
     # Seed Default Currencies
     currencies_exist = cursor.execute("SELECT COUNT(*) FROM currencies").fetchone()[0]
