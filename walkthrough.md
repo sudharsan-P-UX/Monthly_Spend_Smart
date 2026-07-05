@@ -165,3 +165,9 @@ All unit tests are fully compliant, verified, and passing.
   5. **Paid Interest** (cumulative interest paid off so far)
   6. **Monthly Total EMI** (sum of monthly EMI outflow for currently active loans)
 - **Click-through Details Modal**: Made all overview cards interactive (styled with hover micro-animations and cursors). Clicking any metric card opens a dedicated popup modal displaying the itemized breakdown of contributing EMIs, progress ratios (Elapsed / Tenure), values in the active currency format, and total sums.
+
+### I. Numeric Input Placeholders
+- **Replaced Hardcoded Numeric Defaults**: Removed default hardcoded values (such as `value="0.00"`, `value="0"`, or `value="12"`) from HTML inputs in `templates/index.html`.
+- **Faint Placeholders**: Configured faint placeholders instead (`placeholder="0.00"`, `placeholder="0"`, `placeholder="12"`), ensuring input boxes start completely clean when modals open or when forms reset. Once the user types, the placeholder value automatically clears.
+- **Empty String Resets**: Programmatic form resets in `static/js/app.js` now clear numeric values to empty strings (`''`) rather than injecting strings like `"0.00"` or `"0"`.
+- **Form Submission Fallbacks**: Added fallback checks to the frontend payload construction so that if optional numeric fields are left empty, they default correctly (e.g., interest rate defaults to `0.0`, tenure months to `12`) before reaching the Flask endpoints, maintaining server-side stability.

@@ -580,7 +580,7 @@
                         </div>
                         <div class="input-group hidden" id="add-interest-wrapper">
                             <label for="add-interest">Interest (₹)</label>
-                            <input type="number" id="add-interest" step="0.01" min="0" value="0.00" placeholder="0.00">
+                            <input type="number" id="add-interest" step="0.01" min="0" placeholder="0.00">
                         </div>
                         
                         <!-- Dynamic custom fields container -->
@@ -743,7 +743,7 @@
                                 </div>
                                 <div class="input-group">
                                     <label for="admin-new-emi-col-order">Display Order</label>
-                                    <input type="number" id="admin-new-emi-col-order" value="0" min="0" placeholder="e.g. 10">
+                                    <input type="number" id="admin-new-emi-col-order" min="0" placeholder="0">
                                 </div>
                                 <div class="input-group">
                                     <label for="admin-new-emi-col-parent">Parent Column (Optional)</label>
@@ -825,7 +825,7 @@
                                 </div>
                                 <div class="input-group">
                                     <label for="admin-new-expense-col-order">Display Order</label>
-                                    <input type="number" id="admin-new-expense-col-order" value="0" min="0" placeholder="e.g. 10">
+                                    <input type="number" id="admin-new-expense-col-order" min="0" placeholder="0">
                                 </div>
                                 <div class="input-group">
                                     <label for="admin-new-expense-col-parent">Parent Column (Optional)</label>
@@ -945,7 +945,7 @@
                                     </div>
                                     <div class="input-group">
                                         <label for="admin-new-cat-order">Display Order</label>
-                                        <input type="number" id="admin-new-cat-order" value="0" placeholder="0">
+                                        <input type="number" id="admin-new-cat-order" placeholder="0">
                                     </div>
                                     <button type="submit" class="btn-primary admin-full-width">Create Category</button>
                                 </form>
@@ -989,7 +989,7 @@
                                     </div>
                                     <div class="input-group">
                                         <label for="admin-new-bm-order">Display Order</label>
-                                        <input type="number" id="admin-new-bm-order" value="0" placeholder="0">
+                                        <input type="number" id="admin-new-bm-order" placeholder="0">
                                     </div>
                                     <button type="submit" class="btn-primary admin-full-width">Create Bank Mode</button>
                                 </form>
@@ -1033,7 +1033,7 @@
                                     </div>
                                     <div class="input-group">
                                         <label for="admin-new-pt-order">Display Order</label>
-                                        <input type="number" id="admin-new-pt-order" value="0" placeholder="0">
+                                        <input type="number" id="admin-new-pt-order" placeholder="0">
                                     </div>
                                     <button type="submit" class="btn-primary admin-full-width">Create Payment Gateway</button>
                                 </form>
@@ -1077,7 +1077,7 @@
                                     </div>
                                     <div class="input-group">
                                         <label for="admin-new-pc-order">Display Order</label>
-                                        <input type="number" id="admin-new-pc-order" value="0" placeholder="0">
+                                        <input type="number" id="admin-new-pc-order" placeholder="0">
                                     </div>
                                     <button type="submit" class="btn-primary admin-full-width">Create Payment Source</button>
                                 </form>
@@ -1144,7 +1144,7 @@
                                 </div>
                                 <div class="input-group">
                                     <label for="admin-new-col-order">Display Order</label>
-                                    <input type="number" id="admin-new-col-order" value="0" min="0" placeholder="e.g. 10">
+                                    <input type="number" id="admin-new-col-order" min="0" placeholder="0">
                                 </div>
                                 <div class="input-group">
                                     <label for="admin-new-col-parent">Parent Column (Optional)</label>
@@ -1304,18 +1304,18 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="input-group">
                         <label for="emi-principal">Loan Amount (Principal)</label>
-                        <input type="number" id="emi-principal" step="0.01" min="0" placeholder="0.00" value="0.00">
+                        <input type="number" id="emi-principal" step="0.01" min="0" placeholder="0.00">
                     </div>
                     <div class="input-group">
                         <label for="emi-interest-rate">Interest (% Per Annum)</label>
-                        <input type="number" id="emi-interest-rate" step="0.01" min="0" placeholder="0.00" value="0.00">
+                        <input type="number" id="emi-interest-rate" step="0.01" min="0" placeholder="0.00">
                     </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="input-group">
                         <label for="emi-tenure">Tenure (Months) <span class="required">*</span></label>
-                        <input type="number" id="emi-tenure" min="1" required placeholder="e.g. 12" value="12">
+                        <input type="number" id="emi-tenure" min="1" required placeholder="12">
                     </div>
                     <div class="input-group">
                         <label for="emi-amount">Monthly EMI Amount <span class="required">*</span></label>
@@ -1337,7 +1337,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="input-group">
                         <label for="emi-due-date">Due Date (Day of Month) <span class="required">*</span></label>
-                        <input type="text" id="emi-due-date" required placeholder="e.g. 5th or 5" value="5">
+                        <input type="text" id="emi-due-date" required placeholder="e.g. 5th or 5">
                     </div>
                     <div class="input-group">
                         <label for="emi-payment-type">Payment Type <span class="required">*</span></label>
@@ -1598,7 +1598,7 @@
                 </div>
                 <div class="input-group hidden" id="edit-interest-wrapper">
                     <label for="edit-interest">Interest (₹)</label>
-                    <input type="number" id="edit-interest" step="0.01" min="0" value="0.00" placeholder="0.00">
+                    <input type="number" id="edit-interest" step="0.01" min="0" placeholder="0.00">
                 </div>
                 
                 <!-- Dynamic custom fields container -->
@@ -1648,18 +1648,18 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="input-group">
                         <label for="admin-emi-principal">Loan Amount (Principal)</label>
-                        <input type="number" id="admin-emi-principal" step="0.01" min="0" placeholder="0.00" value="0.00">
+                        <input type="number" id="admin-emi-principal" step="0.01" min="0" placeholder="0.00">
                     </div>
                     <div class="input-group">
                         <label for="admin-emi-interest-rate">Interest (% Per Annum)</label>
-                        <input type="number" id="admin-emi-interest-rate" step="0.01" min="0" placeholder="0.00" value="0.00">
+                        <input type="number" id="admin-emi-interest-rate" step="0.01" min="0" placeholder="0.00">
                     </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="input-group">
                         <label for="admin-emi-tenure">Tenure (Months) <span class="required">*</span></label>
-                        <input type="number" id="admin-emi-tenure" min="1" required placeholder="e.g. 12" value="12">
+                        <input type="number" id="admin-emi-tenure" min="1" required placeholder="12">
                     </div>
                     <div class="input-group">
                         <label for="admin-emi-amount">Monthly EMI Amount <span class="required">*</span></label>
@@ -1745,7 +1745,7 @@
                 </div>
                 <div class="input-group">
                     <label for="inline-control-order">Display Order</label>
-                    <input type="number" id="inline-control-order" value="0">
+                    <input type="number" id="inline-control-order" placeholder="0">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" onclick="closeInlineControlModal()">Cancel</button>

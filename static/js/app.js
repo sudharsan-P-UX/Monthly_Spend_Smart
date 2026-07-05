@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     wrapper.classList.remove('hidden');
                 } else {
                     wrapper.classList.add('hidden');
-                    document.getElementById('add-interest').value = '0.00';
+                    document.getElementById('add-interest').value = '';
                 }
             }
             const statusWrapper = document.getElementById('add-status-wrapper');
@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     wrapper.classList.remove('hidden');
                 } else {
                     wrapper.classList.add('hidden');
-                    document.getElementById('edit-interest').value = '0.00';
+                    document.getElementById('edit-interest').value = '';
                 }
             }
             const statusWrapper = document.getElementById('edit-status-wrapper');
@@ -424,7 +424,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (response.ok && result.success) {
                     showAppAlert('Custom EMI column registered successfully!', true);
                     adminCreateEmiColumnForm.reset();
-                    document.getElementById('admin-new-emi-col-order').value = '0';
+                    document.getElementById('admin-new-emi-col-order').value = '';
                     document.getElementById('admin-new-emi-col-parent').value = '';
                     document.getElementById('admin-new-emi-col-trigger').value = '';
                     await adminFetchEmiColumns();
@@ -499,7 +499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (response.ok && result.success) {
                     showAppAlert('Custom Expense column registered successfully!', true);
                     adminCreateExpenseColumnTabForm.reset();
-                    document.getElementById('admin-new-expense-col-order').value = '0';
+                    document.getElementById('admin-new-expense-col-order').value = '';
                     document.getElementById('admin-new-expense-col-parent').value = '';
                     document.getElementById('admin-new-expense-col-trigger').value = '';
                     await adminFetchExpenseColumnsTab();
@@ -547,7 +547,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (response.ok && result.success) {
                     showAppAlert('Custom column registered successfully!', true);
                     adminCreateColumnForm.reset();
-                    document.getElementById('admin-new-col-order').value = '0';
+                    document.getElementById('admin-new-col-order').value = '';
                     document.getElementById('admin-new-col-parent').value = '';
                     document.getElementById('admin-new-col-trigger').value = '';
                     await adminFetchExcelColumns();
@@ -948,7 +948,8 @@ async function handleAddExpense(e) {
     const payment_method = document.getElementById('add-payment-method') ? document.getElementById('add-payment-method').value : 'Debit';
     const status = document.getElementById('add-status') && document.getElementById('add-status').checked ? 'Paid' : 'Unpaid';
     const description = document.getElementById('add-description').value;
-    const interest = document.getElementById('add-interest') ? document.getElementById('add-interest').value : 0.0;
+    const interestVal = document.getElementById('add-interest') ? document.getElementById('add-interest').value : '';
+    const interest = interestVal === '' ? 0.0 : parseFloat(interestVal) || 0.0;
 
     if (category.toLowerCase() === 'other') {
         const customCat = document.getElementById('add-category-other').value.trim();
@@ -993,7 +994,7 @@ async function handleAddExpense(e) {
             if (document.getElementById('add-status-wrapper')) {
                 document.getElementById('add-status-wrapper').classList.remove('hidden');
             }
-            document.getElementById('add-interest').value = "0.00";
+            document.getElementById('add-interest').value = "";
             document.getElementById('add-interest-wrapper').classList.add('hidden');
             document.getElementById('add-category-other-wrapper').classList.add('hidden');
             
@@ -1024,7 +1025,8 @@ async function handleEditExpense(e) {
     const payment_method = document.getElementById('edit-payment-method') ? document.getElementById('edit-payment-method').value : 'Debit';
     const status = document.getElementById('edit-status') && document.getElementById('edit-status').checked ? 'Paid' : 'Unpaid';
     const description = document.getElementById('edit-description').value;
-    const interest = document.getElementById('edit-interest') ? document.getElementById('edit-interest').value : 0.0;
+    const interestVal = document.getElementById('edit-interest') ? document.getElementById('edit-interest').value : '';
+    const interest = interestVal === '' ? 0.0 : parseFloat(interestVal) || 0.0;
 
     if (category.toLowerCase() === 'other') {
         const customCat = document.getElementById('edit-category-other').value.trim();
@@ -3468,10 +3470,10 @@ async function handleEmiSubmit(e) {
     e.preventDefault();
     const emiId = document.getElementById('emi-id').value;
     const name = document.getElementById('emi-name').value;
-    const principal_amount = document.getElementById('emi-principal').value;
-    const interest_rate = document.getElementById('emi-interest-rate').value;
-    const tenure_months = document.getElementById('emi-tenure').value;
-    const emi_amount = document.getElementById('emi-amount').value;
+    const principal_amount = parseFloat(document.getElementById('emi-principal').value) || 0.0;
+    const interest_rate = parseFloat(document.getElementById('emi-interest-rate').value) || 0.0;
+    const tenure_months = parseInt(document.getElementById('emi-tenure').value) || 12;
+    const emi_amount = parseFloat(document.getElementById('emi-amount').value) || 0.0;
     const start_date = document.getElementById('emi-start-date').value;
     const end_date = document.getElementById('emi-end-date').value;
     const due_date = document.getElementById('emi-due-date').value;
@@ -3655,10 +3657,10 @@ async function handleAdminEmiSubmit(e) {
     const emiId = document.getElementById('admin-emi-id').value;
     const user_id = document.getElementById('admin-emi-user').value;
     const name = document.getElementById('admin-emi-name').value;
-    const principal_amount = document.getElementById('admin-emi-principal').value;
-    const interest_rate = document.getElementById('admin-emi-interest-rate').value;
-    const tenure_months = document.getElementById('admin-emi-tenure').value;
-    const emi_amount = document.getElementById('admin-emi-amount').value;
+    const principal_amount = parseFloat(document.getElementById('admin-emi-principal').value) || 0.0;
+    const interest_rate = parseFloat(document.getElementById('admin-emi-interest-rate').value) || 0.0;
+    const tenure_months = parseInt(document.getElementById('admin-emi-tenure').value) || 12;
+    const emi_amount = parseFloat(document.getElementById('admin-emi-amount').value) || 0.0;
     const start_date = document.getElementById('admin-emi-start-date').value;
     const end_date = document.getElementById('admin-emi-end-date').value;
     const due_date = document.getElementById('admin-emi-due-date').value;
@@ -4200,7 +4202,7 @@ function openInlineControlModal(type) {
     
     inputType.value = type;
     inputName.value = '';
-    inputOrder.value = '0';
+    inputOrder.value = '';
     
     let displayName = 'Category';
     if (type === 'bank-mode') displayName = 'Bank Mode';
