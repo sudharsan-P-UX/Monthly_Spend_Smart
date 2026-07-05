@@ -28,30 +28,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         addDateInput.value = today;
     }
 
-    // Initialize default filters to current month
+    // Initialize default filters to All Months
     const currentDate = new Date();
-    const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
     const currentYear = String(currentDate.getFullYear());
     
     const filterMonthSelect = document.getElementById('filter-month');
     if (filterMonthSelect) {
-        filterMonthSelect.value = currentMonth;
+        filterMonthSelect.value = "";
     }
     const filterYearSelect = document.getElementById('filter-year');
     if (filterYearSelect) {
         filterYearSelect.value = currentYear;
     }
 
-    const firstDay = `${currentYear}-${currentMonth}-01`;
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
-    
     const filterStartInput = document.getElementById('filter-start-date');
     if (filterStartInput) {
-        filterStartInput.value = firstDay;
+        filterStartInput.value = "";
     }
     const filterEndInput = document.getElementById('filter-end-date');
     if (filterEndInput) {
-        filterEndInput.value = lastDay;
+        filterEndInput.value = "";
     }
     
     // Tab/Section switching
@@ -372,6 +368,271 @@ document.addEventListener('DOMContentLoaded', async () => {
         currencyForm.addEventListener('submit', adminSaveCurrency);
     }
 
+    // Expense Control List Switcher Dropdown Listener
+    const expenseControlSelect = document.getElementById('expense-control-select');
+    if (expenseControlSelect) {
+        expenseControlSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            document.querySelectorAll('.control-sub-section').forEach(sec => {
+                sec.classList.add('hidden');
+            });
+            const targetSec = document.getElementById(`sub-expense-control-${val}`);
+            if (targetSec) {
+                targetSec.classList.remove('hidden');
+            }
+        });
+    }
+
+    // Excel Columns Target Select Dropdown Listener
+    const excelColumnsTarget = document.getElementById('admin-excel-columns-target');
+    if (excelColumnsTarget) {
+        excelColumnsTarget.addEventListener('change', () => {
+            adminFetchExcelColumns();
+        });
+    }
+
+    // Excel Columns Custom EMI Column Creation Form Submit Listener
+    const adminCreateEmiColumnForm = document.getElementById('admin-create-emi-column-form');
+    if (adminCreateEmiColumnForm) {
+        adminCreateEmiColumnForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const key = document.getElementById('admin-new-emi-col-key').value.trim().toLowerCase();
+            const label = document.getElementById('admin-new-emi-col-label').value.trim();
+            const orderVal = parseInt(document.getElementById('admin-new-emi-col-order').value) || 0;
+            const parentKey = document.getElementById('admin-new-emi-col-parent').value.trim() || null;
+            const parentVal = document.getElementById('admin-new-emi-col-trigger').value.trim() || null;
+            const imp = document.getElementById('admin-new-emi-col-import').checked ? 1 : 0;
+            const exp = document.getElementById('admin-new-emi-col-export').checked ? 1 : 0;
+            
+            try {
+                const response = await fetch('/api/admin/excel-columns/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        column_key: key,
+                        column_label: label,
+                        target_type: 'emi',
+                        is_enabled_import: imp,
+                        is_enabled_export: exp,
+                        is_required: 0,
+                        display_order: orderVal,
+                        parent_column_key: parentKey,
+                        parent_trigger_value: parentVal
+                    })
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showAppAlert('Custom EMI column registered successfully!', true);
+                    adminCreateEmiColumnForm.reset();
+                    document.getElementById('admin-new-emi-col-order').value = '0';
+                    document.getElementById('admin-new-emi-col-parent').value = '';
+                    document.getElementById('admin-new-emi-col-trigger').value = '';
+                    await adminFetchEmiColumns();
+                    await loadDynamicCustomFields();
+                } else {
+                    showAppAlert(result.error || 'Failed to create custom column.');
+                }
+            } catch (err) {
+                showAppAlert('Network error creating custom column.');
+            }
+        });
+    }
+
+    // EMI Columns Filter Change Listener
+    const adminEmiColumnsFilter = document.getElementById('admin-emi-columns-filter');
+    if (adminEmiColumnsFilter) {
+        adminEmiColumnsFilter.addEventListener('change', () => {
+            adminFetchEmiColumns();
+        });
+    }
+
+    // Save EMI Columns Changes Button Listener
+    const btnSaveEmiColumns = document.getElementById('btn-save-emi-columns');
+    if (btnSaveEmiColumns) {
+        btnSaveEmiColumns.addEventListener('click', saveEmiColumnsChanges);
+    }
+
+    // Expense Columns (New Menu) Filter Change Listener
+    const adminExpenseColumnsFilter = document.getElementById('admin-expense-columns-filter');
+    if (adminExpenseColumnsFilter) {
+        adminExpenseColumnsFilter.addEventListener('change', () => {
+            adminFetchExpenseColumnsTab();
+        });
+    }
+
+    // Save Expense Columns Button Listener
+    const btnSaveExpenseColumnsTab = document.getElementById('btn-save-expense-columns-tab');
+    if (btnSaveExpenseColumnsTab) {
+        btnSaveExpenseColumnsTab.addEventListener('click', saveExpenseColumnsTabChanges);
+    }
+
+    // Expense Columns Custom Column Creation Form Submit Listener
+    const adminCreateExpenseColumnTabForm = document.getElementById('admin-create-expense-column-tab-form');
+    if (adminCreateExpenseColumnTabForm) {
+        adminCreateExpenseColumnTabForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const key = document.getElementById('admin-new-expense-col-key').value.trim().toLowerCase();
+            const label = document.getElementById('admin-new-expense-col-label').value.trim();
+            const orderVal = parseInt(document.getElementById('admin-new-expense-col-order').value) || 0;
+            const parentKey = document.getElementById('admin-new-expense-col-parent').value.trim() || null;
+            const parentVal = document.getElementById('admin-new-expense-col-trigger').value.trim() || null;
+            const imp = document.getElementById('admin-new-expense-col-import').checked ? 1 : 0;
+            const exp = document.getElementById('admin-new-expense-col-export').checked ? 1 : 0;
+            
+            try {
+                const response = await fetch('/api/admin/excel-columns/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        column_key: key,
+                        column_label: label,
+                        target_type: 'expense',
+                        is_enabled_import: imp,
+                        is_enabled_export: exp,
+                        is_required: 0,
+                        display_order: orderVal,
+                        parent_column_key: parentKey,
+                        parent_trigger_value: parentVal
+                    })
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showAppAlert('Custom Expense column registered successfully!', true);
+                    adminCreateExpenseColumnTabForm.reset();
+                    document.getElementById('admin-new-expense-col-order').value = '0';
+                    document.getElementById('admin-new-expense-col-parent').value = '';
+                    document.getElementById('admin-new-expense-col-trigger').value = '';
+                    await adminFetchExpenseColumnsTab();
+                    await loadDynamicCustomFields();
+                } else {
+                    showAppAlert(result.error || 'Failed to create custom column.');
+                }
+            } catch (err) {
+                showAppAlert('Network error creating custom column.');
+            }
+        });
+    }
+
+    // Excel Columns Custom Column Creation Form Submit Listener
+    const adminCreateColumnForm = document.getElementById('admin-create-column-form');
+    if (adminCreateColumnForm) {
+        adminCreateColumnForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const key = document.getElementById('admin-new-col-key').value.trim().toLowerCase();
+            const label = document.getElementById('admin-new-col-label').value.trim();
+            const targetType = document.getElementById('admin-new-col-target-type').value;
+            const orderVal = parseInt(document.getElementById('admin-new-col-order').value) || 0;
+            const parentKey = document.getElementById('admin-new-col-parent').value.trim() || null;
+            const parentVal = document.getElementById('admin-new-col-trigger').value.trim() || null;
+            const imp = document.getElementById('admin-new-col-import').checked ? 1 : 0;
+            const exp = document.getElementById('admin-new-col-export').checked ? 1 : 0;
+            
+            try {
+                const response = await fetch('/api/admin/excel-columns/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        column_key: key,
+                        column_label: label,
+                        target_type: targetType,
+                        is_enabled_import: imp,
+                        is_enabled_export: exp,
+                        is_required: 0,
+                        display_order: orderVal,
+                        parent_column_key: parentKey,
+                        parent_trigger_value: parentVal
+                    })
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showAppAlert('Custom column registered successfully!', true);
+                    adminCreateColumnForm.reset();
+                    document.getElementById('admin-new-col-order').value = '0';
+                    document.getElementById('admin-new-col-parent').value = '';
+                    document.getElementById('admin-new-col-trigger').value = '';
+                    await adminFetchExcelColumns();
+                    await loadDynamicCustomFields();
+                } else {
+                    showAppAlert(result.error || 'Failed to create custom column.');
+                }
+            } catch (err) {
+                showAppAlert('Network error creating custom column.');
+            }
+        });
+    }
+
+    // Save Excel Columns Changes Button Listener
+    const btnSaveExcelColumns = document.getElementById('btn-save-excel-columns');
+    if (btnSaveExcelColumns) {
+        btnSaveExcelColumns.addEventListener('click', saveExcelColumnsChanges);
+    }
+
+    // Inline Control Item Creation Form Submit Listener
+    const inlineControlForm = document.getElementById('inline-control-form');
+    if (inlineControlForm) {
+        inlineControlForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const type = document.getElementById('inline-control-type').value;
+            const name = document.getElementById('inline-control-name').value.trim();
+            const order = parseInt(document.getElementById('inline-control-order').value) || 0;
+            
+            let url = '';
+            let payload = {};
+            if (type === 'category') {
+                url = '/api/admin/categories/create';
+                payload = { name, display_order: order };
+            } else if (type === 'bank-mode') {
+                url = '/api/admin/bank-modes/create';
+                payload = { name, display_order: order };
+            } else if (type === 'payment-type') {
+                url = '/api/admin/payment-types/create';
+                payload = { name, display_order: order };
+            } else if (type === 'payment-category') {
+                url = '/api/admin/payment-categories/create';
+                payload = { name, display_order: order };
+            }
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showAppAlert('Item created successfully!', true);
+                    closeInlineControlModal();
+                    if (type === 'category') {
+                        await fetchCategories();
+                        await adminFetchCategories();
+                    } else if (type === 'bank-mode') {
+                        await fetchBankModes();
+                        await adminFetchBankModes();
+                    } else if (type === 'payment-type') {
+                        await fetchPaymentTypes();
+                        await adminFetchPaymentTypes();
+                    } else if (type === 'payment-category') {
+                        await fetchPaymentCategories();
+                        await adminFetchPaymentCategories();
+                    }
+                } else {
+                    showAppAlert(result.error || 'Failed to create item.');
+                }
+            } catch (err) {
+                showAppAlert('Network error creating item.');
+            }
+        });
+    }
+
+    // Inline Add Button Event Listeners
+    document.querySelectorAll('.inline-add-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const type = btn.getAttribute('data-type');
+            openInlineControlModal(type);
+        });
+    });
+
     // Initial data fetch
     await fetchUserPrivileges();
     await fetchCategories();
@@ -380,6 +641,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetchPaymentCategories();
     await fetchExpenses();
     await updateOverviewStats();
+    await loadDynamicCustomFields();
     if (currentUserPrivileges.is_admin) {
         await adminFetchCurrencies();
     }
@@ -418,19 +680,15 @@ function resetFilters() {
     if (filterStatus) filterStatus.value = "";
     
     const currentDate = new Date();
-    const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
     const currentYear = String(currentDate.getFullYear());
     
     const filterMonth = document.getElementById('filter-month');
-    if (filterMonth) filterMonth.value = currentMonth;
+    if (filterMonth) filterMonth.value = "";
     const filterYear = document.getElementById('filter-year');
     if (filterYear) filterYear.value = currentYear;
     
-    const firstDay = `${currentYear}-${currentMonth}-01`;
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
-    
-    document.getElementById('filter-start-date').value = firstDay;
-    document.getElementById('filter-end-date').value = lastDay;
+    document.getElementById('filter-start-date').value = "";
+    document.getElementById('filter-end-date').value = "";
     document.getElementById('filter-search').value = "";
     fetchExpenses();
 }
@@ -702,10 +960,15 @@ async function handleAddExpense(e) {
     }
 
     try {
+        const payload = { amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status };
+        document.querySelectorAll('#add-expense-custom-fields .custom-expense-field').forEach(input => {
+            payload[input.getAttribute('data-key')] = input.value;
+        });
+
         const response = await fetch('/api/expenses/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status })
+            body: JSON.stringify(payload)
         });
         const result = await response.json();
         
@@ -714,6 +977,9 @@ async function handleAddExpense(e) {
             
             // Reset form fields but keep date as today
             document.getElementById('standalone-add-expense-form').reset();
+            document.querySelectorAll('#add-expense-custom-fields .custom-expense-field').forEach(input => {
+                input.value = '';
+            });
             document.getElementById('add-date').value = new Date().toISOString().split('T')[0];
             document.getElementById('add-bank-mode').value = "";
             document.getElementById('add-payment-type').value = "";
@@ -770,10 +1036,15 @@ async function handleEditExpense(e) {
     }
 
     try {
+        const payload = { amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status };
+        document.querySelectorAll('#edit-expense-custom-fields .custom-expense-field').forEach(input => {
+            payload[input.getAttribute('data-key')] = input.value;
+        });
+
         const response = await fetch(`/api/expenses/edit/${id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status })
+            body: JSON.stringify(payload)
         });
         const result = await response.json();
 
@@ -878,6 +1149,12 @@ function openEditModal(id) {
         }
     }
     
+    document.querySelectorAll('#edit-expense-custom-fields .custom-expense-field').forEach(input => {
+        const key = input.getAttribute('data-key');
+        input.value = expense[key] || '';
+    });
+    
+    applyConditionalFields('edit-expense');
     document.getElementById('edit-modal').classList.remove('hidden');
 }
 
@@ -1162,6 +1439,16 @@ function applyUserPrivileges() {
         }
     }
 
+    // Toggle inline add buttons based on admin privileges
+    const inlineBtns = document.querySelectorAll('.inline-add-btn');
+    inlineBtns.forEach(btn => {
+        if (currentUserPrivileges && currentUserPrivileges.is_admin) {
+            btn.style.display = 'inline-block';
+        } else {
+            btn.style.display = 'none';
+        }
+    });
+
     // Refresh expense table to reflect action buttons privileges
     renderExpenseTable(expensesList);
 }
@@ -1379,6 +1666,22 @@ function initAdminTabs() {
             if (subSec) {
                 subSec.classList.remove('hidden');
             }
+            if (targetTab === 'admin-emis') {
+                adminFetchEmiColumns();
+            }
+            if (targetTab === 'admin-expense-columns') {
+                adminFetchExpenseColumnsTab();
+            }
+            if (targetTab === 'admin-expense-control') {
+                const selectVal = document.getElementById('expense-control-select').value;
+                document.querySelectorAll('.control-sub-section').forEach(sec => {
+                    sec.classList.add('hidden');
+                });
+                const targetSec = document.getElementById(`sub-expense-control-${selectVal}`);
+                if (targetSec) {
+                    targetSec.classList.remove('hidden');
+                }
+            }
         });
     });
 }
@@ -1401,6 +1704,22 @@ function switchAdminTab(tabName) {
     if (subSec) {
         subSec.classList.remove('hidden');
     }
+    if (tabName === 'admin-emis') {
+        adminFetchEmiColumns();
+    }
+    if (tabName === 'admin-expense-columns') {
+        adminFetchExpenseColumnsTab();
+    }
+    if (tabName === 'admin-expense-control') {
+        const selectVal = document.getElementById('expense-control-select').value;
+        document.querySelectorAll('.control-sub-section').forEach(sec => {
+            sec.classList.add('hidden');
+        });
+        const targetSec = document.getElementById(`sub-expense-control-${selectVal}`);
+        if (targetSec) {
+            targetSec.classList.remove('hidden');
+        }
+    }
 }
 
 async function loadAdminPanel() {
@@ -1411,7 +1730,7 @@ async function loadAdminPanel() {
     }
     await Promise.all([
         adminFetchUsers(),
-        adminFetchEMIs(),
+        adminFetchEmiColumns(),
         adminFetchCategories(),
         adminFetchBankModes(),
         adminFetchPaymentTypes(),
@@ -2283,8 +2602,10 @@ async function handleAdminCreatePaymentCategory(e) {
 
 // ADMIN EXCEL COLUMNS
 async function adminFetchExcelColumns() {
+    const targetSelect = document.getElementById('admin-excel-columns-target');
+    const targetType = targetSelect ? targetSelect.value : 'expense';
     try {
-        const response = await fetch('/api/admin/excel-columns');
+        const response = await fetch(`/api/admin/excel-columns?target_type=${targetType}`);
         if (response.ok) {
             const cols = await response.json();
             renderAdminExcelColumnsTable(cols);
@@ -2301,8 +2622,18 @@ function renderAdminExcelColumnsTable(columns) {
 
     const filterSelect = document.getElementById('admin-excel-columns-filter');
     const filterType = filterSelect ? filterSelect.value : 'import';
+    const targetSelect = document.getElementById('admin-excel-columns-target');
+    const targetType = targetSelect ? targetSelect.value : 'expense';
     const isAdmin = currentUserPrivileges && currentUserPrivileges.is_admin;
     const isDisabled = isAdmin ? '' : 'disabled';
+
+    const systemKeys = {
+        expense: ['amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status'],
+        emi: ['name', 'principal_amount', 'interest_rate', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank']
+    };
+
+    // Populate Parent dropdown choices
+    populateParentDropdowns(targetType, columns);
 
     columns.forEach(col => {
         const tr = document.createElement('tr');
@@ -2313,43 +2644,352 @@ function renderAdminExcelColumnsTable(columns) {
             : `<span class="badge badge-viewer">No</span>`;
             
         const isChecked = (filterType === 'import' ? col.is_enabled_import : col.is_enabled_export) === 1 ? 'checked' : '';
+        const isDeletable = !systemKeys[targetType].includes(col.column_key);
+        const actionHtml = isDeletable && isAdmin
+            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteExcelColumn('${col.column_key}', '${targetType}')" title="Delete Column"><i class="fa-solid fa-trash"></i></button>`
+            : '';
+
+        // Order input field
+        const orderInputHtml = isAdmin
+            ? `<input type="number" class="table-input text-center" style="width: 70px; margin: 0 auto; display: block; padding: 4px;" value="${col.display_order || 0}" min="0">`
+            : `<span class="text-center" style="display: block;">${col.display_order || 0}</span>`;
         
         tr.innerHTML = `
             <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
+            <td class="text-center">${orderInputHtml}</td>
             <td class="text-center">
                 <label class="checkbox-container" style="display: inline-block;">
-                    <input type="checkbox" ${isChecked} ${isDisabled} onchange="toggleExcelColumnStatus('${col.column_key}', this.checked)">
+                    <input type="checkbox" ${isChecked} ${isDisabled}>
                     <span class="checkmark"></span>
                 </label>
             </td>
+            <td class="text-center">${actionHtml}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-async function toggleExcelColumnStatus(columnKey, isChecked) {
+async function saveExcelColumnsChanges() {
+    const tbody = document.getElementById('admin-excel-columns-list');
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
     const filterSelect = document.getElementById('admin-excel-columns-filter');
-    const typeKey = filterSelect ? filterSelect.value : 'import';
+    const filterType = filterSelect ? filterSelect.value : 'import';
+    const targetSelect = document.getElementById('admin-excel-columns-target');
+    const targetType = targetSelect ? targetSelect.value : 'expense';
+    
+    const columnsData = [];
+    rows.forEach(tr => {
+        const orderInput = tr.querySelector('input[type="number"]');
+        const checkbox = tr.querySelector('input[type="checkbox"]');
+        const codeTag = tr.querySelector('code');
+        if (codeTag) {
+            const columnKey = codeTag.textContent.trim();
+            const displayOrder = orderInput ? parseInt(orderInput.value) || 0 : 0;
+            const isEnabled = checkbox ? (checkbox.checked ? 1 : 0) : 1;
+            columnsData.push({
+                column_key: columnKey,
+                target_type: targetType,
+                display_order: displayOrder,
+                is_enabled: isEnabled
+            });
+        }
+    });
+    
     try {
-        const response = await fetch('/api/admin/excel-columns/toggle', {
+        const response = await fetch('/api/admin/excel-columns/save-all', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ column_key: columnKey, is_enabled: isChecked ? 1 : 0, type_key: typeKey })
+            body: JSON.stringify({ columns: columnsData, type_key: filterType })
         });
         const result = await response.json();
         if (response.ok && result.success) {
-            showAppAlert('Column status updated successfully!', true);
+            showAppAlert('Excel column configurations saved successfully!', true);
             await adminFetchExcelColumns();
+            await loadDynamicCustomFields();
         } else {
-            showAppAlert(result.error || 'Failed to update column status.');
-            await adminFetchExcelColumns();
+            showAppAlert(result.error || 'Failed to save changes.');
         }
     } catch (err) {
-        showAppAlert('Network error updating column status.');
-        await adminFetchExcelColumns();
+        showAppAlert('Network error saving changes.');
     }
+}
+
+async function adminDeleteExcelColumn(columnKey, targetType) {
+    if (!confirm(`Are you sure you want to delete the custom column "${columnKey}"? This will not drop the database column, but it will remove it from configuration and templates.`)) {
+        return;
+    }
+    try {
+        const response = await fetch('/api/admin/excel-columns/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ column_key: columnKey, target_type: targetType })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Column deleted successfully!', true);
+            await adminFetchExcelColumns();
+            await loadDynamicCustomFields();
+        } else {
+            showAppAlert(result.error || 'Failed to delete column.');
+        }
+    } catch (err) {
+        showAppAlert('Network error deleting column.');
+    }
+}
+
+// ADMIN EMI COLUMNS MANAGEMENT
+async function adminFetchEmiColumns() {
+    try {
+        const response = await fetch('/api/admin/excel-columns?target_type=emi');
+        if (response.ok) {
+            const cols = await response.json();
+            renderAdminEmiColumnsTable(cols);
+        }
+    } catch (err) {
+        console.error('Error fetching admin EMI columns:', err);
+    }
+}
+
+function renderAdminEmiColumnsTable(columns) {
+    const tbody = document.getElementById('admin-emi-columns-list');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const filterSelect = document.getElementById('admin-emi-columns-filter');
+    const filterType = filterSelect ? filterSelect.value : 'import';
+    const isAdmin = currentUserPrivileges && currentUserPrivileges.is_admin;
+    const isDisabled = isAdmin ? '' : 'disabled';
+
+    const systemKeys = ['name', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'];
+
+    // Populate Parent dropdown choices for EMIs
+    populateParentDropdowns('emi', columns);
+
+    columns.forEach(col => {
+        const tr = document.createElement('tr');
+
+        const isReq = col.is_required === 1;
+        const requiredHtml = isReq
+            ? `<span class="badge badge-admin"><i class="fa-solid fa-check"></i> Yes</span>`
+            : `<span class="badge badge-viewer">No</span>`;
+
+        const isChecked = (filterType === 'import' ? col.is_enabled_import : col.is_enabled_export) === 1 ? 'checked' : '';
+        const isDeletable = !systemKeys.includes(col.column_key);
+        const actionHtml = isDeletable && isAdmin
+            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteEmiColumn('${col.column_key}')" title="Delete Custom Column" style="color: var(--color-danger);">
+                 <i class="fa-solid fa-trash-can"></i>
+               </button>`
+            : '';
+
+        // Order input field
+        const orderInputHtml = isAdmin
+            ? `<input type="number" class="table-input text-center" style="width: 70px; margin: 0 auto; display: block; padding: 4px;" value="${col.display_order || 0}" min="0">`
+            : `<span class="text-center" style="display: block;">${col.display_order || 0}</span>`;
+
+        tr.innerHTML = `
+            <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
+            <td><code>${escapeHTML(col.column_key)}</code></td>
+            <td class="text-center">${requiredHtml}</td>
+            <td class="text-center">${orderInputHtml}</td>
+            <td class="text-center">
+                <label class="checkbox-container" style="display: inline-block;">
+                    <input type="checkbox" ${isChecked} ${isDisabled}>
+                    <span class="checkmark"></span>
+                </label>
+            </td>
+            <td class="text-center">${actionHtml}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function saveEmiColumnsChanges() {
+    const tbody = document.getElementById('admin-emi-columns-list');
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
+    const filterSelect = document.getElementById('admin-emi-columns-filter');
+    const filterType = filterSelect ? filterSelect.value : 'import';
+    
+    const columnsData = [];
+    rows.forEach(tr => {
+        const orderInput = tr.querySelector('input[type="number"]');
+        const checkbox = tr.querySelector('input[type="checkbox"]');
+        const codeTag = tr.querySelector('code');
+        if (codeTag) {
+            const columnKey = codeTag.textContent.trim();
+            const displayOrder = orderInput ? parseInt(orderInput.value) || 0 : 0;
+            const isEnabled = checkbox ? (checkbox.checked ? 1 : 0) : 1;
+            columnsData.push({
+                column_key: columnKey,
+                target_type: 'emi',
+                display_order: displayOrder,
+                is_enabled: isEnabled
+            });
+        }
+    });
+    
+    try {
+        const response = await fetch('/api/admin/excel-columns/save-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ columns: columnsData, type_key: filterType })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('EMI column configurations saved successfully!', true);
+            await adminFetchEmiColumns();
+            await loadDynamicCustomFields();
+        } else {
+            showAppAlert(result.error || 'Failed to save changes.');
+        }
+    } catch (err) {
+        showAppAlert('Network error saving changes.');
+    }
+}
+
+async function adminDeleteEmiColumn(columnKey) {
+    if (!confirm(`Are you sure you want to delete the custom column "${columnKey}"? This will not drop the database column, but it will remove it from configuration and templates.`)) return;
+    try {
+        const response = await fetch('/api/admin/excel-columns/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ column_key: columnKey, target_type: 'emi' })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('EMI custom column deleted successfully.', true);
+            await adminFetchEmiColumns();
+            await loadDynamicCustomFields();
+        } else {
+            showAppAlert(result.error || 'Failed to delete custom column.');
+        }
+    } catch (err) {
+        showAppAlert('Network error deleting custom column.');
+    }
+}
+
+// POPULATE PARENT COLUMN CHOICES IN DYNAMIC FIELDS FORMS
+function populateParentDropdowns(targetType, columns) {
+    const standardKeys = {
+        expense: [
+            { key: 'amount', label: 'Amount' },
+            { key: 'category', label: 'Category' },
+            { key: 'date', label: 'Date' },
+            { key: 'description', label: 'Description' },
+            { key: 'bank_mode', label: 'Bank Mode' },
+            { key: 'payment_type', label: 'Payment Gateway' },
+            { key: 'payment_category', label: 'Payment Source' },
+            { key: 'interest', label: 'Interest' },
+            { key: 'payment_method', label: 'Payment Method' },
+            { key: 'status', label: 'Status' }
+        ],
+        emi: [
+            { key: 'name', label: 'EMI Name' },
+            { key: 'principal_amount', label: 'Principal Amount' },
+            { key: 'interest_rate', label: 'Interest Rate' },
+            { key: 'tenure_months', label: 'Tenure (Months)' },
+            { key: 'emi_amount', label: 'Monthly EMI Amount' },
+            { key: 'start_date', label: 'Start Date' },
+            { key: 'end_date', label: 'End Date' },
+            { key: 'due_date', label: 'Due Date' },
+            { key: 'payment_type', label: 'Payment Type' },
+            { key: 'payment_gateway', label: 'Payment Gateway' },
+            { key: 'payment_bank', label: 'Payment Bank' }
+        ]
+    };
+    
+    const selectIds = targetType === 'expense'
+        ? ['admin-new-col-parent', 'admin-new-expense-col-parent']
+        : ['admin-new-emi-col-parent'];
+
+    selectIds.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        
+        let options = '<option value="">None (Always Show)</option>';
+        // Add standard keys
+        standardKeys[targetType].forEach(col => {
+            options += `<option value="${col.key}">${escapeHTML(col.label)} (${col.key})</option>`;
+        });
+        // Add custom keys
+        const standardStrKeys = standardKeys[targetType].map(k => k.key);
+        columns.forEach(col => {
+            if (!standardStrKeys.includes(col.column_key)) {
+                options += `<option value="${col.column_key}">${escapeHTML(col.column_label)} (${col.column_key})</option>`;
+            }
+        });
+        select.innerHTML = options;
+    });
+}
+
+// DYNAMIC CONDITIONAL VISIBILITY MANAGER
+function applyConditionalFields(formType) {
+    const stdKeys = {
+        expense: ['amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status'],
+        emi: ['name', 'principal_amount', 'interest_rate', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank']
+    };
+    
+    let selector, prefix, targetType;
+    if (formType === 'add-expense') {
+        selector = '.custom-expense-field';
+        prefix = 'add';
+        targetType = 'expense';
+    } else if (formType === 'edit-expense') {
+        selector = '.custom-expense-field';
+        prefix = 'edit';
+        targetType = 'expense';
+    } else if (formType === 'user-emi') {
+        selector = '.custom-emi-field';
+        prefix = 'emi';
+        targetType = 'emi';
+    } else if (formType === 'admin-emi') {
+        selector = '.custom-emi-field';
+        prefix = 'admin-emi';
+        targetType = 'emi';
+    } else {
+        return;
+    }
+    
+    const inputs = document.querySelectorAll(selector);
+    inputs.forEach(input => {
+        const parentKey = input.getAttribute('data-parent-key');
+        const triggerVal = input.getAttribute('data-parent-val');
+        if (parentKey && triggerVal) {
+            const isStd = stdKeys[targetType].includes(parentKey);
+            const parentId = isStd ? `${prefix}-${parentKey.replace(/_/g, '-')}` : `${prefix}-custom-${parentKey}`;
+            const parentInput = document.getElementById(parentId);
+            
+            if (parentInput) {
+                const groupDiv = input.closest('.input-group') || input.parentElement;
+                
+                function checkTrigger() {
+                    let val = parentInput.value;
+                    if (parentInput.type === 'checkbox') {
+                        val = parentInput.checked ? 'Yes' : 'No';
+                    }
+                    if (String(val).trim().toLowerCase() === String(triggerVal).trim().toLowerCase()) {
+                        groupDiv.style.display = 'block';
+                        input.required = input.getAttribute('data-required') === '1';
+                    } else {
+                        groupDiv.style.display = 'none';
+                        input.required = false;
+                    }
+                }
+                
+                parentInput.addEventListener('change', checkTrigger);
+                parentInput.addEventListener('input', checkTrigger);
+                checkTrigger();
+            } else {
+                // If parent field is missing or not active, hide this dependent field
+                const groupDiv = input.closest('.input-group') || input.parentElement;
+                groupDiv.style.display = 'none';
+                input.required = false;
+            }
+        }
+    });
 }
 
 // ==========================================
@@ -2497,18 +3137,281 @@ function renderUserEMIsTable(emis) {
 
 // Update EMI summary cards
 function updateEmiSummaryCards(emis) {
-    const activeCountEl = document.getElementById('emi-active-count');
-    const monthlyOutflowEl = document.getElementById('emi-monthly-outflow');
-    if (!activeCountEl || !monthlyOutflowEl) return;
-    
-    // Filter active EMIs based on today's date
-    const todayStr = new Date().toISOString().split('T')[0];
-    const activeEmis = emis.filter(emi => emi.end_date >= todayStr);
-    
-    activeCountEl.textContent = activeEmis.length;
-    
-    const totalOutflow = activeEmis.reduce((sum, emi) => sum + parseFloat(emi.emi_amount), 0);
-    monthlyOutflowEl.textContent = `${activeCurrencySymbol}${totalOutflow.toFixed(2)}`;
+    window.currentEmiDetails = [];
+
+    let totalLoanAmount = 0;
+    let totalPendingPrincipal = 0;
+    let totalPrincipalPaid = 0;
+    let totalInterest = 0;
+    let totalPaidInterest = 0;
+    let totalMonthlyEmi = 0;
+
+    emis.forEach(emi => {
+        const principal = parseFloat(emi.principal_amount || 0);
+        const rate = parseFloat(emi.interest_rate || 0);
+        const tenure = parseInt(emi.tenure_months) || 12;
+        const emiAmount = parseFloat(emi.emi_amount || 0);
+        const r = rate / 12 / 100;
+
+        let startDate = new Date(emi.start_date);
+        if (isNaN(startDate.getTime())) {
+            startDate = new Date();
+        }
+
+        const today = new Date();
+        const todayYear = today.getFullYear();
+        const todayMonth = today.getMonth();
+        const startYear = startDate.getFullYear();
+        const startMonth = startDate.getMonth();
+
+        let monthsElapsed = (todayYear - startYear) * 12 + (todayMonth - startMonth);
+        if (today < startDate) {
+            monthsElapsed = 0;
+        } else {
+            const dueDay = parseInt(emi.due_date) || 1;
+            if (today.getDate() < dueDay) {
+                monthsElapsed = Math.max(0, monthsElapsed - 1);
+            }
+        }
+        monthsElapsed = Math.min(Math.max(0, monthsElapsed), tenure);
+
+        // Calculate pending balance and paid interest
+        let currentBalance = principal;
+        let interestPaidSoFar = 0;
+        for (let i = 1; i <= monthsElapsed; i++) {
+            let interestPaid = currentBalance * r;
+            let principalPaid = emiAmount - interestPaid;
+            if (principalPaid > currentBalance || i === tenure) {
+                principalPaid = currentBalance;
+            }
+            interestPaidSoFar += interestPaid;
+            currentBalance -= principalPaid;
+            if (currentBalance < 0) currentBalance = 0;
+        }
+
+        const calculatedTotalInterest = Math.max(0, (emiAmount * tenure) - principal);
+        const calculatedPaidInterest = Math.min(interestPaidSoFar, calculatedTotalInterest);
+
+        totalLoanAmount += principal;
+        totalPendingPrincipal += currentBalance;
+        totalPrincipalPaid += (principal - currentBalance);
+        totalInterest += calculatedTotalInterest;
+        totalPaidInterest += calculatedPaidInterest;
+        
+        const isCurrentActive = monthsElapsed < tenure;
+        if (isCurrentActive) {
+            totalMonthlyEmi += emiAmount;
+        }
+
+        window.currentEmiDetails.push({
+            name: emi.name,
+            principal: principal,
+            pendingPrincipal: currentBalance,
+            principalPaid: principal - currentBalance,
+            totalInterest: calculatedTotalInterest,
+            paidInterest: calculatedPaidInterest,
+            monthlyEmi: isCurrentActive ? emiAmount : 0,
+            tenure: tenure,
+            monthsElapsed: monthsElapsed,
+            due_date: emi.due_date
+        });
+    });
+
+    // Populate UI elements
+    const totalLoanEl = document.getElementById('emi-total-loan-amount');
+    const pendingPrincipalEl = document.getElementById('emi-pending-principal');
+    const principalPaidEl = document.getElementById('emi-total-principal-paid');
+    const totalInterestEl = document.getElementById('emi-total-interest');
+    const paidInterestEl = document.getElementById('emi-paid-interest');
+    const monthlyTotalEl = document.getElementById('emi-monthly-total');
+
+    if (totalLoanEl) totalLoanEl.textContent = `${activeCurrencySymbol}${totalLoanAmount.toFixed(2)}`;
+    if (pendingPrincipalEl) pendingPrincipalEl.textContent = `${activeCurrencySymbol}${totalPendingPrincipal.toFixed(2)}`;
+    if (principalPaidEl) principalPaidEl.textContent = `${activeCurrencySymbol}${totalPrincipalPaid.toFixed(2)}`;
+    if (totalInterestEl) totalInterestEl.textContent = `${activeCurrencySymbol}${totalInterest.toFixed(2)}`;
+    if (paidInterestEl) paidInterestEl.textContent = `${activeCurrencySymbol}${totalPaidInterest.toFixed(2)}`;
+    if (monthlyTotalEl) monthlyTotalEl.textContent = `${activeCurrencySymbol}${totalMonthlyEmi.toFixed(2)}`;
+}
+
+// Show specific EMI Details popup matching the clicked Overview category
+function showEmiOverviewDetails(type) {
+    const modal = document.getElementById('emi-overview-details-modal');
+    const titleEl = document.getElementById('emi-overview-details-title');
+    const headersEl = document.getElementById('emi-overview-details-headers');
+    const listEl = document.getElementById('emi-overview-details-list');
+
+    if (!modal || !titleEl || !headersEl || !listEl) return;
+
+    if (!window.currentEmiDetails || window.currentEmiDetails.length === 0) {
+        showAppAlert('No EMI data available.');
+        return;
+    }
+
+    let titleText = '';
+    let headerHtml = '';
+    let rowsHtml = '';
+    let totalSum = 0;
+
+    switch (type) {
+        case 'total-loan':
+            titleText = 'EMI Details: Total Loan Amount';
+            headerHtml = `
+                <tr>
+                    <th>EMI Name</th>
+                    <th class="text-right">Loan Amount</th>
+                    <th class="text-center">Tenure (Months)</th>
+                    <th class="text-center">Elapsed</th>
+                </tr>
+            `;
+            window.currentEmiDetails.forEach(item => {
+                totalSum += item.principal;
+                rowsHtml += `
+                    <tr>
+                        <td><span style="font-weight: 500;">${escapeHTML(item.name)}</span></td>
+                        <td class="text-right">${activeCurrencySymbol}${item.principal.toFixed(2)}</td>
+                        <td class="text-center">${item.tenure}</td>
+                        <td class="text-center">${item.monthsElapsed} / ${item.tenure}</td>
+                    </tr>
+                `;
+            });
+            break;
+        case 'pending-principal':
+            titleText = 'EMI Details: Pending Principal';
+            headerHtml = `
+                <tr>
+                    <th>EMI Name</th>
+                    <th class="text-right">Pending Principal</th>
+                    <th class="text-right">Total Principal</th>
+                    <th class="text-center">Progress</th>
+                </tr>
+            `;
+            window.currentEmiDetails.forEach(item => {
+                totalSum += item.pendingPrincipal;
+                const progressPct = item.tenure > 0 ? ((item.monthsElapsed / item.tenure) * 100).toFixed(0) : '0';
+                rowsHtml += `
+                    <tr>
+                        <td><span style="font-weight: 500;">${escapeHTML(item.name)}</span></td>
+                        <td class="text-right" style="color: var(--color-secondary);">${activeCurrencySymbol}${item.pendingPrincipal.toFixed(2)}</td>
+                        <td class="text-right">${activeCurrencySymbol}${item.principal.toFixed(2)}</td>
+                        <td class="text-center">${progressPct}%</td>
+                    </tr>
+                `;
+            });
+            break;
+        case 'principal-paid':
+            titleText = 'EMI Details: Total Principal Paid';
+            headerHtml = `
+                <tr>
+                    <th>EMI Name</th>
+                    <th class="text-right">Principal Paid</th>
+                    <th class="text-right">Total Principal</th>
+                    <th class="text-center">Progress</th>
+                </tr>
+            `;
+            window.currentEmiDetails.forEach(item => {
+                totalSum += item.principalPaid;
+                const progressPct = item.tenure > 0 ? ((item.monthsElapsed / item.tenure) * 100).toFixed(0) : '0';
+                rowsHtml += `
+                    <tr>
+                        <td><span style="font-weight: 500;">${escapeHTML(item.name)}</span></td>
+                        <td class="text-right" style="color: var(--color-success);">${activeCurrencySymbol}${item.principalPaid.toFixed(2)}</td>
+                        <td class="text-right">${activeCurrencySymbol}${item.principal.toFixed(2)}</td>
+                        <td class="text-center">${progressPct}%</td>
+                    </tr>
+                `;
+            });
+            break;
+        case 'total-interest':
+            titleText = 'EMI Details: Total Interest';
+            headerHtml = `
+                <tr>
+                    <th>EMI Name</th>
+                    <th class="text-right">Total Interest</th>
+                    <th class="text-right">Principal</th>
+                    <th class="text-center">Tenure (Months)</th>
+                </tr>
+            `;
+            window.currentEmiDetails.forEach(item => {
+                totalSum += item.totalInterest;
+                rowsHtml += `
+                    <tr>
+                        <td><span style="font-weight: 500;">${escapeHTML(item.name)}</span></td>
+                        <td class="text-right" style="color: #f59e0b;">${activeCurrencySymbol}${item.totalInterest.toFixed(2)}</td>
+                        <td class="text-right">${activeCurrencySymbol}${item.principal.toFixed(2)}</td>
+                        <td class="text-center">${item.tenure}</td>
+                    </tr>
+                `;
+            });
+            break;
+        case 'paid-interest':
+            titleText = 'EMI Details: Paid Interest';
+            headerHtml = `
+                <tr>
+                    <th>EMI Name</th>
+                    <th class="text-right">Paid Interest</th>
+                    <th class="text-right">Total Interest</th>
+                    <th class="text-center">Elapsed</th>
+                </tr>
+            `;
+            window.currentEmiDetails.forEach(item => {
+                totalSum += item.paidInterest;
+                rowsHtml += `
+                    <tr>
+                        <td><span style="font-weight: 500;">${escapeHTML(item.name)}</span></td>
+                        <td class="text-right" style="color: #3b82f6;">${activeCurrencySymbol}${item.paidInterest.toFixed(2)}</td>
+                        <td class="text-right">${activeCurrencySymbol}${item.totalInterest.toFixed(2)}</td>
+                        <td class="text-center">${item.monthsElapsed} / ${item.tenure}</td>
+                    </tr>
+                `;
+            });
+            break;
+        case 'monthly-total':
+            titleText = 'EMI Details: Monthly Total EMI';
+            headerHtml = `
+                <tr>
+                    <th>EMI Name</th>
+                    <th class="text-right">Monthly EMI</th>
+                    <th class="text-center">Due Day</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            `;
+            window.currentEmiDetails.forEach(item => {
+                totalSum += item.monthlyEmi;
+                const statusHtml = item.monthsElapsed < item.tenure
+                    ? `<span class="badge badge-admin">Active</span>`
+                    : `<span class="badge badge-viewer">Completed</span>`;
+                rowsHtml += `
+                    <tr>
+                        <td><span style="font-weight: 500;">${escapeHTML(item.name)}</span></td>
+                        <td class="text-right" style="color: #a78bfa;">${activeCurrencySymbol}${item.monthlyEmi.toFixed(2)}</td>
+                        <td class="text-center">${item.due_date || 1}</td>
+                        <td class="text-center">${statusHtml}</td>
+                    </tr>
+                `;
+            });
+            break;
+    }
+
+    // Add total row at the bottom
+    rowsHtml += `
+        <tr style="border-top: 2px solid var(--border-color); font-weight: bold; background: rgba(255,255,255,0.02);">
+            <td>Total Sum</td>
+            <td class="text-right" style="font-size: 1rem;">${activeCurrencySymbol}${totalSum.toFixed(2)}</td>
+            <td></td>
+            <td></td>
+        </tr>
+    `;
+
+    titleEl.textContent = titleText;
+    headersEl.innerHTML = headerHtml;
+    listEl.innerHTML = rowsHtml;
+
+    modal.classList.remove('hidden');
+}
+
+function closeEmiOverviewDetailsModal() {
+    const modal = document.getElementById('emi-overview-details-modal');
+    if (modal) modal.classList.add('hidden');
 }
 
 // Open/Close User EMI Modal
@@ -2535,10 +3438,18 @@ function openEmiModal(emiId = null) {
             document.getElementById('emi-payment-type').value = emi.payment_type;
             document.getElementById('emi-payment-gateway').value = emi.payment_gateway || '';
             document.getElementById('emi-payment-bank').value = emi.payment_bank || '';
+            
+            document.querySelectorAll('#emi-custom-fields .custom-emi-field').forEach(input => {
+                const key = input.getAttribute('data-key');
+                input.value = emi[key] || '';
+            });
         }
     } else {
         document.getElementById('emi-modal-title').textContent = 'Add EMI';
         document.getElementById('emi-form').reset();
+        document.querySelectorAll('#emi-custom-fields .custom-emi-field').forEach(input => {
+            input.value = '';
+        });
         document.getElementById('emi-id').value = '';
         document.getElementById('emi-start-date').value = new Date().toISOString().split('T')[0];
         document.getElementById('emi-end-date').value = calculateEndDate(new Date().toISOString().split('T')[0], 12);
@@ -2571,6 +3482,10 @@ async function handleEmiSubmit(e) {
     const payload = {
         name, principal_amount, interest_rate, tenure_months, emi_amount, start_date, end_date, due_date, payment_type, payment_gateway, payment_bank
     };
+    
+    document.querySelectorAll('#emi-custom-fields .custom-emi-field').forEach(input => {
+        payload[input.getAttribute('data-key')] = input.value;
+    });
 
     const url = emiId ? `/api/emis/edit/${emiId}` : '/api/emis/add';
 
@@ -2694,8 +3609,6 @@ function adminEditEmi(emiId) {
     
     document.getElementById('admin-emi-id').value = emi.id;
     document.getElementById('admin-emi-user').value = emi.user_id;
-    document.getElementById('admin-emi-user-group').style.display = 'none';
-    document.getElementById('admin-emi-user').required = false;
 
     document.getElementById('admin-emi-name').value = emi.name;
     document.getElementById('admin-emi-principal').value = emi.principal_amount;
@@ -2709,18 +3622,31 @@ function adminEditEmi(emiId) {
     document.getElementById('admin-emi-payment-gateway').value = emi.payment_gateway || '';
     document.getElementById('admin-emi-payment-bank').value = emi.payment_bank || '';
     
-    document.getElementById('admin-emi-form-title').textContent = 'Edit EMI Details';
-    document.getElementById('btn-admin-emi-cancel').style.display = 'block';
+    document.querySelectorAll('#admin-emi-custom-fields .custom-emi-field').forEach(input => {
+        const key = input.getAttribute('data-key');
+        input.value = emi[key] || '';
+    });
+    
+    applyConditionalFields('admin-emi');
+    const modal = document.getElementById('admin-emi-modal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 // Reset Admin EMI Form
 function resetAdminEmiForm() {
-    document.getElementById('admin-emi-form').reset();
-    document.getElementById('admin-emi-id').value = '';
-    document.getElementById('admin-emi-user-group').style.display = 'block';
-    document.getElementById('admin-emi-user').required = true;
-    document.getElementById('admin-emi-form-title').textContent = 'Create EMI for User';
-    document.getElementById('btn-admin-emi-cancel').style.display = 'none';
+    const form = document.getElementById('admin-emi-form');
+    if (form) form.reset();
+    const idInput = document.getElementById('admin-emi-id');
+    if (idInput) idInput.value = '';
+    document.querySelectorAll('#admin-emi-custom-fields .custom-emi-field').forEach(input => {
+        input.value = '';
+    });
+}
+
+function closeAdminEmiModal() {
+    const modal = document.getElementById('admin-emi-modal');
+    if (modal) modal.classList.add('hidden');
+    resetAdminEmiForm();
 }
 
 // Submit Admin EMI Form
@@ -2743,6 +3669,10 @@ async function handleAdminEmiSubmit(e) {
     const payload = {
         user_id, name, principal_amount, interest_rate, tenure_months, emi_amount, start_date, end_date, due_date, payment_type, payment_gateway, payment_bank
     };
+    
+    document.querySelectorAll('#admin-emi-custom-fields .custom-emi-field').forEach(input => {
+        payload[input.getAttribute('data-key')] = input.value;
+    });
 
     const url = emiId ? `/api/admin/emis/edit/${emiId}` : '/api/admin/emis/create';
 
@@ -2755,7 +3685,7 @@ async function handleAdminEmiSubmit(e) {
         const result = await response.json();
         if (response.ok && (result.success || result.message)) {
             showAppAlert(result.message || 'EMI saved successfully!', true);
-            resetAdminEmiForm();
+            closeAdminEmiModal();
             await adminFetchEMIs();
         } else {
             showAppAlert(result.error || 'Failed to save EMI.');
@@ -3256,5 +4186,255 @@ async function showOverviewDetails(metricType) {
 function closeOverviewDetailsModal() {
     const modal = document.getElementById('overview-details-modal');
     if (modal) modal.classList.add('hidden');
+}
+
+// INLINE CONTROL ITEM MODAL HELPERS
+function openInlineControlModal(type) {
+    const modal = document.getElementById('inline-control-modal');
+    const title = document.getElementById('inline-control-modal-title');
+    const inputType = document.getElementById('inline-control-type');
+    const inputName = document.getElementById('inline-control-name');
+    const inputOrder = document.getElementById('inline-control-order');
+    
+    if (!modal) return;
+    
+    inputType.value = type;
+    inputName.value = '';
+    inputOrder.value = '0';
+    
+    let displayName = 'Category';
+    if (type === 'bank-mode') displayName = 'Bank Mode';
+    if (type === 'payment-type') displayName = 'Payment Gateway';
+    if (type === 'payment-category') displayName = 'Payment Source';
+    
+    title.textContent = `Add New ${displayName}`;
+    modal.classList.remove('hidden');
+}
+
+function closeInlineControlModal() {
+    const modal = document.getElementById('inline-control-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// DYNAMIC CUSTOM FIELDS RENDERING
+async function loadDynamicCustomFields() {
+    try {
+        // Load Expense custom fields
+        const respExpense = await fetch('/api/admin/excel-columns?target_type=expense');
+        if (respExpense.ok) {
+            const cols = await respExpense.json();
+            const standardKeys = ['amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status', 'gateway', 'bank', 'source', 'method'];
+            const customCols = cols.filter(c => !standardKeys.includes(c.column_key));
+            
+            // Populate Parent dropdown for Expenses
+            populateParentDropdowns('expense', cols);
+            
+            // Render in add form
+            const addContainer = document.getElementById('add-expense-custom-fields');
+            if (addContainer) {
+                addContainer.innerHTML = '';
+                customCols.forEach(col => {
+                    addContainer.innerHTML += `
+                        <div class="input-group">
+                            <label for="add-custom-${col.column_key}">${escapeHTML(col.column_label)} ${col.is_required ? '<span class="required">*</span>' : ''}</label>
+                            <input type="text" id="add-custom-${col.column_key}" data-key="${col.column_key}" class="custom-expense-field" ${col.is_required ? 'required' : ''} placeholder="Enter ${escapeHTML(col.column_label)}" data-parent-key="${col.parent_column_key || ''}" data-parent-val="${col.parent_trigger_value || ''}" data-required="${col.is_required}">
+                        </div>
+                    `;
+                });
+            }
+            
+            // Render in edit form
+            const editContainer = document.getElementById('edit-expense-custom-fields');
+            if (editContainer) {
+                editContainer.innerHTML = '';
+                customCols.forEach(col => {
+                    editContainer.innerHTML += `
+                        <div class="input-group">
+                            <label for="edit-custom-${col.column_key}">${escapeHTML(col.column_label)} ${col.is_required ? '<span class="required">*</span>' : ''}</label>
+                            <input type="text" id="edit-custom-${col.column_key}" data-key="${col.column_key}" class="custom-expense-field" ${col.is_required ? 'required' : ''} placeholder="Enter ${escapeHTML(col.column_label)}" data-parent-key="${col.parent_column_key || ''}" data-parent-val="${col.parent_trigger_value || ''}" data-required="${col.is_required}">
+                        </div>
+                    `;
+                });
+            }
+        }
+        
+        // Load EMI custom fields
+        const respEmi = await fetch('/api/admin/excel-columns?target_type=emi');
+        if (respEmi.ok) {
+            const cols = await respEmi.json();
+            const standardKeys = ['name', 'principal_amount', 'interest_rate', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'];
+            const customCols = cols.filter(c => !standardKeys.includes(c.column_key));
+            
+            // Populate Parent dropdown for EMIs
+            populateParentDropdowns('emi', cols);
+            
+            // Render in user emi form
+            const userEmiContainer = document.getElementById('emi-custom-fields');
+            if (userEmiContainer) {
+                userEmiContainer.innerHTML = '';
+                customCols.forEach(col => {
+                    userEmiContainer.innerHTML += `
+                        <div class="input-group">
+                            <label for="emi-custom-${col.column_key}">${escapeHTML(col.column_label)} ${col.is_required ? '<span class="required">*</span>' : ''}</label>
+                            <input type="text" id="emi-custom-${col.column_key}" data-key="${col.column_key}" class="custom-emi-field" ${col.is_required ? 'required' : ''} placeholder="Enter ${escapeHTML(col.column_label)}" data-parent-key="${col.parent_column_key || ''}" data-parent-val="${col.parent_trigger_value || ''}" data-required="${col.is_required}">
+                        </div>
+                    `;
+                });
+            }
+            
+            // Render in admin emi form
+            const adminEmiContainer = document.getElementById('admin-emi-custom-fields');
+            if (adminEmiContainer) {
+                adminEmiContainer.innerHTML = '';
+                customCols.forEach(col => {
+                    adminEmiContainer.innerHTML += `
+                        <div class="input-group">
+                            <label for="admin-emi-custom-${col.column_key}">${escapeHTML(col.column_label)} ${col.is_required ? '<span class="required">*</span>' : ''}</label>
+                            <input type="text" id="admin-emi-custom-${col.column_key}" data-key="${col.column_key}" class="custom-emi-field" ${col.is_required ? 'required' : ''} placeholder="Enter ${escapeHTML(col.column_label)}" data-parent-key="${col.parent_column_key || ''}" data-parent-val="${col.parent_trigger_value || ''}" data-required="${col.is_required}">
+                        </div>
+                    `;
+                });
+            }
+        }
+        
+        // Apply conditional visibility rules
+        applyConditionalFields('add-expense');
+        applyConditionalFields('edit-expense');
+        applyConditionalFields('user-emi');
+        applyConditionalFields('admin-emi');
+    } catch (err) {
+        console.error('Error loading dynamic custom fields:', err);
+    }
+}
+
+// EXPENSE COLUMNS TAB HELPERS
+async function adminFetchExpenseColumnsTab() {
+    try {
+        const response = await fetch('/api/admin/excel-columns?target_type=expense');
+        if (response.ok) {
+            const cols = await response.json();
+            renderAdminExpenseColumnsTabTable(cols);
+        }
+    } catch (err) {
+        console.error('Error fetching admin expense columns:', err);
+    }
+}
+
+function renderAdminExpenseColumnsTabTable(columns) {
+    const tbody = document.getElementById('admin-expense-columns-list');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const filterSelect = document.getElementById('admin-expense-columns-filter');
+    const filterType = filterSelect ? filterSelect.value : 'import';
+    const isAdmin = currentUserPrivileges && currentUserPrivileges.is_admin;
+    const isDisabled = isAdmin ? '' : 'disabled';
+
+    const systemKeys = ['amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status'];
+
+    // Populate Parent dropdown choices for Expense Columns Tab
+    populateParentDropdowns('expense', columns);
+
+    columns.forEach(col => {
+        const tr = document.createElement('tr');
+
+        const isReq = col.is_required === 1;
+        const requiredHtml = isReq
+            ? `<span class="badge badge-admin"><i class="fa-solid fa-check"></i> Yes</span>`
+            : `<span class="badge badge-viewer">No</span>`;
+
+        const isChecked = (filterType === 'import' ? col.is_enabled_import : col.is_enabled_export) === 1 ? 'checked' : '';
+        const isDeletable = !systemKeys.includes(col.column_key);
+        const actionHtml = isDeletable && isAdmin
+            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteExpenseColumnTab('${col.column_key}')" title="Delete Custom Column" style="color: var(--color-danger);">
+                 <i class="fa-solid fa-trash-can"></i>
+               </button>`
+            : '';
+
+        // Order input field
+        const orderInputHtml = isAdmin
+            ? `<input type="number" class="table-input text-center" style="width: 70px; margin: 0 auto; display: block; padding: 4px;" value="${col.display_order || 0}" min="0">`
+            : `<span class="text-center" style="display: block;">${col.display_order || 0}</span>`;
+
+        tr.innerHTML = `
+            <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
+            <td><code>${escapeHTML(col.column_key)}</code></td>
+            <td class="text-center">${requiredHtml}</td>
+            <td class="text-center">${orderInputHtml}</td>
+            <td class="text-center">
+                <label class="checkbox-container" style="display: inline-block;">
+                    <input type="checkbox" ${isChecked} ${isDisabled}>
+                    <span class="checkmark"></span>
+                </label>
+            </td>
+            <td class="text-center">${actionHtml}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function saveExpenseColumnsTabChanges() {
+    const tbody = document.getElementById('admin-expense-columns-list');
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
+    const filterSelect = document.getElementById('admin-expense-columns-filter');
+    const filterType = filterSelect ? filterSelect.value : 'import';
+    
+    const columnsData = [];
+    rows.forEach(tr => {
+        const orderInput = tr.querySelector('input[type="number"]');
+        const checkbox = tr.querySelector('input[type="checkbox"]');
+        const codeTag = tr.querySelector('code');
+        if (codeTag) {
+            const columnKey = codeTag.textContent.trim();
+            const displayOrder = orderInput ? parseInt(orderInput.value) || 0 : 0;
+            const isEnabled = checkbox ? (checkbox.checked ? 1 : 0) : 1;
+            columnsData.push({
+                column_key: columnKey,
+                target_type: 'expense',
+                display_order: displayOrder,
+                is_enabled: isEnabled
+            });
+        }
+    });
+    
+    try {
+        const response = await fetch('/api/admin/excel-columns/save-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ columns: columnsData, type_key: filterType })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Expense column configurations saved successfully!', true);
+            await adminFetchExpenseColumnsTab();
+            await loadDynamicCustomFields();
+        } else {
+            showAppAlert(result.error || 'Failed to save changes.');
+        }
+    } catch (err) {
+        showAppAlert('Network error saving changes.');
+    }
+}
+
+async function adminDeleteExpenseColumnTab(columnKey) {
+    if (!confirm(`Are you sure you want to delete the custom column "${columnKey}"? This will not drop the database column, but it will remove it from configuration and templates.`)) return;
+    try {
+        const response = await fetch('/api/admin/excel-columns/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ column_key: columnKey, target_type: 'expense' })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Expense custom column deleted successfully.', true);
+            await adminFetchExpenseColumnsTab();
+            await loadDynamicCustomFields();
+        } else {
+            showAppAlert(result.error || 'Failed to delete custom column.');
+        }
+    } catch (err) {
+        showAppAlert('Network error deleting custom column.');
+    }
 }
 

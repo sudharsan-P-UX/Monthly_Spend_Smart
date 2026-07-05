@@ -196,7 +196,7 @@ def get_expenses_api():
 @app.route('/api/expenses/add', methods=['POST'])
 @require_privilege('can_add')
 def add_expense_api():
-    data = request.get_json()
+    data = request.get_json() or {}
     amount = data.get('amount')
     category = data.get('category')
     description = data.get('description', '')
@@ -226,17 +226,22 @@ def add_expense_api():
     except ValueError:
         interest = 0.0
         
+    # Extract dynamic custom fields
+    standard_keys = {'amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status'}
+    extra_fields = {k: v for k, v in data.items() if k not in standard_keys}
+        
     expense_id = database.add_expense(
         session['user_id'], amount, category, description, date,
         bank_mode=bank_mode, payment_type=payment_type, payment_category=payment_category,
-        interest=interest, payment_method=payment_method, status=status
+        interest=interest, payment_method=payment_method, status=status,
+        **extra_fields
     )
     return jsonify({'success': True, 'id': expense_id, 'message': 'Expense added successfully.'})
 
 @app.route('/api/expenses/edit/<int:expense_id>', methods=['POST'])
 @require_privilege('can_edit')
 def edit_expense_api(expense_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     amount = data.get('amount')
     category = data.get('category')
     description = data.get('description', '')
@@ -266,10 +271,15 @@ def edit_expense_api(expense_id):
     except ValueError:
         interest = 0.0
         
+    # Extract dynamic custom fields
+    standard_keys = {'amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status'}
+    extra_fields = {k: v for k, v in data.items() if k not in standard_keys}
+        
     success = database.update_expense(
         expense_id, session['user_id'], amount, category, description, date,
         bank_mode=bank_mode, payment_type=payment_type, payment_category=payment_category,
-        interest=interest, payment_method=payment_method, status=status
+        interest=interest, payment_method=payment_method, status=status,
+        **extra_fields
     )
     if success:
         return jsonify({'success': True, 'message': 'Expense updated successfully.'})
@@ -311,26 +321,44 @@ def export_emis():
     ws = wb.active
     ws.title = "EMIs"
     
-    headers = [
-        "EMI Name", "Loan Amount", "Interest Rate", "Tenure", "Monthly EMI",
-        "Start Date", "End Date", "Due Date", "Payment Type", "Payment Gateway", "Payment Bank"
-    ]
+    # Get active columns for EMI
+    db_cols = database.get_excel_columns('emi')
+    active_cols = [c for c in db_cols if c['is_enabled_export'] == 1]
+    
+    # Headers
+    headers = [c['column_label'] for c in active_cols]
     ws.append(headers)
     
     for emi in emis:
-        ws.append([
-            emi.get('name', ''),
-            float(emi.get('principal_amount', 0.0)),
-            float(emi.get('interest_rate', 0.0)),
-            int(emi.get('tenure_months', 0)),
-            float(emi.get('emi_amount', 0.0)),
-            emi.get('start_date', ''),
-            emi.get('end_date', ''),
-            emi.get('due_date', ''),
-            emi.get('payment_type', ''),
-            emi.get('payment_gateway', ''),
-            emi.get('payment_bank', '')
-        ])
+        row_data = []
+        for col in active_cols:
+            k = col['column_key']
+            if k == 'name':
+                row_data.append(emi.get('name', ''))
+            elif k == 'principal_amount':
+                row_data.append(float(emi.get('principal_amount', 0.0)))
+            elif k == 'interest_rate':
+                row_data.append(float(emi.get('interest_rate', 0.0)))
+            elif k == 'tenure_months':
+                row_data.append(int(emi.get('tenure_months', 0)))
+            elif k == 'emi_amount':
+                row_data.append(float(emi.get('emi_amount', 0.0)))
+            elif k == 'start_date':
+                row_data.append(emi.get('start_date', ''))
+            elif k == 'end_date':
+                row_data.append(emi.get('end_date', ''))
+            elif k == 'due_date':
+                row_data.append(emi.get('due_date', ''))
+            elif k == 'payment_type':
+                row_data.append(emi.get('payment_type', ''))
+            elif k == 'payment_gateway':
+                row_data.append(emi.get('payment_gateway', ''))
+            elif k == 'payment_bank':
+                row_data.append(emi.get('payment_bank', ''))
+            else:
+                # Dynamic custom column
+                row_data.append(emi.get(k, ''))
+        ws.append(row_data)
         
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
@@ -377,10 +405,19 @@ def import_emis():
             if val is not None:
                 header_map[str(val).strip().lower()] = i
                 
-        required_fields = ["emi name", "monthly emi", "start date", "end date", "tenure", "due date", "payment type"]
-        missing = [f for f in required_fields if f not in header_map]
-        if missing:
-            return jsonify({'error': f'Required columns missing in Excel: {", ".join(missing)}'}), 400
+        # Get active columns configuration (specifically for Import)
+        db_cols = database.get_excel_columns('emi')
+        enabled_keys = {c['column_key']: c['is_required'] for c in db_cols if c['is_enabled_import'] == 1}
+        
+        # Verify required headers are present
+        missing_reqs = []
+        for k, req in enabled_keys.items():
+            if req:
+                label = next(c['column_label'] for c in db_cols if c['column_key'] == k)
+                if label.lower() not in header_map:
+                    missing_reqs.append(label)
+        if missing_reqs:
+            return jsonify({'error': f'Required columns missing in Excel: {", ".join(missing_reqs)}'}), 400
             
         imported_count = 0
         user_id = session['user_id']
@@ -389,14 +426,25 @@ def import_emis():
             if not any(val is not None for val in row):
                 continue
                 
-            name = str(row[header_map["emi name"]] or '').strip()
-            principal = float(row[header_map.get("loan amount")] or 0.0) if "loan amount" in header_map else 0.0
-            interest = float(row[header_map.get("interest rate")] or 0.0) if "interest rate" in header_map else 0.0
-            tenure = int(row[header_map["tenure"]] or 12)
-            emi_amount = float(row[header_map["monthly emi"]] or 0.0)
+            # Map fields dynamically from columns list
+            data_dict = {}
+            for col in db_cols:
+                k = col['column_key']
+                if col['is_enabled_import'] != 1:
+                    continue
+                label = col['column_label'].lower()
+                idx = header_map.get(label) or header_map.get(k)
+                if idx is not None:
+                    data_dict[k] = row[idx]
             
-            start_date_val = row[header_map["start date"]]
-            end_date_val = row[header_map["end date"]]
+            name = str(data_dict.get('name') or '').strip()
+            principal = float(data_dict.get('principal_amount') or 0.0)
+            interest = float(data_dict.get('interest_rate') or 0.0)
+            tenure = int(data_dict.get('tenure_months') or 12)
+            emi_amount = float(data_dict.get('emi_amount') or 0.0)
+            
+            start_date_val = data_dict.get('start_date')
+            end_date_val = data_dict.get('end_date')
             
             if isinstance(start_date_val, (datetime.datetime, datetime.date)):
                 start_date = start_date_val.strftime('%Y-%m-%d')
@@ -408,16 +456,23 @@ def import_emis():
             else:
                 end_date = str(end_date_val or '').strip()
                 
-            due_date = str(row[header_map["due date"]] or '5').strip()
-            payment_type = str(row[header_map["payment type"]] or 'Auto').strip()
-            gateway = str(row[header_map.get("payment gateway")] or '').strip() if "payment gateway" in header_map else ''
-            bank = str(row[header_map.get("payment bank")] or '').strip() if "payment bank" in header_map else ''
+            due_date = str(data_dict.get('due_date') or '5').strip()
+            payment_type = str(data_dict.get('payment_type') or 'Auto').strip()
+            gateway = str(data_dict.get('payment_gateway') or '').strip()
+            bank = str(data_dict.get('payment_bank') or '').strip()
             
             if not name or not start_date or not end_date or not due_date or not payment_type:
                 continue
                 
+            # Extra fields extraction
+            extra_fields = {}
+            for k in data_dict:
+                if k not in ('name', 'principal_amount', 'interest_rate', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'):
+                    extra_fields[k] = str(data_dict[k]).strip() if data_dict[k] is not None else ''
+                    
             database.add_emi(
-                user_id, name, principal, emi_amount, start_date, end_date, tenure, interest, due_date, payment_type, gateway, bank
+                user_id, name, principal, emi_amount, start_date, end_date, tenure, interest, due_date, payment_type, gateway, bank,
+                **extra_fields
             )
             imported_count += 1
             
@@ -429,7 +484,7 @@ def import_emis():
 @app.route('/api/emis/add', methods=['POST'])
 @require_privilege('can_add')
 def add_emi_api():
-    data = request.get_json()
+    data = request.get_json() or {}
     name = data.get('name', '').strip()
     principal_amount = data.get('principal_amount', 0.0)
     emi_amount = data.get('emi_amount')
@@ -453,15 +508,22 @@ def add_emi_api():
     except ValueError:
         return jsonify({'error': 'Numeric fields must contain valid numbers.'}), 400
         
+    standard_keys = {
+        'name', 'principal_amount', 'emi_amount', 'start_date', 'end_date', 
+        'tenure_months', 'interest_rate', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'
+    }
+    extra_fields = {k: v for k, v in data.items() if k not in standard_keys}
+        
     emi_id = database.add_emi(
-        session['user_id'], name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank
+        session['user_id'], name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank,
+        **extra_fields
     )
     return jsonify({'success': True, 'id': emi_id, 'message': 'EMI added successfully.'})
 
 @app.route('/api/emis/edit/<int:emi_id>', methods=['POST'])
 @require_privilege('can_edit')
 def edit_emi_api(emi_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     name = data.get('name', '').strip()
     principal_amount = data.get('principal_amount', 0.0)
     emi_amount = data.get('emi_amount')
@@ -485,8 +547,15 @@ def edit_emi_api(emi_id):
     except ValueError:
         return jsonify({'error': 'Numeric fields must contain valid numbers.'}), 400
         
+    standard_keys = {
+        'name', 'principal_amount', 'emi_amount', 'start_date', 'end_date', 
+        'tenure_months', 'interest_rate', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'
+    }
+    extra_fields = {k: v for k, v in data.items() if k not in standard_keys}
+        
     success = database.update_emi(
-        emi_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, user_id=session['user_id']
+        emi_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, user_id=session['user_id'],
+        **extra_fields
     )
     if success:
         return jsonify({'success': True, 'message': 'EMI updated successfully.'})
@@ -517,7 +586,7 @@ def get_import_template():
     ws.title = "Import Template"
     
     # Get active columns
-    db_cols = database.get_excel_columns()
+    db_cols = database.get_excel_columns('expense')
     active_cols = [c for c in db_cols if c['is_enabled_import'] == 1]
     
     # Headers
@@ -534,7 +603,8 @@ def get_import_template():
         'source': "Salary",
         'method': "Debit",
         'amount': 12.50,
-        'interest': 0.00
+        'interest': 0.00,
+        'status': "Paid"
     }
     placeholders2 = {
         'date': "2026-06-26",
@@ -545,12 +615,13 @@ def get_import_template():
         'source': "Credit Card",
         'method': "Credit",
         'amount': 1200.00,
-        'interest': 45.00
+        'interest': 45.00,
+        'status': "Unpaid"
     }
     
     # Add sample placeholder rows
-    row1 = [placeholders.get(c['column_key']) for c in active_cols]
-    row2 = [placeholders2.get(c['column_key']) for c in active_cols]
+    row1 = [placeholders.get(c['column_key'], '') for c in active_cols]
+    row2 = [placeholders2.get(c['column_key'], '') for c in active_cols]
     ws.append(row1)
     ws.append(row2)
     
@@ -589,7 +660,7 @@ def export_expenses():
     ws.title = "Expenses"
     
     # Get active columns
-    db_cols = database.get_excel_columns()
+    db_cols = database.get_excel_columns('expense')
     active_cols = [c for c in db_cols if c['is_enabled_export'] == 1]
     
     # Headers
@@ -621,6 +692,9 @@ def export_expenses():
                 row_data.append(float(exp.get('interest', 0.0)))
             elif k == 'status':
                 row_data.append(exp.get('status', 'Paid'))
+            else:
+                # Dynamic custom column
+                row_data.append(exp.get(k, ''))
         ws.append(row_data)
         
     # Adjust column widths
@@ -678,7 +752,7 @@ def import_expenses():
                 header_map[str(val).strip().lower()] = i
                 
         # Get active columns configuration (specifically for Import)
-        db_cols = database.get_excel_columns()
+        db_cols = database.get_excel_columns('expense')
         enabled_keys = {c['column_key']: c['is_required'] for c in db_cols if c['is_enabled_import'] == 1}
         
         # Required columns mapping
@@ -706,6 +780,16 @@ def import_expenses():
         col_interest = header_map.get('interest') if 'interest' in enabled_keys else None
         col_status = header_map.get('status') if 'status' in enabled_keys else None
         
+        # Let's map any other active column dynamically:
+        dynamic_cols = {}
+        for col in db_cols:
+            k = col['column_key']
+            if col['is_enabled_import'] == 1 and k not in ('date', 'category', 'description', 'gateway', 'bank', 'source', 'method', 'amount', 'interest', 'status'):
+                # Locate it in the header either by key or label
+                col_idx = header_map.get(k) or header_map.get(col['column_label'].lower())
+                if col_idx is not None:
+                    dynamic_cols[k] = col_idx
+                    
         imported_count = 0
         skipped_count = 0
         
@@ -795,11 +879,18 @@ def import_expenses():
                 status_raw = str(row[col_status]).strip().lower()
                 if status_raw in ('unpaid', 'u'):
                     status_val = 'Unpaid'
+                    
+            # Extra dynamic fields extraction
+            extra_fields = {}
+            for k, col_idx in dynamic_cols.items():
+                val = row[col_idx]
+                extra_fields[k] = str(val).strip() if val is not None else ''
 
             database.add_expense(
                 session['user_id'], amount, category_val, description, date_str,
                 bank_mode=bank, payment_type=gateway, payment_category=source,
-                interest=interest, payment_method=method, status=status_val
+                interest=interest, payment_method=method, status=status_val,
+                **extra_fields
             )
             imported_count += 1
             
@@ -812,33 +903,159 @@ def import_expenses():
     except Exception as e:
         return jsonify({'error': f'Failed to process file: {str(e)}'}), 500
 
-# EXCEL COLUMNS CONFIGURATION CRUD ENDPOINTS (Open to all logged-in users for viewing, toggle restricted to Admin)
+# EXCEL COLUMNS CONFIGURATION CRUD ENDPOINTS (Open to all logged-in users for viewing, toggle/creation/deletion restricted to Admin)
 @app.route('/api/admin/excel-columns', methods=['GET'])
 def admin_get_excel_columns():
     if not is_logged_in():
         return jsonify({'error': 'Unauthorized'}), 401
-    cols = database.get_excel_columns()
+    target_type = request.args.get('target_type', 'expense')
+    cols = database.get_excel_columns(target_type)
     return jsonify(cols)
 
 @app.route('/api/admin/excel-columns/toggle', methods=['POST'])
 @require_privilege('can_admin')
 def admin_toggle_excel_column():
-    data = request.get_json()
+    data = request.get_json() or {}
     column_key = data.get('column_key')
     is_enabled = data.get('is_enabled')
     type_key = data.get('type_key')
+    target_type = data.get('target_type', 'expense')
     
     if column_key is None or is_enabled is None or type_key not in ('import', 'export'):
         return jsonify({'error': 'Column key, is_enabled, and valid type_key ("import" or "export") are required.'}), 400
         
-    db_cols = database.get_excel_columns()
+    db_cols = database.get_excel_columns(target_type)
     target_col = next((c for c in db_cols if c['column_key'] == column_key), None)
     if not target_col:
         return jsonify({'error': 'Column not found.'}), 404
         
-    # User is Admin since they passed @require_privilege('can_admin'), so they have "all access" (can toggle required columns if desired)
-    database.update_excel_column_status(column_key, type_key, int(is_enabled))
+    database.update_excel_column_status(column_key, type_key, int(is_enabled), target_type)
     return jsonify({'success': True, 'message': 'Column status updated successfully.'})
+
+@app.route('/api/admin/excel-columns/save-all', methods=['POST'])
+@require_privilege('can_admin')
+def admin_save_all_excel_columns():
+    data = request.get_json() or {}
+    columns_data = data.get('columns', [])
+    type_key = data.get('type_key', 'import')
+    
+    if type_key not in ('import', 'export'):
+        return jsonify({'error': 'Invalid type_key ("import" or "export")'}), 400
+        
+    conn = database.get_db_connection()
+    cursor = conn.cursor()
+    field = 'is_enabled_import' if type_key == 'import' else 'is_enabled_export'
+    
+    for col in columns_data:
+        col_key = col.get('column_key')
+        target_type = col.get('target_type', 'expense')
+        display_order = col.get('display_order', 0)
+        is_enabled = col.get('is_enabled', 1)
+        
+        cursor.execute(
+            f"UPDATE excel_columns SET display_order = ?, {field} = ? WHERE column_key = ? AND target_type = ?",
+            (int(display_order), int(is_enabled), col_key, target_type)
+        )
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'message': 'All configurations saved successfully.'})
+
+@app.route('/api/admin/excel-columns/update-order', methods=['POST'])
+@require_privilege('can_admin')
+def admin_update_excel_column_order():
+    data = request.get_json() or {}
+    column_key = data.get('column_key')
+    display_order = data.get('display_order')
+    target_type = data.get('target_type', 'expense')
+    
+    if column_key is None or display_order is None:
+        return jsonify({'error': 'Column key and display_order are required.'}), 400
+        
+    conn = database.get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE excel_columns SET display_order = ? WHERE column_key = ? AND target_type = ?",
+        (int(display_order), column_key, target_type)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'message': 'Column order updated successfully.'})
+
+@app.route('/api/admin/excel-columns/create', methods=['POST'])
+@require_privilege('can_admin')
+def admin_create_excel_column():
+    import sqlite3
+    data = request.get_json() or {}
+    column_key = data.get('column_key', '').strip().lower()
+    column_label = data.get('column_label', '').strip()
+    target_type = data.get('target_type', 'expense').strip().lower()
+    is_required = int(data.get('is_required', 0))
+    is_enabled_import = int(data.get('is_enabled_import', 1))
+    is_enabled_export = int(data.get('is_enabled_export', 1))
+    display_order = int(data.get('display_order', 0))
+    parent_column_key = data.get('parent_column_key', '').strip() or None
+    parent_trigger_value = data.get('parent_trigger_value', '').strip() or None
+    
+    if not column_key or not column_label or target_type not in ('expense', 'emi'):
+        return jsonify({'error': 'Column key, label, and valid target_type ("expense" or "emi") are required.'}), 400
+        
+    import re
+    if not re.match(r'^[a-z0-9_]+$', column_key):
+        return jsonify({'error': 'Column key must only contain lowercase alphanumeric characters and underscores.'}), 400
+        
+    conn = database.get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Dynamically alter table to add column if it doesn't exist
+        table_name = 'expenses' if target_type == 'expense' else 'emis'
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = [row['name'] for row in cursor.fetchall()]
+        if column_key not in columns:
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_key} TEXT")
+            
+        cursor.execute(
+            'INSERT INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required, target_type, display_order, parent_column_key, parent_trigger_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (column_key, column_label, is_enabled_import, is_enabled_export, is_required, target_type, display_order, parent_column_key, parent_trigger_value)
+        )
+        conn.commit()
+        return jsonify({'success': True, 'message': f'Column registered and added to {table_name} table successfully.'})
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'Column key already exists for this target type.'}), 409
+    except Exception as e:
+        return jsonify({'error': f'Failed to register column: {str(e)}'}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/admin/excel-columns/delete', methods=['POST', 'DELETE'])
+@require_privilege('can_admin')
+def admin_delete_excel_column():
+    data = request.get_json() or {}
+    column_key = data.get('column_key')
+    target_type = data.get('target_type', 'expense')
+    
+    if not column_key:
+        return jsonify({'error': 'Column key is required.'}), 400
+        
+    system_keys = {
+        'expense': ('date', 'category', 'amount'),
+        'emi': ('name', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type')
+    }
+    if column_key in system_keys.get(target_type, ()):
+        return jsonify({'error': 'Cannot delete system required columns.'}), 400
+        
+    conn = database.get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        'DELETE FROM excel_columns WHERE column_key = ? AND target_type = ?',
+        (column_key, target_type)
+    )
+    conn.commit()
+    rows_affected = cursor.rowcount
+    conn.close()
+    if rows_affected > 0:
+        return jsonify({'success': True, 'message': 'Column removed successfully.'})
+    else:
+        return jsonify({'error': 'Column not found.'}), 404
 
 # ADMIN API ENDPOINTS
 
@@ -949,27 +1166,44 @@ def admin_export_emis():
     ws = wb.active
     ws.title = "All EMIs"
     
-    headers = [
-        "Username", "EMI Name", "Loan Amount", "Interest Rate", "Tenure", "Monthly EMI",
-        "Start Date", "End Date", "Due Date", "Payment Type", "Payment Gateway", "Payment Bank"
-    ]
+    # Get active columns for EMI
+    db_cols = database.get_excel_columns('emi')
+    active_cols = [c for c in db_cols if c['is_enabled_export'] == 1]
+    
+    # Headers
+    headers = ["Username"] + [c['column_label'] for c in active_cols]
     ws.append(headers)
     
     for emi in emis:
-        ws.append([
-            emi.get('username', ''),
-            emi.get('name', ''),
-            float(emi.get('principal_amount', 0.0)),
-            float(emi.get('interest_rate', 0.0)),
-            int(emi.get('tenure_months', 0)),
-            float(emi.get('emi_amount', 0.0)),
-            emi.get('start_date', ''),
-            emi.get('end_date', ''),
-            emi.get('due_date', ''),
-            emi.get('payment_type', ''),
-            emi.get('payment_gateway', ''),
-            emi.get('payment_bank', '')
-        ])
+        row_data = [emi.get('username', '')]
+        for col in active_cols:
+            k = col['column_key']
+            if k == 'name':
+                row_data.append(emi.get('name', ''))
+            elif k == 'principal_amount':
+                row_data.append(float(emi.get('principal_amount', 0.0)))
+            elif k == 'interest_rate':
+                row_data.append(float(emi.get('interest_rate', 0.0)))
+            elif k == 'tenure_months':
+                row_data.append(int(emi.get('tenure_months', 0)))
+            elif k == 'emi_amount':
+                row_data.append(float(emi.get('emi_amount', 0.0)))
+            elif k == 'start_date':
+                row_data.append(emi.get('start_date', ''))
+            elif k == 'end_date':
+                row_data.append(emi.get('end_date', ''))
+            elif k == 'due_date':
+                row_data.append(emi.get('due_date', ''))
+            elif k == 'payment_type':
+                row_data.append(emi.get('payment_type', ''))
+            elif k == 'payment_gateway':
+                row_data.append(emi.get('payment_gateway', ''))
+            elif k == 'payment_bank':
+                row_data.append(emi.get('payment_bank', ''))
+            else:
+                # Dynamic custom column
+                row_data.append(emi.get(k, ''))
+        ws.append(row_data)
         
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
@@ -1016,10 +1250,22 @@ def admin_import_emis():
             if val is not None:
                 header_map[str(val).strip().lower()] = i
                 
-        required_fields = ["username", "emi name", "monthly emi", "start date", "end date", "tenure", "due date", "payment type"]
-        missing = [f for f in required_fields if f not in header_map]
-        if missing:
-            return jsonify({'error': f'Required columns missing in Excel: {", ".join(missing)}'}), 400
+        # Get active columns configuration (specifically for Import)
+        db_cols = database.get_excel_columns('emi')
+        enabled_keys = {c['column_key']: c['is_required'] for c in db_cols if c['is_enabled_import'] == 1}
+        
+        # Verify required headers are present
+        if 'username' not in header_map:
+            return jsonify({'error': 'Required column "Username" missing in Excel.'}), 400
+            
+        missing_reqs = []
+        for k, req in enabled_keys.items():
+            if req:
+                label = next(c['column_label'] for c in db_cols if c['column_key'] == k)
+                if label.lower() not in header_map:
+                    missing_reqs.append(label)
+        if missing_reqs:
+            return jsonify({'error': f'Required columns missing in Excel: {", ".join(missing_reqs)}'}), 400
             
         imported_count = 0
         skipped_count = 0
@@ -1039,14 +1285,26 @@ def admin_import_emis():
                 continue
                 
             user_id = user['id']
-            name = str(row[header_map["emi name"]] or '').strip()
-            principal = float(row[header_map.get("loan amount")] or 0.0) if "loan amount" in header_map else 0.0
-            interest = float(row[header_map.get("interest rate")] or 0.0) if "interest rate" in header_map else 0.0
-            tenure = int(row[header_map["tenure"]] or 12)
-            emi_amount = float(row[header_map["monthly emi"]] or 0.0)
             
-            start_date_val = row[header_map["start date"]]
-            end_date_val = row[header_map["end date"]]
+            # Map fields dynamically from columns list
+            data_dict = {}
+            for col in db_cols:
+                k = col['column_key']
+                if col['is_enabled_import'] != 1:
+                    continue
+                label = col['column_label'].lower()
+                idx = header_map.get(label) or header_map.get(k)
+                if idx is not None:
+                    data_dict[k] = row[idx]
+            
+            name = str(data_dict.get('name') or '').strip()
+            principal = float(data_dict.get('principal_amount') or 0.0)
+            interest = float(data_dict.get('interest_rate') or 0.0)
+            tenure = int(data_dict.get('tenure_months') or 12)
+            emi_amount = float(data_dict.get('emi_amount') or 0.0)
+            
+            start_date_val = data_dict.get('start_date')
+            end_date_val = data_dict.get('end_date')
             
             if isinstance(start_date_val, (datetime.datetime, datetime.date)):
                 start_date = start_date_val.strftime('%Y-%m-%d')
@@ -1058,17 +1316,24 @@ def admin_import_emis():
             else:
                 end_date = str(end_date_val or '').strip()
                 
-            due_date = str(row[header_map["due date"]] or '5').strip()
-            payment_type = str(row[header_map["payment type"]] or 'Auto').strip()
-            gateway = str(row[header_map.get("payment gateway")] or '').strip() if "payment gateway" in header_map else ''
-            bank = str(row[header_map.get("payment bank")] or '').strip() if "payment bank" in header_map else ''
+            due_date = str(data_dict.get('due_date') or '5').strip()
+            payment_type = str(data_dict.get('payment_type') or 'Auto').strip()
+            gateway = str(data_dict.get('payment_gateway') or '').strip()
+            bank = str(data_dict.get('payment_bank') or '').strip()
             
             if not name or not start_date or not end_date or not due_date or not payment_type:
                 skipped_count += 1
                 continue
                 
+            # Extra fields extraction
+            extra_fields = {}
+            for k in data_dict:
+                if k not in ('name', 'principal_amount', 'interest_rate', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'):
+                    extra_fields[k] = str(data_dict[k]).strip() if data_dict[k] is not None else ''
+                    
             database.add_emi(
-                user_id, name, principal, emi_amount, start_date, end_date, tenure, interest, due_date, payment_type, gateway, bank
+                user_id, name, principal, emi_amount, start_date, end_date, tenure, interest, due_date, payment_type, gateway, bank,
+                **extra_fields
             )
             imported_count += 1
             
@@ -1084,7 +1349,7 @@ def admin_import_emis():
 @app.route('/api/admin/emis/create', methods=['POST'])
 @require_privilege('can_admin')
 def admin_create_emi():
-    data = request.get_json()
+    data = request.get_json() or {}
     user_id = data.get('user_id')
     name = data.get('name', '').strip()
     principal_amount = data.get('principal_amount', 0.0)
@@ -1110,15 +1375,22 @@ def admin_create_emi():
     except ValueError:
         return jsonify({'error': 'Numeric fields must contain valid numbers.'}), 400
         
+    standard_keys = {
+        'user_id', 'name', 'principal_amount', 'emi_amount', 'start_date', 'end_date', 
+        'tenure_months', 'interest_rate', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'
+    }
+    extra_fields = {k: v for k, v in data.items() if k not in standard_keys}
+        
     emi_id = database.add_emi(
-        user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank
+        user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank,
+        **extra_fields
     )
     return jsonify({'success': True, 'id': emi_id, 'message': 'EMI created successfully.'})
 
 @app.route('/api/admin/emis/edit/<int:emi_id>', methods=['POST'])
 @require_privilege('can_admin')
 def admin_edit_emi(emi_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     name = data.get('name', '').strip()
     principal_amount = data.get('principal_amount', 0.0)
     emi_amount = data.get('emi_amount')
@@ -1142,8 +1414,15 @@ def admin_edit_emi(emi_id):
     except ValueError:
         return jsonify({'error': 'Numeric fields must contain valid numbers.'}), 400
         
+    standard_keys = {
+        'name', 'principal_amount', 'emi_amount', 'start_date', 'end_date', 
+        'tenure_months', 'interest_rate', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'
+    }
+    extra_fields = {k: v for k, v in data.items() if k not in standard_keys}
+        
     success = database.update_emi(
-        emi_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank
+        emi_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank,
+        **extra_fields
     )
     if success:
         return jsonify({'success': True, 'message': 'EMI updated successfully.'})

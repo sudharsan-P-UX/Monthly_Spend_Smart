@@ -104,15 +104,50 @@ def init_db():
     ''')
     
     # Create excel_columns table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS excel_columns (
-            column_key TEXT PRIMARY KEY,
-            column_label TEXT NOT NULL,
-            is_enabled_import INTEGER DEFAULT 1,
-            is_enabled_export INTEGER DEFAULT 1,
-            is_required INTEGER DEFAULT 0
-        )
-    ''')
+    # Check if target_type column exists to migrate to composite primary key
+    cursor.execute("PRAGMA table_info(excel_columns)")
+    cols_info = [r['name'] for r in cursor.fetchall()]
+    
+    if cols_info and 'target_type' not in cols_info:
+        # Recreate excel_columns table with composite primary key (column_key, target_type)
+        cursor.execute("SELECT column_key, column_label, is_enabled_import, is_enabled_export, is_required FROM excel_columns")
+        old_rows = cursor.fetchall()
+        
+        cursor.execute("DROP TABLE excel_columns")
+        cursor.execute('''
+            CREATE TABLE excel_columns (
+                column_key TEXT NOT NULL,
+                column_label TEXT NOT NULL,
+                is_enabled_import INTEGER DEFAULT 1,
+                is_enabled_export INTEGER DEFAULT 1,
+                is_required INTEGER DEFAULT 0,
+                target_type TEXT DEFAULT 'expense',
+                display_order INTEGER DEFAULT 0,
+                parent_column_key TEXT,
+                parent_trigger_value TEXT,
+                PRIMARY KEY (column_key, target_type)
+            )
+        ''')
+        for row in old_rows:
+            cursor.execute(
+                "INSERT INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required, target_type, display_order) VALUES (?, ?, ?, ?, ?, 'expense', 0)",
+                (row[0], row[1], row[2], row[3], row[4])
+            )
+    else:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS excel_columns (
+                column_key TEXT NOT NULL,
+                column_label TEXT NOT NULL,
+                is_enabled_import INTEGER DEFAULT 1,
+                is_enabled_export INTEGER DEFAULT 1,
+                is_required INTEGER DEFAULT 0,
+                target_type TEXT DEFAULT 'expense',
+                display_order INTEGER DEFAULT 0,
+                parent_column_key TEXT,
+                parent_trigger_value TEXT,
+                PRIMARY KEY (column_key, target_type)
+            )
+        ''')
 
     # Create emis table
     cursor.execute('''
@@ -153,6 +188,18 @@ def init_db():
         pass
     try:
         cursor.execute("ALTER TABLE excel_columns ADD COLUMN is_enabled_export INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE excel_columns ADD COLUMN display_order INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE excel_columns ADD COLUMN parent_column_key TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE excel_columns ADD COLUMN parent_trigger_value TEXT")
     except sqlite3.OperationalError:
         pass
     
@@ -251,23 +298,43 @@ def init_db():
         cursor.executemany("INSERT INTO payment_categories (name, display_order) VALUES (?, ?)", default_pc)
 
     # Seed Default Excel Columns
-    cols_exist = cursor.execute("SELECT COUNT(*) FROM excel_columns").fetchone()[0]
-    if cols_exist == 0:
+    cursor.execute("SELECT COUNT(*) FROM excel_columns WHERE target_type = 'expense'")
+    expense_cols_exist = cursor.fetchone()[0]
+    if expense_cols_exist == 0:
         default_cols = [
-            ('date', 'Date', 1, 1, 1),
-            ('category', 'Category', 1, 1, 1),
-            ('description', 'Description', 1, 1, 0),
-            ('gateway', 'Gateway', 1, 1, 0),
-            ('bank', 'Bank', 1, 1, 0),
-            ('source', 'Source', 1, 1, 0),
-            ('method', 'Method', 1, 1, 0),
-            ('amount', 'Amount', 1, 1, 1),
-            ('interest', 'Interest', 1, 1, 0),
-            ('status', 'Status', 1, 1, 0)
+            ('date', 'Date', 1, 1, 1, 'expense'),
+            ('category', 'Category', 1, 1, 1, 'expense'),
+            ('description', 'Description', 1, 1, 0, 'expense'),
+            ('gateway', 'Gateway', 1, 1, 0, 'expense'),
+            ('bank', 'Bank', 1, 1, 0, 'expense'),
+            ('source', 'Source', 1, 1, 0, 'expense'),
+            ('method', 'Method', 1, 1, 0, 'expense'),
+            ('amount', 'Amount', 1, 1, 1, 'expense'),
+            ('interest', 'Interest', 1, 1, 0, 'expense'),
+            ('status', 'Status', 1, 1, 0, 'expense')
         ]
-        cursor.executemany("INSERT INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required) VALUES (?, ?, ?, ?, ?)", default_cols)
+        cursor.executemany("INSERT INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required, target_type) VALUES (?, ?, ?, ?, ?, ?)", default_cols)
     else:
-        cursor.execute("INSERT OR IGNORE INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required) VALUES ('status', 'Status', 1, 1, 0)")
+        cursor.execute("INSERT OR IGNORE INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required, target_type) VALUES ('status', 'Status', 1, 1, 0, 'expense')")
+
+    # Seed Default EMI Excel Columns
+    cursor.execute("SELECT COUNT(*) FROM excel_columns WHERE target_type = 'emi'")
+    emi_cols_exist = cursor.fetchone()[0]
+    if emi_cols_exist == 0:
+        default_emi_cols = [
+            ('name', 'EMI Name', 1, 1, 1, 'emi'),
+            ('principal_amount', 'Loan Amount', 1, 1, 0, 'emi'),
+            ('interest_rate', 'Interest Rate', 1, 1, 0, 'emi'),
+            ('tenure_months', 'Tenure', 1, 1, 1, 'emi'),
+            ('emi_amount', 'Monthly EMI', 1, 1, 1, 'emi'),
+            ('start_date', 'Start Date', 1, 1, 1, 'emi'),
+            ('end_date', 'End Date', 1, 1, 1, 'emi'),
+            ('due_date', 'Due Date', 1, 1, 1, 'emi'),
+            ('payment_type', 'Payment Type', 1, 1, 1, 'emi'),
+            ('payment_gateway', 'Payment Gateway', 1, 1, 0, 'emi'),
+            ('payment_bank', 'Payment Bank', 1, 1, 0, 'emi')
+        ]
+        cursor.executemany("INSERT INTO excel_columns (column_key, column_label, is_enabled_import, is_enabled_export, is_required, target_type) VALUES (?, ?, ?, ?, ?, ?)", default_emi_cols)
 
     conn.commit()
     conn.close()
@@ -308,15 +375,42 @@ def get_user_by_id(user_id):
     conn.close()
     return user
 
-def add_expense(user_id, amount, category, description, date, bank_mode=None, payment_type=None, payment_category=None, interest=0.0, payment_method='Debit', status='Paid'):
+def add_expense(user_id, amount, category, description, date, bank_mode=None, payment_type=None, payment_category=None, interest=0.0, payment_method='Debit', status='Paid', **kwargs):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        '''INSERT INTO expenses (
-            user_id, amount, category, description, date, bank_mode, payment_type, payment_category, interest, payment_method, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        (user_id, amount, category, description, date, bank_mode, payment_type, payment_category, interest, payment_method, status)
-    )
+    
+    # Dynamically query current columns of expenses table
+    cursor.execute("PRAGMA table_info(expenses)")
+    columns = [row['name'] for row in cursor.fetchall()]
+    
+    fields = {
+        'user_id': user_id,
+        'amount': amount,
+        'category': category,
+        'description': description,
+        'date': date,
+        'bank_mode': bank_mode,
+        'payment_type': payment_type,
+        'payment_category': payment_category,
+        'interest': interest,
+        'payment_method': payment_method,
+        'status': status
+    }
+    
+    # Add any extra kwargs that match column names
+    for k, v in kwargs.items():
+        if k in columns:
+            fields[k] = v
+            
+    # Filter to ensure all keys exist in the table columns
+    fields = {k: v for k, v in fields.items() if k in columns}
+    
+    placeholders = ', '.join(['?'] * len(fields))
+    col_names = ', '.join(fields.keys())
+    values = tuple(fields.values())
+    
+    query = f"INSERT INTO expenses ({col_names}) VALUES ({placeholders})"
+    cursor.execute(query, values)
     conn.commit()
     expense_id = cursor.lastrowid
     conn.close()
@@ -342,7 +436,8 @@ def get_expenses(user_id, category=None, start_date=None, end_date=None, search=
         params.append(end_date)
         
     if search:
-        query += ' AND (description LIKE ? OR category LIKE ? OR bank_mode LIKE ? OR payment_type LIKE ?)'
+        query += ' AND (description LIKE ? OR category LIKE ? OR bank_mode LIKE ? OR payment_type LIKE ? OR CAST(amount AS TEXT) LIKE ?)'
+        params.append(f'%{search}%')
         params.append(f'%{search}%')
         params.append(f'%{search}%')
         params.append(f'%{search}%')
@@ -392,16 +487,39 @@ def get_expense_by_id(expense_id, user_id):
     conn.close()
     return dict(expense) if expense else None
 
-def update_expense(expense_id, user_id, amount, category, description, date, bank_mode=None, payment_type=None, payment_category=None, interest=0.0, payment_method='Debit', status='Paid'):
+def update_expense(expense_id, user_id, amount, category, description, date, bank_mode=None, payment_type=None, payment_category=None, interest=0.0, payment_method='Debit', status='Paid', **kwargs):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        '''UPDATE expenses SET 
-            amount = ?, category = ?, description = ?, date = ?, 
-            bank_mode = ?, payment_type = ?, payment_category = ?, interest = ?, payment_method = ?, status = ? 
-        WHERE id = ? AND user_id = ?''',
-        (amount, category, description, date, bank_mode, payment_type, payment_category, interest, payment_method, status, expense_id, user_id)
-    )
+    
+    cursor.execute("PRAGMA table_info(expenses)")
+    columns = [row['name'] for row in cursor.fetchall()]
+    
+    fields = {
+        'amount': amount,
+        'category': category,
+        'description': description,
+        'date': date,
+        'bank_mode': bank_mode,
+        'payment_type': payment_type,
+        'payment_category': payment_category,
+        'interest': interest,
+        'payment_method': payment_method,
+        'status': status
+    }
+    
+    for k, v in kwargs.items():
+        if k in columns:
+            fields[k] = v
+            
+    # Filter to actual columns
+    fields = {k: v for k, v in fields.items() if k in columns}
+    
+    set_clause = ', '.join([f"{k} = ?" for k in fields.keys()])
+    values = list(fields.values())
+    values.extend([expense_id, user_id])
+    
+    query = f"UPDATE expenses SET {set_clause} WHERE id = ? AND user_id = ?"
+    cursor.execute(query, values)
     conn.commit()
     rows_affected = cursor.rowcount
     conn.close()
@@ -866,35 +984,63 @@ def delete_payment_category(pc_id):
     return True
 
 # EXCEL COLUMNS CONFIGURATION HELPERS
-def get_excel_columns():
+def get_excel_columns(target_type=None):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cols = cursor.execute("SELECT column_key, column_label, is_enabled_import, is_enabled_export, is_required FROM excel_columns").fetchall()
+    if target_type:
+        cols = cursor.execute("SELECT column_key, column_label, is_enabled_import, is_enabled_export, is_required, target_type, display_order, parent_column_key, parent_trigger_value FROM excel_columns WHERE target_type = ? ORDER BY display_order ASC", (target_type,)).fetchall()
+    else:
+        cols = cursor.execute("SELECT column_key, column_label, is_enabled_import, is_enabled_export, is_required, target_type, display_order, parent_column_key, parent_trigger_value FROM excel_columns ORDER BY display_order ASC").fetchall()
     conn.close()
     return [dict(c) for c in cols]
 
-def update_excel_column_status(column_key, type_key, is_enabled):
+def update_excel_column_status(column_key, type_key, is_enabled, target_type='expense'):
     conn = get_db_connection()
     cursor = conn.cursor()
     field = 'is_enabled_import' if type_key == 'import' else 'is_enabled_export'
     cursor.execute(
-        f"UPDATE excel_columns SET {field} = ? WHERE column_key = ?",
-        (int(is_enabled), column_key)
+        f"UPDATE excel_columns SET {field} = ? WHERE column_key = ? AND target_type = ?",
+        (int(is_enabled), column_key, target_type)
     )
     conn.commit()
     conn.close()
     return True
 
 # EMI HELPERS
-def add_emi(user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank):
+def add_emi(user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, **kwargs):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        '''INSERT INTO emis (
-            user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        (user_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank)
-    )
+    
+    cursor.execute("PRAGMA table_info(emis)")
+    columns = [row['name'] for row in cursor.fetchall()]
+    
+    fields = {
+        'user_id': user_id,
+        'name': name,
+        'principal_amount': principal_amount,
+        'emi_amount': emi_amount,
+        'start_date': start_date,
+        'end_date': end_date,
+        'tenure_months': tenure_months,
+        'interest_rate': interest_rate,
+        'due_date': due_date,
+        'payment_type': payment_type,
+        'payment_gateway': payment_gateway,
+        'payment_bank': payment_bank
+    }
+    
+    for k, v in kwargs.items():
+        if k in columns:
+            fields[k] = v
+            
+    fields = {k: v for k, v in fields.items() if k in columns}
+    
+    placeholders = ', '.join(['?'] * len(fields))
+    col_names = ', '.join(fields.keys())
+    values = tuple(fields.values())
+    
+    query = f"INSERT INTO emis ({col_names}) VALUES ({placeholders})"
+    cursor.execute(query, values)
     conn.commit()
     emi_id = cursor.lastrowid
     conn.close()
@@ -925,25 +1071,44 @@ def get_emi_by_id(emi_id):
     conn.close()
     return dict(emi) if emi else None
 
-def update_emi(emi_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, user_id=None):
+def update_emi(emi_id, name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, user_id=None, **kwargs):
     conn = get_db_connection()
     cursor = conn.cursor()
+    
+    cursor.execute("PRAGMA table_info(emis)")
+    columns = [row['name'] for row in cursor.fetchall()]
+    
+    fields = {
+        'name': name,
+        'principal_amount': principal_amount,
+        'emi_amount': emi_amount,
+        'start_date': start_date,
+        'end_date': end_date,
+        'tenure_months': tenure_months,
+        'interest_rate': interest_rate,
+        'due_date': due_date,
+        'payment_type': payment_type,
+        'payment_gateway': payment_gateway,
+        'payment_bank': payment_bank
+    }
+    
+    for k, v in kwargs.items():
+        if k in columns:
+            fields[k] = v
+            
+    fields = {k: v for k, v in fields.items() if k in columns}
+    
+    set_clause = ', '.join([f"{k} = ?" for k in fields.keys()])
+    values = list(fields.values())
+    
     if user_id is not None:
-        cursor.execute(
-            '''UPDATE emis SET 
-                name = ?, principal_amount = ?, emi_amount = ?, start_date = ?, end_date = ?, 
-                tenure_months = ?, interest_rate = ?, due_date = ?, payment_type = ?, payment_gateway = ?, payment_bank = ? 
-               WHERE id = ? AND user_id = ?''',
-            (name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, emi_id, user_id)
-        )
+        query = f"UPDATE emis SET {set_clause} WHERE id = ? AND user_id = ?"
+        values.extend([emi_id, user_id])
     else:
-        cursor.execute(
-            '''UPDATE emis SET 
-                name = ?, principal_amount = ?, emi_amount = ?, start_date = ?, end_date = ?, 
-                tenure_months = ?, interest_rate = ?, due_date = ?, payment_type = ?, payment_gateway = ?, payment_bank = ? 
-               WHERE id = ?''',
-            (name, principal_amount, emi_amount, start_date, end_date, tenure_months, interest_rate, due_date, payment_type, payment_gateway, payment_bank, emi_id)
-        )
+        query = f"UPDATE emis SET {set_clause} WHERE id = ?"
+        values.append(emi_id)
+        
+    cursor.execute(query, values)
     conn.commit()
     rows_affected = cursor.rowcount
     conn.close()

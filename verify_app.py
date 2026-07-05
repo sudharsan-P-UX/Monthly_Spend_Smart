@@ -103,6 +103,18 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         expenses_wrong = database.get_expenses(user_id, bank_mode='ICICI')
         self.assertEqual(len(expenses_wrong), 0)
         
+        # Search check for description
+        expenses_search = database.get_expenses(user_id, search='team')
+        self.assertEqual(len(expenses_search), 1)
+        
+        # Search check for amount (partial match)
+        expenses_amount_search = database.get_expenses(user_id, search='45')
+        self.assertEqual(len(expenses_amount_search), 1)
+        
+        # Search check for amount (no match)
+        expenses_amount_search_fail = database.get_expenses(user_id, search='999')
+        self.assertEqual(len(expenses_amount_search_fail), 0)
+        
         # Update expense
         success = database.update_expense(exp_id, user_id, 50.00, 'Food & Dining', 'Dinner with team (updated)', '2026-06-25', bank_mode='Kotak', payment_type='PhonePe', payment_category='Loan', interest=5.00, payment_method='Credit', status='Paid')
         self.assertTrue(success)
@@ -1143,6 +1155,159 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertNotEqual(data['country'], 'Japan')
 
         # Log out admin
+        self.app.get('/logout')
+
+    def test_custom_excel_columns_and_inline_creation(self):
+        """Test custom excel column creation, deletion, target filtering, and inline controls creation"""
+        # 1. Login as admin
+        login_resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(login_resp.status_code, 200)
+
+        # 2. Add custom column for expense
+        resp = self.app.post('/api/admin/excel-columns/create', data=json.dumps({
+            'column_key': 'test_custom_col',
+            'column_label': 'Test Custom Column',
+            'target_type': 'expense',
+            'is_enabled_import': 1,
+            'is_enabled_export': 1,
+            'is_required': 0
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['success'])
+
+        # Check in get list by target_type
+        resp = self.app.get('/api/admin/excel-columns?target_type=expense')
+        self.assertEqual(resp.status_code, 200)
+        cols = json.loads(resp.data)
+        custom_col = next((c for c in cols if c['column_key'] == 'test_custom_col'), None)
+        self.assertIsNotNone(custom_col)
+        self.assertEqual(custom_col['column_label'], 'Test Custom Column')
+        self.assertEqual(custom_col['target_type'], 'expense')
+
+        # Check get list for EMI doesn't have it
+        resp = self.app.get('/api/admin/excel-columns?target_type=emi')
+        self.assertEqual(resp.status_code, 200)
+        cols_emi = json.loads(resp.data)
+        self.assertFalse(any(c['column_key'] == 'test_custom_col' for c in cols_emi))
+
+        # 3. Create a custom column for EMI
+        resp = self.app.post('/api/admin/excel-columns/create', data=json.dumps({
+            'column_key': 'test_custom_emi_col',
+            'column_label': 'Test Custom EMI Column',
+            'target_type': 'emi',
+            'is_enabled_import': 1,
+            'is_enabled_export': 1,
+            'is_required': 0
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # Check it is in EMI columns
+        resp = self.app.get('/api/admin/excel-columns?target_type=emi')
+        cols_emi2 = json.loads(resp.data)
+        self.assertTrue(any(c['column_key'] == 'test_custom_emi_col' for c in cols_emi2))
+
+        # 4. Delete the custom columns
+        resp = self.app.post('/api/admin/excel-columns/delete', data=json.dumps({
+            'column_key': 'test_custom_col',
+            'target_type': 'expense'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        resp = self.app.post('/api/admin/excel-columns/delete', data=json.dumps({
+            'column_key': 'test_custom_emi_col',
+            'target_type': 'emi'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # Check they are deleted
+        resp = self.app.get('/api/admin/excel-columns?target_type=expense')
+        self.assertFalse(any(c['column_key'] == 'test_custom_col' for c in json.loads(resp.data)))
+
+        # 5. Test unified control items creation inline
+        resp = self.app.post('/api/admin/categories/create', data=json.dumps({
+            'name': 'Test Inline Cat',
+            'display_order': 5
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # Verify it got added
+        resp = self.app.get('/api/categories')
+        cats = json.loads(resp.data)
+        self.assertTrue(any(c['name'] == 'Test Inline Cat' for c in cats))
+
+        # Log out admin
+        self.app.get('/logout')
+
+    def test_custom_column_parent_and_bulk_save(self):
+        """Test custom column parent/child relationships and bulk save changes endpoint"""
+        # Login admin first
+        self.app.post('/register', data=dict(username='admin_test2', password='admin_password'))
+        # Promote user to admin
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET role_id = (SELECT id FROM roles WHERE name = 'Admin') WHERE username = 'admin_test2'")
+        conn.commit()
+        conn.close()
+        
+        self.app.post('/login', data=dict(username='admin_test2', password='admin_password'))
+        
+        # 1. Create a custom column with a parent
+        resp = self.app.post('/api/admin/excel-columns/create', data=json.dumps({
+            'column_key': 'test_child_col',
+            'column_label': 'Test Child Column',
+            'target_type': 'expense',
+            'is_enabled_import': 1,
+            'is_enabled_export': 1,
+            'is_required': 0,
+            'display_order': 12,
+            'parent_column_key': 'payment_method',
+            'parent_trigger_value': 'Credit'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # Verify it has parent config
+        resp = self.app.get('/api/admin/excel-columns?target_type=expense')
+        cols = json.loads(resp.data)
+        child_col = next((c for c in cols if c['column_key'] == 'test_child_col'), None)
+        self.assertIsNotNone(child_col)
+        self.assertEqual(child_col['parent_column_key'], 'payment_method')
+        self.assertEqual(child_col['parent_trigger_value'], 'Credit')
+        
+        # 2. Test save-all endpoint
+        save_payload = {
+            'type_key': 'import',
+            'columns': [
+                {
+                    'column_key': 'test_child_col',
+                    'target_type': 'expense',
+                    'display_order': 45,
+                    'is_enabled': 0
+                }
+            ]
+        }
+        resp = self.app.post('/api/admin/excel-columns/save-all', data=json.dumps(save_payload), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # Verify changes were saved (is_enabled_import should be 0, is_enabled_export should still be 1, display_order should be 45)
+        resp = self.app.get('/api/admin/excel-columns?target_type=expense')
+        cols = json.loads(resp.data)
+        child_col_updated = next((c for c in cols if c['column_key'] == 'test_child_col'), None)
+        self.assertIsNotNone(child_col_updated)
+        self.assertEqual(child_col_updated['display_order'], 45)
+        self.assertEqual(child_col_updated['is_enabled_import'], 0)
+        self.assertEqual(child_col_updated['is_enabled_export'], 1)
+        
+        # Clean up
+        resp = self.app.post('/api/admin/excel-columns/delete', data=json.dumps({
+            'column_key': 'test_child_col',
+            'target_type': 'expense'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
         self.app.get('/logout')
 
 if __name__ == '__main__':

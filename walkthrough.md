@@ -98,16 +98,70 @@ Once the deploy is complete, your SpendSmart instance will be live, and all expe
 ## 3. Verification Results
 
 ### Automated Tests
-Ran the full test suite after updates:
+Ran the expanded test suite covering the checkpoint 10 features:
 ```text
-.............
+.................
 ----------------------------------------------------------------------
-Ran 13 tests in 12.856s
+Ran 17 tests in 10.133s
 
 OK
 ```
-All unit tests are fully compliant and passing.
+All unit tests are fully compliant, verified, and passing.
 
 #### Test Coverage Added
 - `test_excel_import_export`: Validates template downloads, custom exports, and spreadsheet uploads parsing, skipping invalid rows.
 - `test_excel_columns_admin_configuration`: Logs in as Admin, retrieves column settings, disables the optional `interest` column, verifies it gets omitted from template headers and export sheets, ensures uploading without "Interest" defaults it safely, blocks disabling required fields, and restores settings status.
+- `test_custom_excel_columns_and_inline_creation`: Logs in as Admin, registers a new custom field for Expenses, verifies target filtering (the column only appears in Expenses schema), registers a new custom field for EMIs, deletes both custom columns, verifies deletion, and validates inline Category creation.
+
+---
+
+## 4. Checkpoint 10 Achievements
+
+### A. Unified Expense Control List
+- **Combined Interface**: Restructured the Admin panel's separate Categories, Bank Modes, Payment Gateways, and Payment Sources tabs into a single unified tab named **"Expense Control List"**.
+- **Interactive Switcher**: Added a dropdown selection switcher inside this tab to toggle between managing Categories, Bank Modes, Payment Gateways, and Payment Sources.
+
+### B. Dynamic Custom Excel Columns
+- **Double Schema Target**: Upgraded the column configuration layout to support toggle switches for selecting between **Expense** and **EMI** target types.
+- **Dynamic Database Propagation**: Creating a custom column via the admin configuration dynamically runs `ALTER TABLE ADD COLUMN` to propagate the new field into the SQLite database.
+- **Import/Export Integration**: Excel import templates, export engines, and file parsers query the database at runtime to dynamically read/write any custom columns.
+- **Forms Binding**: Custom column inputs are automatically loaded, displayed, populated, and saved in all User and Admin Add/Edit Expense and EMI forms.
+
+### C. Inline Option Creation
+- **Inline Add Button**: Placed a `+` icon next to dropdown selectors in Expense and EMI forms.
+- **Modal Submission**: Clicking `+` pops up a clean inline modal to register a new Category/Bank/Gateway/Source on-the-fly and instantly updates the dropdown selection.
+
+### D. Search and Filter Defaults Tuning
+- **Amount Partial Searching**: Casts the transaction amount to text in the SQLite database query, allowing partial-match queries (e.g. searching "5700" successfully finds "5700.25").
+- **All Months Default**: Changed the initial state of the filter month dropdown to default to **"All Months"** instead of the current month on page load and reset. Start/End date bounds are cleared to display all records by default.
+
+### E. Admin EMI Management Interface Restructuring
+- **Removed All System EMIs List**: Removed the user EMI data table from the Admin EMIs tab.
+- **EMI Columns Configuration List**: Replaced it with the **EMI Columns List** showing all EMI field headers (standard and custom), allowing admins to toggle active import/export status and manage ordering directly.
+- **Display Order Configuration**: Added a `display_order` column to the `excel_columns` database table (with automatic migration support) to sort custom columns in both frontend forms and Excel structures.
+- **Order Inputs and Forms**: Added a **Display Order** number input to both the general "Add Custom Column" form and the "Add Custom Column for EMIs" form, and included inline order editors in the column lists to change display order dynamically.
+- **Admin EMI Edit Modal**: Re-routed the edit action on user-facing EMI grids to open a dedicated modal (`#admin-emi-modal`) displaying a compact edit layout.
+- **Always-Visible Custom Inputs**: Ensured that newly registered custom columns for Expenses and EMIs are always visible and editable as inputs in all add/edit modals (rather than being restricted by Excel active states), giving users immediate add access to fill in values.
+
+### F. Bulk Save Changes and Conditional Custom Fields
+- **Bulk Save Changes**: Replaced immediate onchange API triggers in the columns list grids with **Save Changes** buttons on both the general Excel Columns view and the Admin EMI Columns view. Changes to display orders and active checkboxes are updated locally in the table DOM, then saved in a single bulk request to the `/api/admin/excel-columns/save-all` endpoint when clicked.
+- **Isolate Import vs Export**: Updating columns for Import does not modify or affect their enabled status for Export (and vice-versa).
+- **Conditional / Dependent Custom Fields**: Added **Parent Column** and **Parent Trigger Value** parameters to the schema (`excel_columns`) and creation forms. If configured:
+  - Custom fields in the Add/Edit Expense and EMI forms are dynamically shown/hidden on the fly based on the parent input's current value matching the trigger value (case-insensitive, with full support for checkbox states like "Yes"/"No").
+  - Form validation (`required` state) is updated reactively (only requiring the field when it is visible).
+
+### G. Dedicated "Expense Columns" Admin Menu Tab
+- **Expense Columns Tab Selector**: Added an "Expense Columns" menu selector tab to the Admin Sidebar panel.
+- **Dedicated Layout & Alignment**: Created a separate column configuration interface layout specifically for Expenses, matching the EMIs sub-tab.
+- **Proper Column Alignment**: The Expense Columns List uses the proper `.expense-table` CSS class directly, rendering formatted paddings, alignments, hover states, and clear column definitions.
+- **Save Changes & Form Controls**: Wired up the "Save Changes" bulk configuration button, filter switchers (Import vs. Export), and a dedicated custom column creation form including **Parent Column (Optional)**, **Parent Trigger Value**, and **Display Order** inputs.
+
+### H. EMI Overview Metrics & Click-through Details List
+- **6 Overview Metrics Cards**: Expanded the EMI Overview grid (`#emi-metrics-grid`) to display 6 comprehensive metrics cards:
+  1. **Total Loan Amount** (sum of initial principal loans)
+  2. **Pending Principal Amt** (current remaining principal balances)
+  3. **Total Principal Paid** (loan principal paid off so far)
+  4. **Total Interest** (total lifetime interest calculated over tenures)
+  5. **Paid Interest** (cumulative interest paid off so far)
+  6. **Monthly Total EMI** (sum of monthly EMI outflow for currently active loans)
+- **Click-through Details Modal**: Made all overview cards interactive (styled with hover micro-animations and cursors). Clicking any metric card opens a dedicated popup modal displaying the itemized breakdown of contributing EMIs, progress ratios (Elapsed / Tenure), values in the active currency format, and total sums.
