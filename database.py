@@ -13,7 +13,9 @@ POSTGRES_DB = os.environ.get('POSTGRES_DB', 'expenses')
 
 DB_PATH = os.environ.get('DATABASE_PATH')
 if not DB_PATH:
-    if os.path.exists('/data'):
+    if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+        DB_PATH = '/tmp/expenses.db'
+    elif os.path.exists('/data'):
         DB_PATH = '/data/expenses.db'
     else:
         DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'expenses.db')
@@ -158,11 +160,6 @@ def get_db_connection():
             )
             return PostgresConnectionWrapper(conn)
         except psycopg2.OperationalError as e:
-            # If running on Vercel, do not fallback to SQLite since it will crash with read-only DB errors.
-            # Propagate the real Postgres connection error so the developer can fix environment variables.
-            if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
-                raise e
-
             if "does not exist" in str(e):
                 try:
                     # Connect to default postgres DB and create the database
@@ -189,15 +186,11 @@ def get_db_connection():
                     return PostgresConnectionWrapper(conn)
                 except Exception as ex:
                     # Fallback to SQLite if default DB connection fails too
-                    if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
-                        raise ex
                     conn = sqlite3.connect(DB_PATH)
                     conn.row_factory = sqlite3.Row
                     return conn
             else:
                 # Fallback to SQLite if PostgreSQL connection fails
-                if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
-                    raise e
                 conn = sqlite3.connect(DB_PATH)
                 conn.row_factory = sqlite3.Row
                 return conn
