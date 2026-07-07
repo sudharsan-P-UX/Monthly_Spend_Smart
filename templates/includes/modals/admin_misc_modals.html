@@ -1,27 +1,45 @@
-<!-- CHANGE USER PASSWORD MODAL -->
+<!-- EDIT USER MODAL -->
 <div id="change-user-password-modal" class="modal-overlay hidden">
     <div class="modal-card">
         <div class="modal-header">
-            <h2>Change User Password</h2>
+            <h2>Edit User Details</h2>
             <button class="btn-close" onclick="closeChangePasswordModal()">&times;</button>
         </div>
         <form id="change-user-password-form" class="modal-form">
             <input type="hidden" id="change-user-id">
-            <div style="margin-bottom: 20px;">
-                <span style="color: var(--text-secondary); font-size: 0.9rem;">Change password for user: </span>
+            <div style="margin-bottom: 15px;">
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">Editing user: </span>
                 <strong id="change-user-username" style="color: var(--text-primary); font-size: 0.95rem;"></strong>
             </div>
             <div class="input-group">
-                <label for="change-user-new-password">New Password <span class="required">*</span></label>
-                <input type="password" id="change-user-new-password" required placeholder="Enter new password (min 6 chars)">
+                <label for="change-user-firstname">First Name</label>
+                <input type="text" id="change-user-firstname" placeholder="Enter first name">
             </div>
             <div class="input-group">
-                <label for="change-user-confirm-password">Confirm Password <span class="required">*</span></label>
-                <input type="password" id="change-user-confirm-password" required placeholder="Confirm new password">
+                <label for="change-user-lastname">Last Name</label>
+                <input type="text" id="change-user-lastname" placeholder="Enter last name">
+            </div>
+            <div class="input-group">
+                <label for="change-user-email">Email</label>
+                <input type="email" id="change-user-email" placeholder="Enter email">
+            </div>
+            <div class="input-group">
+                <label for="change-user-phone">Phone</label>
+                <input type="tel" id="change-user-phone" placeholder="Enter phone">
+            </div>
+            <div class="input-group" style="position: relative;">
+                <label for="change-user-new-password">New Password <span style="font-size: 0.8em; font-weight: 400; color: var(--text-muted);">(Leave blank to keep current)</span></label>
+                <input type="password" id="change-user-new-password" placeholder="Enter new password (min 6 chars)">
+                <i class="fa-solid fa-eye" style="position: absolute; right: 15px; top: 38px; cursor: pointer; color: var(--text-muted);" onclick="togglePasswordVisibility('change-user-new-password', this)"></i>
+            </div>
+            <div class="input-group" style="position: relative;">
+                <label for="change-user-confirm-password">Confirm Password</label>
+                <input type="password" id="change-user-confirm-password" placeholder="Confirm new password">
+                <i class="fa-solid fa-eye" style="position: absolute; right: 15px; top: 38px; cursor: pointer; color: var(--text-muted);" onclick="togglePasswordVisibility('change-user-confirm-password', this)"></i>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
-                <button type="submit" class="btn-primary">Update Password</button>
+                <button type="submit" class="btn-primary">Update User</button>
             </div>
         </form>
     </div>

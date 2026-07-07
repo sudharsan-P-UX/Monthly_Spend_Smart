@@ -172,14 +172,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (changeUserPasswordForm) {
         changeUserPasswordForm.addEventListener('submit', handleAdminChangeUserPassword);
     }
-    const regOtpCheckbox = document.getElementById('setting-register-otp');
-    if (regOtpCheckbox) {
-        regOtpCheckbox.addEventListener('change', adminUpdateSettings);
-    }
-    const loginOtpCheckbox = document.getElementById('setting-login-otp');
-    if (loginOtpCheckbox) {
-        loginOtpCheckbox.addEventListener('change', adminUpdateSettings);
-    }
 
     const expenseSelectAll = document.getElementById('expense-select-all');
     if (expenseSelectAll) {

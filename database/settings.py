@@ -4,11 +4,12 @@ def get_setting(key, default_value='0'):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        row = cursor.execute('SELECT value FROM settings WHERE key = ?', (key,)).fetchone()
+        row = cursor.execute('SELECT value FROM settings WHERE Setting = ?', (key,)).fetchone()
         if row:
             return row['value']
         return default_value
-    except Exception:
+    except Exception as e:
+        print(f"Error in get_setting: {e}")
         return default_value
     finally:
         conn.close()
@@ -17,14 +18,15 @@ def set_setting(key, value):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        row = cursor.execute('SELECT 1 FROM settings WHERE key = ?', (key,)).fetchone()
+        row = cursor.execute('SELECT 1 FROM settings WHERE Setting = ?', (key,)).fetchone()
         if row:
-            cursor.execute('UPDATE settings SET value = ? WHERE key = ?', (str(value), key))
+            cursor.execute('UPDATE settings SET value = ? WHERE Setting = ?', (str(value), key))
         else:
-            cursor.execute('INSERT INTO settings (key, value) VALUES (?, ?)', (key, str(value)))
+            cursor.execute('INSERT INTO settings (Setting, value) VALUES (?, ?)', (key, str(value)))
         conn.commit()
         return True
-    except Exception:
+    except Exception as e:
+        print(f"Error in set_setting: {e}")
         return False
     finally:
         conn.close()

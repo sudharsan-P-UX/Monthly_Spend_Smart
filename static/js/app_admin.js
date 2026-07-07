@@ -123,12 +123,12 @@ function renderAdminUsersTable(users) {
             <td><span style="font-weight: 500;">${escapeHTML(user.username)}</span></td>
             <td><span class="role-badge ${badgeClass}">${escapeHTML(user.role_name || 'User')}</span></td>
             <td>
-                <select class="table-input" style="max-width: 140px;" onchange="adminChangeUserRole(${user.id}, this.value)">
+                <select class="table-input" style="max-width: 140px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 6px; border-radius: 4px;" onchange="adminChangeUserRole(${user.id}, this.value)">
                     ${roleOptions}
                 </select>
             </td>
-            <td class="text-center">
-                <button class="btn-icon btn-icon-edit" onclick="openChangePasswordModal(${user.id}, '${escapeHTML(user.username)}')" title="Change Password" style="margin-right: 5px; color: var(--color-warning);">
+            <td class="text-center" style="display: flex; justify-content: center; gap: 8px;">
+                <button class="btn-icon btn-icon-edit" onclick="openEditUserModal(${user.id}, '${escapeHTML(user.username)}', '${escapeHTML(user.first_name || '')}', '${escapeHTML(user.last_name || '')}', '${escapeHTML(user.email || '')}', '${escapeHTML(user.phone || '')}')" title="Edit User" style="color: var(--color-warning);">
                     <i class="fa-solid fa-key"></i>
                 </button>
                 <button class="btn-icon btn-icon-delete" onclick="adminDeleteUser(${user.id}, '${escapeHTML(user.username)}')" title="Delete User">
@@ -185,12 +185,16 @@ async function handleAdminCreateUser(e) {
     const username = document.getElementById('admin-new-username').value;
     const password = document.getElementById('admin-new-password').value;
     const role_id = document.getElementById('admin-new-role').value;
+    const first_name = document.getElementById('admin-new-firstname') ? document.getElementById('admin-new-firstname').value : '';
+    const last_name = document.getElementById('admin-new-lastname') ? document.getElementById('admin-new-lastname').value : '';
+    const email = document.getElementById('admin-new-email') ? document.getElementById('admin-new-email').value : '';
+    const phone = document.getElementById('admin-new-phone') ? document.getElementById('admin-new-phone').value : '';
 
     try {
         const response = await fetch('/api/admin/users/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role_id })
+            body: JSON.stringify({ username, password, role_id, first_name, last_name, email, phone })
         });
         const result = await response.json();
         if (response.ok && result.success) {
@@ -205,11 +209,15 @@ async function handleAdminCreateUser(e) {
     }
 }
 
-function openChangePasswordModal(userId, username) {
+function openEditUserModal(userId, username, firstname, lastname, email, phone) {
     const modal = document.getElementById('change-user-password-modal');
     if (!modal) return;
     document.getElementById('change-user-id').value = userId;
     document.getElementById('change-user-username').textContent = username;
+    document.getElementById('change-user-firstname').value = firstname;
+    document.getElementById('change-user-lastname').value = lastname;
+    document.getElementById('change-user-email').value = email;
+    document.getElementById('change-user-phone').value = phone;
     document.getElementById('change-user-new-password').value = '';
     document.getElementById('change-user-confirm-password').value = '';
     modal.classList.remove('hidden');
@@ -227,31 +235,40 @@ async function handleAdminChangeUserPassword(e) {
     const userId = document.getElementById('change-user-id').value;
     const newPassword = document.getElementById('change-user-new-password').value;
     const confirmPassword = document.getElementById('change-user-confirm-password').value;
+    const firstName = document.getElementById('change-user-firstname').value;
+    const lastName = document.getElementById('change-user-lastname').value;
+    const email = document.getElementById('change-user-email').value;
+    const phone = document.getElementById('change-user-phone').value;
 
-    if (newPassword !== confirmPassword) {
+    if (newPassword && newPassword !== confirmPassword) {
         showAppAlert('Passwords do not match.');
         return;
     }
 
     try {
-        const response = await fetch('/api/admin/users/change_password', {
+        const response = await fetch('/api/admin/users/edit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 user_id: userId,
                 new_password: newPassword,
-                confirm_password: confirmPassword
+                confirm_password: confirmPassword,
+                first_name: firstName,
+                last_name: lastName,
+                email: email,
+                phone: phone
             })
         });
         const result = await response.json();
         if (response.ok && result.success) {
-            showAppAlert('User password changed successfully!', true);
+            showAppAlert('User details updated successfully!', true);
             closeChangePasswordModal();
+            await adminFetchUsers();
         } else {
-            showAppAlert(result.error || 'Failed to change password.');
+            showAppAlert(result.error || 'Failed to update user.');
         }
     } catch (err) {
-        showAppAlert('Network error changing password.');
+        showAppAlert('Network error updating user.');
     }
 }
 
@@ -447,7 +464,7 @@ async function handleAdminCreateRole(e) {
 // ADMIN SECURITY SETTINGS
 async function adminFetchSettings() {
     try {
-        const response = await fetch('/api/admin/settings');
+        const response = await fetch(`/api/admin/settings?t=${new Date().getTime()}`);
         if (response.ok) {
             const settings = await response.json();
             const regCheckbox = document.getElementById('setting-register-otp');

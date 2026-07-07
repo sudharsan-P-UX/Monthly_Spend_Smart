@@ -51,7 +51,7 @@ class PostgresCursorWrapper:
             if "role_privileges" in query:
                 query += " ON CONFLICT (role_id) DO UPDATE SET can_view = EXCLUDED.can_view, can_add = EXCLUDED.can_add, can_edit = EXCLUDED.can_edit, can_delete = EXCLUDED.can_delete"
             elif "settings" in query:
-                query += " ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
+                query += " ON CONFLICT (Setting) DO UPDATE SET value = EXCLUDED.value"
             else:
                 query += " ON CONFLICT DO NOTHING"
 
@@ -68,6 +68,8 @@ class PostgresCursorWrapper:
                 query = query.rstrip('; ') + " RETURNING roleid"
             elif "currency" in query.lower() or "refcurreny" in query.lower():
                 query = query.rstrip('; ') + " RETURNING currencyid"
+            elif "settings" in query.lower():
+                query = query.rstrip('; ') + " RETURNING Settingid"
             else:
                 query = query.rstrip('; ') + " RETURNING id"
 
@@ -84,6 +86,7 @@ class PostgresCursorWrapper:
             raise sqlite3.IntegrityError(str(e))
         except (psycopg2.OperationalError, psycopg2.ProgrammingError) as e:
             raise sqlite3.OperationalError(str(e))
+        return self
 
     def executemany(self, query, params_seq=None):
         query = query.replace('?', '%s')
@@ -243,10 +246,10 @@ def init_vercel_db():
             try:
                 # Clean up Postgres-specific syntax
                 sql_clean = re.sub(r'SERIAL PRIMARY KEY', 'INTEGER PRIMARY KEY AUTOINCREMENT', sql, flags=re.IGNORECASE)
-                sql_clean = re.sub(r'BIT\(1\) DEFAULT B\'\d\'', 'INTEGER DEFAULT 1', sql_clean, flags=re.IGNORECASE)
-                sql_clean = re.sub(r'BIT\(1\)', 'INTEGER', sql_clean, flags=re.IGNORECASE)
-                sql_clean = re.sub(r'INTERVAL \'\d+ days\'', '\'90 days\'', sql_clean, flags=re.IGNORECASE)
-                sql_clean = re.sub(r'ON CONFLICT \(\w+\) DO NOTHING', '', sql_clean, flags=re.IGNORECASE)
+                sql_clean = re.sub(r'TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'DATETIME DEFAULT CURRENT_TIMESTAMP', sql_clean, flags=re.IGNORECASE)
+                sql_clean = re.sub(r'TIMESTAMP DEFAULT \(CURRENT_TIMESTAMP \+ INTERVAL \'90 days\'\)', 'DATETIME DEFAULT DATEADD(day, 90, CURRENT_TIMESTAMP)', sql_clean, flags=re.IGNORECASE)
+                sql_clean = re.sub(r'TIMESTAMP', 'DATETIME', sql_clean, flags=re.IGNORECASE)
+                sql_clean = re.sub(r'ON CONFLICT \([^\)]+\) DO NOTHING', '', sql_clean, flags=re.IGNORECASE)
                 statements = [s.strip() for s in sql_clean.split(';') if s.strip()]
                 for stmt in statements:
                     try:

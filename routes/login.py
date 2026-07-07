@@ -5,6 +5,8 @@ import random
 import secrets
 import datetime
 import database
+import database.users
+import database.VercelDb
 
 # Dictionary to hold temporary login tokens for MFA
 temp_login_tokens = {}
@@ -27,8 +29,6 @@ def register_login_routes(app):
                 if not username or not password:
                     return jsonify({'success': False, 'message': 'Username and password are required.'}), 400
                     
-                import database.users
-                import database.VercelDb
                 user = database.users.verify_user_password(username, password)
                 if user:
                     # Check password expiry
@@ -132,7 +132,6 @@ def register_login_routes(app):
             if user:
                 session['user_id'] = user['id']
                 session['username'] = user['username']
-                import database.VercelDb
                 database.VercelDb.log_user_login(user['id'], request.headers.get('User-Agent', 'Unknown'), otp_code)
                 temp_login_tokens.pop(temp_token, None)
                 return jsonify({'success': True, 'message': 'Logged in successfully.'})

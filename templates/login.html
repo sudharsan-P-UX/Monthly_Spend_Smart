@@ -29,9 +29,10 @@
                     <i class="fa-solid fa-user input-icon"></i>
                     <input type="text" id="login-username" placeholder="Username or Email" required minlength="3">
                 </div>
-                <div class="input-group">
+                <div class="input-group" style="position: relative;">
                     <i class="fa-solid fa-lock input-icon"></i>
                     <input type="password" id="login-password" placeholder="Password" required minlength="6">
+                    <i class="fa-solid fa-eye" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted);" onclick="togglePasswordVisibility('login-password', this)"></i>
                 </div>
                 <button type="submit" class="btn-primary auth-submit">
                     <span>Log In</span> <i class="fa-solid fa-arrow-right-to-bracket"></i>
@@ -121,13 +122,15 @@
                     </div>
                 </div>
 
-                <div class="input-group">
+                <div class="input-group" style="position: relative;">
                     <i class="fa-solid fa-lock input-icon"></i>
                     <input type="password" id="register-password" placeholder="Password (Min 6 chars)" required minlength="6">
+                    <i class="fa-solid fa-eye" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted);" onclick="togglePasswordVisibility('register-password', this)"></i>
                 </div>
-                <div class="input-group">
+                <div class="input-group" style="position: relative;">
                     <i class="fa-solid fa-lock-open input-icon"></i>
                     <input type="password" id="register-confirm" placeholder="Confirm Password" required minlength="6">
+                    <i class="fa-solid fa-eye" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted);" onclick="togglePasswordVisibility('register-confirm', this)"></i>
                 </div>
                 <button type="submit" id="btn-register-submit" class="btn-primary auth-submit" disabled style="opacity: 0.5; cursor: not-allowed;">
                     <span>Register</span> <i class="fa-solid fa-user-plus"></i>
@@ -145,13 +148,15 @@
                     <input type="text" id="change-username" placeholder="Username" required minlength="3" style="padding-right: 110px;">
                     <span id="username-verify-indicator" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; font-weight: 600; pointer-events: none;"></span>
                 </div>
-                <div class="input-group">
+                <div class="input-group" style="position: relative;">
                     <i class="fa-solid fa-lock input-icon"></i>
                     <input type="password" id="change-password" placeholder="New Password (Min 6 chars)" required minlength="6">
+                    <i class="fa-solid fa-eye" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted);" onclick="togglePasswordVisibility('change-password', this)"></i>
                 </div>
-                <div class="input-group">
+                <div class="input-group" style="position: relative;">
                     <i class="fa-solid fa-lock-open input-icon"></i>
                     <input type="password" id="change-confirm" placeholder="Confirm New Password" required minlength="6">
+                    <i class="fa-solid fa-eye" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted);" onclick="togglePasswordVisibility('change-confirm', this)"></i>
                 </div>
                 <button type="submit" class="btn-primary auth-submit">
                     <span>Submit</span> <i class="fa-solid fa-key"></i>

@@ -773,3 +773,119 @@ function escapeHTML(str) {
         }[tag] || tag)
     );
 }
+
+// Dashboard Card Click Filtering
+async function filterDashboardCard(type) {
+    let query = '/api/expenses?';
+    
+    const currentDate = new Date();
+    const currentYear = String(currentDate.getFullYear());
+    const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+
+    let title = "Details";
+
+    if (type === 'month') {
+        query += `month=${currentMonth}&year=${currentYear}`;
+        title = "This Month's Expenses";
+    } else if (type === 'all' || type === 'transactions') {
+        title = "All Expenses";
+    } else if (type === 'filtered_debit') {
+        query += buildCurrentFilterQuery('Debit');
+        title = "Filtered Debits";
+    } else if (type === 'filtered_credit') {
+        query += buildCurrentFilterQuery('Credit');
+        title = "Filtered Credits";
+    } else if (type === 'year_debit') {
+        query += `year=${currentYear}&payment_method=Debit`;
+        title = `${currentYear} Debits`;
+    } else if (type === 'year_credit') {
+        query += `year=${currentYear}&payment_method=Credit`;
+        title = `${currentYear} Credits`;
+    }
+
+    try {
+        const response = await fetch(query);
+        if (response.ok) {
+            const list = await response.json();
+            document.getElementById('consolidated-modal-title').textContent = title;
+            populateConsolidatedModal(list);
+            openConsolidatedModal();
+        } else {
+            showAppAlert('Failed to load consolidated details.');
+        }
+    } catch (err) {
+        showAppAlert('Network error loading consolidated details.');
+    }
+}
+
+function buildCurrentFilterQuery(overrideMethod) {
+    const category = document.getElementById('filter-category') ? document.getElementById('filter-category').value : '';
+    const bankMode = document.getElementById('filter-bank-mode') ? document.getElementById('filter-bank-mode').value : '';
+    const paymentType = document.getElementById('filter-payment-type') ? document.getElementById('filter-payment-type').value : '';
+    const paymentCategory = document.getElementById('filter-payment-category') ? document.getElementById('filter-payment-category').value : '';
+    const paymentMethod = overrideMethod;
+    const status = document.getElementById('filter-status') ? document.getElementById('filter-status').value : '';
+    const month = document.getElementById('filter-month') ? document.getElementById('filter-month').value : '';
+    const year = document.getElementById('filter-year') ? document.getElementById('filter-year').value : '';
+    const startDate = document.getElementById('filter-start-date') ? document.getElementById('filter-start-date').value : '';
+    const endDate = document.getElementById('filter-end-date') ? document.getElementById('filter-end-date').value : '';
+    const search = document.getElementById('filter-search') ? document.getElementById('filter-search').value : '';
+
+    let q = '';
+    if (category) q += `category=${encodeURIComponent(category)}&`;
+    if (bankMode) q += `bank_mode=${encodeURIComponent(bankMode)}&`;
+    if (paymentType) q += `payment_type=${encodeURIComponent(paymentType)}&`;
+    if (paymentCategory) q += `payment_category=${encodeURIComponent(paymentCategory)}&`;
+    if (paymentMethod) q += `payment_method=${encodeURIComponent(paymentMethod)}&`;
+    if (status) q += `status=${encodeURIComponent(status)}&`;
+    if (month) q += `month=${encodeURIComponent(month)}&`;
+    if (year) q += `year=${encodeURIComponent(year)}&`;
+    if (startDate) q += `start_date=${startDate}&`;
+    if (endDate) q += `end_date=${endDate}&`;
+    if (search) q += `search=${encodeURIComponent(search)}`;
+    return q;
+}
+
+function populateConsolidatedModal(list) {
+    const tbody = document.getElementById('consolidated-modal-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="padding: 20px;">No records found.</td></tr>';
+        return;
+    }
+    
+    list.forEach(exp => {
+        const tr = document.createElement('tr');
+        
+        let formattedDate = '-';
+        if (exp.date) {
+            const d = new Date(exp.date);
+            formattedDate = d.toLocaleDateString();
+        }
+        
+        const badgeHtml = exp.payment_method === 'Credit' 
+            ? `<span class="badge badge-credit">Credit</span>` 
+            : `<span class="badge badge-debit">Debit</span>`;
+            
+        tr.innerHTML = `
+            <td>${formattedDate}</td>
+            <td>${escapeHTML(exp.category || '-')}</td>
+            <td>${escapeHTML(exp.description || '-')}</td>
+            <td class="text-right" style="font-weight: 500;">${activeCurrencySymbol}${parseFloat(exp.amount).toFixed(2)}</td>
+            <td class="text-center">${badgeHtml}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function openConsolidatedModal() {
+    const modal = document.getElementById('consolidated-details-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeConsolidatedModal() {
+    const modal = document.getElementById('consolidated-details-modal');
+    if (modal) modal.classList.add('hidden');
+}

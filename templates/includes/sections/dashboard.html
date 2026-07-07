@@ -7,7 +7,7 @@
 
     <!-- Key Metrics Cards -->
     <div class="metrics-grid">
-        <div class="metric-card card-month">
+        <div class="metric-card card-month" onclick="filterDashboardCard('month')" style="cursor: pointer;">
             <div class="metric-info">
                 <h3>This Month</h3>
                 <span class="metric-value" id="month-total">₹0.00</span>
@@ -16,7 +16,7 @@
                 <i class="fa-solid fa-calendar-days"></i>
             </div>
         </div>
-        <div class="metric-card card-all">
+        <div class="metric-card card-all" onclick="filterDashboardCard('all')" style="cursor: pointer;">
             <div class="metric-info">
                 <h3>Total Spent</h3>
                 <span class="metric-value" id="all-total">₹0.00</span>
@@ -25,7 +25,7 @@
                 <i class="fa-solid fa-coins"></i>
             </div>
         </div>
-        <div class="metric-card card-count">
+        <div class="metric-card card-count" onclick="filterDashboardCard('transactions')" style="cursor: pointer;">
             <div class="metric-info">
                 <h3>Transactions</h3>
                 <span class="metric-value" id="transaction-count">0</span>
@@ -156,18 +156,18 @@
 
         <!-- Dashboard Credit/Debit Totals & Year Totals summary bar -->
         <div class="dashboard-summary-bar">
-            <div class="summary-item">
+            <div class="summary-item" onclick="filterDashboardCard('filtered_debit')" style="cursor: pointer;">
                 <span class="summary-label">Filtered Debits:</span>
                 <span class="summary-value debit-text" id="dashboard-filtered-debit">₹0.00</span>
             </div>
-            <div class="summary-item">
+            <div class="summary-item" onclick="filterDashboardCard('filtered_credit')" style="cursor: pointer;">
                 <span class="summary-label">Filtered Credits:</span>
                 <span class="summary-value credit-text" id="dashboard-filtered-credit">₹0.00</span>
             </div>
             <div class="summary-item year-total-item hidden" id="dashboard-year-total-wrapper">
                 <span class="summary-label" id="dashboard-year-total-label">2026 Totals:</span>
-                <span class="summary-value" id="dashboard-year-debit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Debits: ₹0.00</span>
-                <span class="summary-value" id="dashboard-year-credit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Credits: ₹0.00</span>
+                <span class="summary-value" id="dashboard-year-debit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500; cursor: pointer;" onclick="filterDashboardCard('year_debit')">Debits: ₹0.00</span>
+                <span class="summary-value" id="dashboard-year-credit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500; cursor: pointer;" onclick="filterDashboardCard('year_credit')">Credits: ₹0.00</span>
             </div>
         </div>
 
@@ -196,6 +196,35 @@
             <div id="no-expenses-msg" class="empty-state hidden">
                 <i class="fa-solid fa-folder-open"></i>
                 <p>No expenses found. Add some to get started!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consolidated Details Modal -->
+    <div id="consolidated-details-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 id="consolidated-modal-title">Details</h2>
+                <button class="btn-close" onclick="closeConsolidatedModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="max-height: 50vh; overflow-y: auto;">
+                <table class="expense-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th class="text-right">Amount</th>
+                            <th class="text-center">Method</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consolidated-modal-body">
+                        <!-- Dynamic rows -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer" style="margin-top: 20px;">
+                <button class="btn-secondary" onclick="closeConsolidatedModal()">Close</button>
             </div>
         </div>
     </div>

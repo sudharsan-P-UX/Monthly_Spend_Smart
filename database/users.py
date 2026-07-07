@@ -20,7 +20,7 @@ def create_user(username, password, role_id=2, first_name=None, last_name=None, 
         cursor.execute(
             '''INSERT INTO Refusers (Username, Firstname, Lastname, Email, Phone, saltkey, password, isactive) 
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-            (username, first_name, last_name, email, phone, salt, pwd_hash, True)
+            (username, first_name, last_name, email, phone, salt, pwd_hash, 1)
         )
         
         user_id = cursor.lastrowid
@@ -29,7 +29,7 @@ def create_user(username, password, role_id=2, first_name=None, last_name=None, 
         cursor.execute(
             '''INSERT INTO UserRole (LoginId, RoleId, isactive) 
                VALUES (?, ?, ?)''',
-            (user_id, role_id, True)
+            (user_id, role_id, 1)
         )
         
         conn.commit()
@@ -163,7 +163,7 @@ def get_all_users():
     cursor = conn.cursor()
     try:
         rows = cursor.execute(
-            '''SELECT Refusers.LoginId as id, Refusers.Username, UserRole.RoleId as role_id, RefRole.RoleName as role_name 
+            '''SELECT Refusers.LoginId as id, Refusers.Username as username, Refusers.Firstname as first_name, Refusers.Lastname as last_name, Refusers.Email as email, Refusers.Phone as phone, UserRole.RoleId as role_id, RefRole.RoleName as role_name 
                FROM Refusers 
                LEFT JOIN UserRole ON Refusers.LoginId = UserRole.LoginId 
                LEFT JOIN RefRole ON UserRole.RoleId = RefRole.RoleId'''

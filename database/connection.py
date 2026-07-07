@@ -33,12 +33,12 @@ def init_db():
             pwd_hash = encrypt_password('admin123', salt)
             cursor.execute(
                 "INSERT INTO Refusers (Username, Firstname, Lastname, Email, Phone, saltkey, password, isactive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                ('admin', 'System', 'Admin', 'admin@spendsmart.local', '1234567890', salt, pwd_hash, True)
+                ('admin', 'System', 'Admin', 'admin@spendsmart.local', '1234567890', salt, pwd_hash, 1)
             )
             login_id = cursor.lastrowid
             cursor.execute(
                 "INSERT INTO UserRole (LoginId, RoleId, isactive) VALUES (?, ?, ?)",
-                (login_id, 1, True)
+                (login_id, 1, 1)
             )
             conn.commit()
             print("Default admin user created successfully.")
@@ -52,12 +52,12 @@ def init_db():
             pwd_hash = encrypt_password('admin123', salt)
             cursor.execute(
                 "INSERT INTO Refusers (Username, Firstname, Lastname, Email, Phone, saltkey, password, isactive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                ('Admin', 'Admin', 'user', 'adminuser@gmail.com', '9876543221', salt, pwd_hash, True)
+                ('Admin', 'Admin', 'user', 'adminuser@gmail.com', '9876543221', salt, pwd_hash, 1)
             )
             login_id = cursor.lastrowid
             cursor.execute(
                 "INSERT INTO UserRole (LoginId, RoleId, isactive) VALUES (?, ?, ?)",
-                (login_id, 1, True)
+                (login_id, 1, 1)
             )
             conn.commit()
             print("Default Admin user (adminuser@gmail.com) created successfully.")

@@ -17,6 +17,10 @@ def register_admin_users_routes(app):
         username = data.get('username', '').strip()
         password = data.get('password', '')
         role_id = data.get('role_id')
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
+        email = data.get('email')
+        phone = data.get('phone')
         
         if not username or not password or not role_id:
             return jsonify({'error': 'Username, password, and role are required.'}), 400
@@ -27,7 +31,7 @@ def register_admin_users_routes(app):
         if len(password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters.'}), 400
             
-        user_id = database.create_user(username, password, int(role_id))
+        user_id = database.create_user(username, password, int(role_id), first_name, last_name, email, phone)
         
         if user_id:
             return jsonify({'success': True, 'message': 'User created successfully.'})
@@ -54,32 +58,40 @@ def register_admin_users_routes(app):
         database.update_user_role(int(user_id), int(role_id))
         return jsonify({'success': True, 'message': 'User role updated successfully.'})
 
-    @app.route('/api/admin/users/change_password', methods=['POST'])
+    @app.route('/api/admin/users/edit', methods=['POST'])
     @require_privilege('can_admin')
-    def admin_change_user_password():
+    def admin_edit_user():
         data = request.get_json()
         user_id = data.get('user_id')
         new_password = data.get('new_password')
         confirm_password = data.get('confirm_password')
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
+        email = data.get('email')
+        phone = data.get('phone')
         
-        if not user_id or not new_password or not confirm_password:
-            return jsonify({'error': 'User ID, new password, and confirmation are required.'}), 400
-            
-        if len(new_password) < 6:
-            return jsonify({'error': 'New password must be at least 6 characters.'}), 400
-            
-        if new_password != confirm_password:
-            return jsonify({'error': 'Passwords do not match.'}), 400
+        if not user_id:
+            return jsonify({'error': 'User ID is required.'}), 400
             
         user = database.get_user_by_id(int(user_id))
         if not user:
             return jsonify({'error': 'User not found.'}), 404
             
-        success = database.update_user_password(int(user_id), new_password)
-        if success:
-            return jsonify({'success': True, 'message': 'User password updated successfully.'})
-        else:
-            return jsonify({'error': 'Failed to update user password.'}), 500
+        try:
+            database.update_user_profile(int(user_id), first_name, last_name, email, phone)
+        except Exception as e:
+            return jsonify({'error': 'Failed to update user profile.'}), 500
+            
+        if new_password:
+            if len(new_password) < 6:
+                return jsonify({'error': 'New password must be at least 6 characters.'}), 400
+            if new_password != confirm_password:
+                return jsonify({'error': 'Passwords do not match.'}), 400
+            success = database.update_user_password(int(user_id), new_password)
+            if not success:
+                return jsonify({'error': 'Failed to update user password.'}), 500
+                
+        return jsonify({'success': True, 'message': 'User updated successfully.'})
 
     @app.route('/api/admin/users/delete/<int:user_id>', methods=['POST', 'DELETE'])
     @require_privilege('can_admin')
