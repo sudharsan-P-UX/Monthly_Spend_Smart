@@ -62,16 +62,30 @@ class PostgresCursorWrapper:
         is_insert = query.strip().upper().startswith("INSERT INTO")
         if is_insert and "RETURNING" not in query.upper():
             # Check what key we return
-            if "users" in query.lower() or "refusers" in query.lower():
-                query = query.rstrip('; ') + " RETURNING loginid"
-            elif "role" in query.lower() or "refrole" in query.lower():
-                query = query.rstrip('; ') + " RETURNING roleid"
-            elif "currency" in query.lower() or "refcurreny" in query.lower():
-                query = query.rstrip('; ') + " RETURNING currencyid"
-            elif "settings" in query.lower():
-                query = query.rstrip('; ') + " RETURNING Settingid"
-            else:
-                query = query.rstrip('; ') + " RETURNING id"
+            import re
+            table_match = re.search(r"INSERT\s+(?:IGNORE\s+|OR\s+REPLACE\s+)?INTO\s+([A-Za-z0-9_]+)", query, re.IGNORECASE)
+            if table_match:
+                table_name = table_match.group(1).lower()
+                pk_map = {
+                    'reffieldtype': 'FieldTypeId',
+                    'refhome': 'RefHomeId',
+                    'refaddexpensemenu': 'AddExpenseMenuId',
+                    'refemimenu': 'EmiMenuId',
+                    'refrole': 'RoleId',
+                    'role': 'RoleId',
+                    'refroleaccess': 'RoleAccessId',
+                    'importexport': 'ImportExportId',
+                    'importexportdtl': 'ImportExportDtlId',
+                    'refusers': 'LoginId',
+                    'users': 'LoginId',
+                    'userrole': 'UserRoleId',
+                    'userlogindetails': 'UserLoginDtlId',
+                    'refcurreny': 'CurrencyId',
+                    'currency': 'CurrencyId',
+                    'settings': 'Settingid'
+                }
+                pk_col = pk_map.get(table_name, 'id')
+                query = query.rstrip('; ') + f" RETURNING {pk_col}"
 
         try:
             self.cursor.execute(query, params)
