@@ -8,6 +8,9 @@ import datetime
 import sqlite3
 import psycopg2
 import psycopg2.extras
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'localhost')
