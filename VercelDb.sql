@@ -220,6 +220,6 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- Seed default settings
 INSERT INTO settings (key, value) VALUES
-('registration_otp_enabled', '1'),
-('login_otp_enabled', '1')
+('registration_otp_enabled', '0'),
+('login_otp_enabled', '0')
 ON CONFLICT (key) DO NOTHING;
