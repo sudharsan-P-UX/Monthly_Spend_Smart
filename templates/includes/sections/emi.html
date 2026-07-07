@@ -1,0 +1,125 @@
+<!-- EMI SECTION -->
+<section id="section-emi" class="content-section hidden">
+    <header class="section-header">
+        <h1>EMI Management</h1>
+        <p>Track your Equated Monthly Installments and recurring loans.</p>
+    </header>
+
+    <!-- EMI Summary Cards -->
+    <div class="metrics-grid" id="emi-metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
+        <!-- 1. Total Loan Amount -->
+        <div class="metric-card card-month" onclick="showEmiOverviewDetails('total-loan')" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2); cursor: pointer;" title="Click to view details list">
+            <div class="metric-info">
+                <h3>Total Loan Amount</h3>
+                <span class="metric-value" id="emi-total-loan-amount" style="color: var(--color-primary);">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-sack-dollar" style="color: var(--color-primary);"></i>
+            </div>
+        </div>
+        <!-- 2. Pending Principal Amt -->
+        <div class="metric-card card-all" onclick="showEmiOverviewDetails('pending-principal')" style="background: rgba(244, 63, 94, 0.08); border-color: rgba(244, 63, 94, 0.2); cursor: pointer;" title="Click to view details list">
+            <div class="metric-info">
+                <h3>Pending Principal Amt</h3>
+                <span class="metric-value" id="emi-pending-principal" style="color: var(--color-secondary);">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-hand-holding-dollar" style="color: var(--color-secondary);"></i>
+            </div>
+        </div>
+        <!-- 3. Total Principal Paid -->
+        <div class="metric-card card-count" onclick="showEmiOverviewDetails('principal-paid')" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); cursor: pointer;" title="Click to view details list">
+            <div class="metric-info">
+                <h3>Total Principal Paid</h3>
+                <span class="metric-value" id="emi-total-principal-paid" style="color: var(--color-success);">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-circle-check" style="color: var(--color-success);"></i>
+            </div>
+        </div>
+        <!-- 4. Total Interest -->
+        <div class="metric-card" onclick="showEmiOverviewDetails('total-interest')" style="background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.2); cursor: pointer;" title="Click to view details list">
+            <div class="metric-info">
+                <h3>Total Interest</h3>
+                <span class="metric-value" id="emi-total-interest" style="color: #f59e0b;">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-percent" style="color: #f59e0b;"></i>
+            </div>
+        </div>
+        <!-- 5. Paid Interest -->
+        <div class="metric-card" onclick="showEmiOverviewDetails('paid-interest')" style="background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.2); cursor: pointer;" title="Click to view details list">
+            <div class="metric-info">
+                <h3>Paid Interest</h3>
+                <span class="metric-value" id="emi-paid-interest" style="color: #3b82f6;">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-coins" style="color: #3b82f6;"></i>
+            </div>
+        </div>
+        <!-- 6. Monthly Total EMI -->
+        <div class="metric-card card-month" onclick="showEmiOverviewDetails('monthly-total')" style="background: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.2); cursor: pointer;" title="Click to view details list">
+            <div class="metric-info">
+                <h3>Monthly Total EMI</h3>
+                <span class="metric-value" id="emi-monthly-total" style="color: #a78bfa;">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-calendar-days" style="color: #a78bfa;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMI Actions and List Card -->
+    <div class="content-card">
+        <div class="card-header">
+            <h2>My EMIs</h2>
+            <div class="card-actions">
+                <button class="btn-danger btn-sm hidden" id="btn-bulk-delete-emis" onclick="bulkDeleteUserEmis()">
+                    <i class="fa-solid fa-trash-can"></i> <span>Delete Selected</span>
+                </button>
+                <button class="btn-secondary btn-sm" onclick="toggleEmiOverview()" title="Toggle Overview Statistics">
+                    <i class="fa-solid fa-chart-simple"></i> <span>Overview</span>
+                </button>
+                <button class="btn-secondary btn-sm" onclick="openEmiImportModal()" title="Import EMIs from Excel">
+                    <i class="fa-solid fa-file-import"></i> <span>Import</span>
+                </button>
+                <button class="btn-secondary btn-sm" onclick="exportUserEMIs()" title="Export EMIs to Excel">
+                    <i class="fa-solid fa-file-export"></i> <span>Export</span>
+                </button>
+                <button class="btn-primary btn-sm" onclick="openEmiModal()">
+                    <i class="fa-solid fa-plus"></i> <span>Add EMI</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="table-container emi-table-container">
+            <table class="expense-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="user-emi-select-all" style="cursor: pointer; width: 16px; height: 16px;"></th>
+                        <th>EMI Name</th>
+                        <th class="text-right">Loan Amount</th>
+                        <th class="text-right">Monthly EMI</th>
+                        <th class="text-center">Start Date</th>
+                        <th class="text-center">End Date</th>
+                        <th class="text-center">Tenure</th>
+                        <th class="text-center">Pending Months</th>
+                        <th class="text-right">Pending Balance</th>
+                        <th class="text-center">Interest</th>
+                        <th class="text-center">Due Day</th>
+                        <th class="text-center">Type</th>
+                        <th>Gateway/Bank</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="user-emi-list">
+                    <!-- Dynamic user EMI entries -->
+                </tbody>
+            </table>
+            <div id="no-emis-msg" class="empty-state hidden">
+                <i class="fa-solid fa-receipt"></i>
+                <p>No active EMIs found. Add one to track your installment plans!</p>
+            </div>
+        </div>
+    </div>
+</section>

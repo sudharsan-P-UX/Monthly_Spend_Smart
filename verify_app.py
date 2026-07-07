@@ -69,6 +69,52 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertIsNotNone(user)
         self.assertEqual(user['username'], 'testuser')
 
+    def test_logged_in_user_profile_and_password_endpoints(self):
+        """Test fetching/updating user profile details and password as a logged in user"""
+        # Create test user
+        h_pass = generate_password_hash('pass123')
+        user_id = database.create_user('profileuser', h_pass)
+        
+        # Log in
+        with self.app.session_transaction() as sess:
+            sess['user_id'] = user_id
+            sess['username'] = 'profileuser'
+            
+        # Test GET profile details
+        r_get = self.app.get('/api/user/profile')
+        self.assertEqual(r_get.status_code, 200)
+        data = json.loads(r_get.data.decode())
+        self.assertEqual(data['username'], 'profileuser')
+        self.assertEqual(data['first_name'], '')
+        
+        # Test POST update profile
+        r_post = self.app.post('/api/user/profile/update', json={
+            'first_name': 'John',
+            'last_name': 'Doe',
+            'email': 'john@example.com',
+            'phone': '1234567890'
+        })
+        self.assertEqual(r_post.status_code, 200)
+        res = json.loads(r_post.data.decode())
+        self.assertTrue(res['success'])
+        
+        # Verify updated info in GET profile
+        r_get_new = self.app.get('/api/user/profile')
+        data_new = json.loads(r_get_new.data.decode())
+        self.assertEqual(data_new['first_name'], 'John')
+        self.assertEqual(data_new['last_name'], 'Doe')
+        self.assertEqual(data_new['email'], 'john@example.com')
+        self.assertEqual(data_new['phone'], '1234567890')
+        
+        # Test POST update password
+        r_pass = self.app.post('/api/user/change-password', json={
+            'new_password': 'newpass123',
+            'confirm_password': 'newpass123'
+        })
+        self.assertEqual(r_pass.status_code, 200)
+        res_pass = json.loads(r_pass.data.decode())
+        self.assertTrue(res_pass['success'])
+
     def test_expense_crud(self):
         """Test adding, listing, updating, deleting expenses in DB"""
         h_pass = generate_password_hash('password123')
@@ -602,7 +648,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         # Row 3: Invalid amount (string instead of float, should be skipped)
         ws.append(["2026-06-27", "Utilities", "Power", "Netbanking", "ICICI", "Savings", "Debit", "abc", 0.00])
         # Row 4: Invalid date format (should be skipped)
-        ws.append(["2026/06/28", "Entertainment", "Movie", "Cash", "None", "None", "Debit", 20.00, 0.00])
+        ws.append(["invalid-date", "Entertainment", "Movie", "Cash", "None", "None", "Debit", 20.00, 0.00])
         # Row 5: Missing required column - Date (should be skipped)
         ws.append([None, "Medical", "Checkup", "GPay", "SBI", "Salary", "Debit", 50.00, 0.00])
         
@@ -1307,6 +1353,163 @@ class ExpenseTrackerTestCase(unittest.TestCase):
             'target_type': 'expense'
         }), content_type='application/json')
         self.assertEqual(resp.status_code, 200)
+        
+        self.app.get('/logout')
+
+    def test_mfa_and_otp_workflow(self):
+        """Test MFA login, profile fields registration, and OTP send/verify endpoints"""
+        # 1. Test OTP send and verification
+        email = 'new_otp_user@example.com'
+        phone = '9876543210'
+        
+        # Send email OTP
+        resp = self.app.post('/api/otp/send', data=json.dumps({'target': email}), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # Send phone OTP
+        resp = self.app.post('/api/otp/send', data=json.dumps({'target': phone}), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # Fetch OTPs from database to verify
+        conn = database.get_db_connection()
+        email_otp = conn.cursor().execute("SELECT otp FROM otps WHERE target = ?", (email,)).fetchone()[0]
+        phone_otp = conn.cursor().execute("SELECT otp FROM otps WHERE target = ?", (phone,)).fetchone()[0]
+        conn.close()
+        
+        # Verify incorrect email OTP
+        resp = self.app.post('/api/otp/verify', data=json.dumps({'target': email, 'otp_code': '000000'}), content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        
+        # Verify correct email OTP
+        resp = self.app.post('/api/otp/verify', data=json.dumps({'target': email, 'otp_code': email_otp}), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # Verify correct phone OTP
+        resp = self.app.post('/api/otp/verify', data=json.dumps({'target': phone, 'otp_code': phone_otp}), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # 2. Register user with profile fields
+        resp = self.app.post('/register', data=json.dumps({
+            'username': 'otp_test_user',
+            'password': 'password123',
+            'first_name': 'Test',
+            'last_name': 'OTP',
+            'email': email,
+            'phone': phone
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        
+        # Verify user is created in database with profile fields
+        conn = database.get_db_connection()
+        db_user = conn.cursor().execute("SELECT * FROM users WHERE username = ?", ('otp_test_user',)).fetchone()
+        conn.close()
+        self.assertEqual(db_user['first_name'], 'Test')
+        self.assertEqual(db_user['last_name'], 'OTP')
+        self.assertEqual(db_user['email'], email)
+        self.assertEqual(db_user['phone'], phone)
+        
+        # Log out the user from the auto-login session of registration
+        self.app.get('/logout')
+        
+        # 3. Test MFA Login Flow
+        # Disable app.testing temporarily to trigger real MFA flow
+        app.testing = False
+        old_db_path = os.environ.get('DATABASE_PATH')
+        if 'DATABASE_PATH' in os.environ:
+            del os.environ['DATABASE_PATH']
+        try:
+            resp = self.app.post('/login', data=json.dumps({
+                'username': 'otp_test_user',
+                'password': 'password123'
+            }), content_type='application/json')
+            self.assertEqual(resp.status_code, 200)
+            
+            login_data = json.loads(resp.data)
+            self.assertTrue(login_data.get('mfa_required'))
+            temp_token = login_data.get('temp_token')
+            self.assertIsNotNone(temp_token)
+            
+            # Fetch login OTP from database
+            conn = database.get_db_connection()
+            login_otp = conn.cursor().execute("SELECT otp FROM otps WHERE target = ?", (phone,)).fetchone()[0]
+            conn.close()
+            
+            # Verify MFA login with incorrect OTP
+            resp = self.app.post('/api/login/mfa', data=json.dumps({
+                'temp_token': temp_token,
+                'otp_code': '000000'
+            }), content_type='application/json')
+            self.assertEqual(resp.status_code, 400)
+            
+            # Verify MFA login with correct OTP
+            resp = self.app.post('/api/login/mfa', data=json.dumps({
+                'temp_token': temp_token,
+                'otp_code': login_otp
+            }), content_type='application/json')
+            self.assertEqual(resp.status_code, 200)
+        finally:
+            app.testing = True
+            if old_db_path is not None:
+                os.environ['DATABASE_PATH'] = old_db_path
+            
+        self.app.get('/logout')
+
+    def test_bulk_delete_endpoints(self):
+        # Log in standard user
+        self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        
+        # 1. Create expenses
+        e1_id = database.add_expense(1, 100.0, 'Food & Dining', 'e1', '2026-07-06', payment_method='Debit', status='Paid')
+        e2_id = database.add_expense(1, 200.0, 'Shopping', 'e2', '2026-07-06', payment_method='Debit', status='Paid')
+        
+        # Verify they exist
+        self.assertIsNotNone(e1_id)
+        self.assertIsNotNone(e2_id)
+        
+        # Bulk delete them
+        resp = self.app.post('/api/expenses/delete-bulk', data=json.dumps({
+            'expense_ids': [e1_id, e2_id]
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        res_data = json.loads(resp.data)
+        self.assertTrue(res_data.get('success'))
+        
+        # Verify they are deleted
+        conn = database.get_db_connection()
+        c = conn.cursor()
+        e1 = c.execute('SELECT * FROM expenses WHERE id = ?', (e1_id,)).fetchone()
+        e2 = c.execute('SELECT * FROM expenses WHERE id = ?', (e2_id,)).fetchone()
+        conn.close()
+        self.assertIsNone(e1)
+        self.assertIsNone(e2)
+        
+        # 2. Create EMIs
+        emi1_id = database.add_emi(1, 'emi1', 1000.0, 100.0, '2026-07-06', '2027-07-06', 12, 5.0, '5', 'Auto', 'GPay', 'SBI')
+        emi2_id = database.add_emi(1, 'emi2', 2000.0, 200.0, '2026-07-06', '2027-07-06', 12, 5.0, '5', 'Auto', 'PhonePe', 'Kotak')
+        
+        # Verify they exist
+        self.assertIsNotNone(emi1_id)
+        self.assertIsNotNone(emi2_id)
+        
+        # Bulk delete them
+        resp = self.app.post('/api/emis/delete-bulk', data=json.dumps({
+            'emi_ids': [emi1_id, emi2_id]
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        res_data = json.loads(resp.data)
+        self.assertTrue(res_data.get('success'))
+        
+        # Verify they are deleted
+        conn = database.get_db_connection()
+        c = conn.cursor()
+        emi1 = c.execute('SELECT * FROM emis WHERE id = ?', (emi1_id,)).fetchone()
+        emi2 = c.execute('SELECT * FROM emis WHERE id = ?', (emi2_id,)).fetchone()
+        conn.close()
+        self.assertIsNone(emi1)
+        self.assertIsNone(emi2)
         
         self.app.get('/logout')
 

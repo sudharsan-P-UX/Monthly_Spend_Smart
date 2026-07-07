@@ -1,0 +1,337 @@
+<!-- EMI Overview Details Modal -->
+<div id="emi-overview-details-modal" class="modal-overlay hidden" style="z-index: 1100;">
+    <div class="modal-card" style="max-width: 800px; width: 90%;">
+        <div class="modal-header">
+            <h2 id="emi-overview-details-title">EMI Details</h2>
+            <button class="btn-close" onclick="closeEmiOverviewDetailsModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+            <div class="table-container">
+                <table class="expense-table" style="width: 100%; border-collapse: collapse;">
+                    <thead id="emi-overview-details-headers">
+                        <!-- Dynamic headers -->
+                    </thead>
+                    <tbody id="emi-overview-details-list">
+                        <!-- Dynamic rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ADD EMI MODAL -->
+<div id="emi-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2 id="emi-modal-title">Add EMI</h2>
+            <button class="btn-close" onclick="closeEmiModal()">&times;</button>
+        </div>
+        <form id="emi-form" class="modal-form">
+            <input type="hidden" id="emi-id">
+            
+            <div class="input-group">
+                <label for="emi-name">EMI Name <span class="required">*</span></label>
+                <input type="text" id="emi-name" required placeholder="e.g. Home Loan">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="emi-principal">Loan Amount (Principal)</label>
+                    <input type="number" id="emi-principal" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="input-group">
+                    <label for="emi-interest-rate">Interest (% Per Annum)</label>
+                    <input type="number" id="emi-interest-rate" step="0.01" min="0" placeholder="0.00">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="emi-tenure">Tenure (Months) <span class="required">*</span></label>
+                    <input type="number" id="emi-tenure" min="1" required placeholder="12">
+                </div>
+                <div class="input-group">
+                    <label for="emi-amount">Monthly EMI Amount <span class="required">*</span></label>
+                    <input type="number" id="emi-amount" step="0.01" min="0.01" required placeholder="0.00">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="emi-start-date">Start Date <span class="required">*</span></label>
+                    <input type="date" id="emi-start-date" required>
+                </div>
+                <div class="input-group">
+                    <label for="emi-end-date">End Date <span class="required">*</span></label>
+                    <input type="date" id="emi-end-date" required>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="emi-due-date">Due Date (Day of Month) <span class="required">*</span></label>
+                    <input type="text" id="emi-due-date" required placeholder="e.g. 5th or 5">
+                </div>
+                <div class="input-group">
+                    <label for="emi-payment-type">Payment Type <span class="required">*</span></label>
+                    <select id="emi-payment-type" required>
+                        <option value="Auto" selected>Auto</option>
+                        <option value="Manual">Manual</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="emi-payment-gateway">Payment Gateway</label>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <select id="emi-payment-gateway" style="flex-grow: 1;">
+                            <option value="" selected>None / N/A</option>
+                            <option value="GPay">GPay</option>
+                            <option value="PhonePe">PhonePe</option>
+                            <option value="Paytm">Paytm</option>
+                        </select>
+                        <button type="button" class="btn-primary btn-sm inline-add-btn" data-type="payment-type" style="padding: 0 12px; border-radius: 6px;" title="Add Payment Gateway Inline"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="emi-payment-bank">Payment Bank</label>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <select id="emi-payment-bank" style="flex-grow: 1;">
+                            <option value="" selected>None / N/A</option>
+                            <!-- Dynamic Options populated by JS -->
+                        </select>
+                        <button type="button" class="btn-primary btn-sm inline-add-btn" data-type="bank-mode" style="padding: 0 12px; border-radius: 6px;" title="Add Bank Mode Inline"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="emi-createddate">Created Date <span class="required">*</span></label>
+                <input type="date" id="emi-createddate" required>
+            </div>
+
+            <!-- Dynamic custom fields container -->
+            <div id="emi-custom-fields" class="input-group-full" style="display: contents;">
+                <!-- Dynamic custom fields rendered by JS -->
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEmiModal()">Cancel</button>
+                <button type="submit" class="btn-primary" id="emi-submit-btn">Save EMI</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- USER EMI IMPORT MODAL -->
+<div id="emi-import-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 450px;">
+        <div class="modal-header">
+            <h2>Import EMIs</h2>
+            <button class="btn-close" onclick="closeEmiImportModal()">&times;</button>
+        </div>
+        <form id="emi-import-form" class="modal-form">
+            <div class="input-group">
+                <label for="emi-import-file">Select Excel File (.xlsx) <span class="required">*</span></label>
+                <input type="file" id="emi-import-file" accept=".xlsx" required>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px; line-height: 1.4;">
+                <p>Make sure your Excel file has the following columns:</p>
+                <code style="display: block; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-top: 5px; color: var(--color-accent);">
+                    EMI Name, Loan Amount, Interest Rate, Tenure, Monthly EMI, Start Date, End Date, Due Date, Payment Type, Payment Gateway, Payment Bank
+                </code>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEmiImportModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Import</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ADMIN EMI IMPORT MODAL -->
+<div id="admin-emi-import-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 450px;">
+        <div class="modal-header">
+            <h2>Admin Import EMIs</h2>
+            <button class="btn-close" onclick="closeAdminEmiImportModal()">&times;</button>
+        </div>
+        <form id="admin-emi-import-form" class="modal-form">
+            <div class="input-group">
+                <label for="admin-emi-import-file">Select Excel File (.xlsx) <span class="required">*</span></label>
+                <input type="file" id="admin-emi-import-file" accept=".xlsx" required>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px; line-height: 1.4;">
+                <p>Make sure your Excel file has the following columns:</p>
+                <code style="display: block; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-top: 5px; color: var(--color-accent);">
+                    Username, EMI Name, Loan Amount, Interest Rate, Tenure, Monthly EMI, Start Date, End Date, Due Date, Payment Type, Payment Gateway, Payment Bank
+                </code>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeAdminEmiImportModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Import</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EMI CALENDAR DETAILS MODAL -->
+<div id="emi-calendar-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 800px; width: 90%;">
+        <div class="modal-header">
+            <h2>EMI Calendar Details</h2>
+            <button class="btn-close" onclick="closeEmiCalendarModal()">&times;</button>
+        </div>
+        <div style="margin-bottom: 15px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 0.9rem;">
+            <div>
+                <span style="color: var(--text-secondary);">EMI Name:</span>
+                <strong id="cal-emi-name" style="color: var(--text-primary);"></strong>
+            </div>
+            <div>
+                <span style="color: var(--text-secondary);">Loan Amount:</span>
+                <strong id="cal-emi-principal" style="color: var(--text-primary);"></strong>
+            </div>
+            <div>
+                <span style="color: var(--text-secondary);">Interest Rate:</span>
+                <strong id="cal-emi-interest" style="color: var(--text-primary);"></strong>
+            </div>
+            <div>
+                <span style="color: var(--text-secondary);">Monthly EMI:</span>
+                <strong id="cal-emi-amount" style="color: var(--text-primary);"></strong>
+            </div>
+        </div>
+        <div class="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px;">
+            <table class="expense-table">
+                <thead style="position: sticky; top: 0; background: #0f131d !important; z-index: 10;">
+                    <tr>
+                        <th class="text-center">SI.No</th>
+                        <th class="text-center">EMI Date</th>
+                        <th class="text-right">Principal Paid</th>
+                        <th class="text-right">Interest Paid</th>
+                        <th class="text-right">EMI Amount</th>
+                        <th class="text-right">Remaining Principal</th>
+                    </tr>
+                </thead>
+                <tbody id="emi-calendar-tbody">
+                    <!-- Dynamic schedule rows -->
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer" style="margin-top: 15px;">
+            <button type="button" class="btn-primary" onclick="closeEmiCalendarModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADMIN EMI EDIT MODAL -->
+<div id="admin-emi-modal" class="modal-overlay hidden" style="z-index: 1050;">
+    <div class="modal-card" style="max-width: 550px;">
+        <div class="modal-header">
+            <h2 id="admin-emi-modal-title">Edit EMI Details</h2>
+            <button type="button" class="btn-close" onclick="closeAdminEmiModal()">&times;</button>
+        </div>
+        <form id="admin-emi-form" class="modal-form" style="padding: 20px;">
+            <input type="hidden" id="admin-emi-id">
+            
+            <div class="input-group" id="admin-emi-user-group" style="display: none;">
+                <label for="admin-emi-user">Select User <span class="required">*</span></label>
+                <select id="admin-emi-user">
+                    <option value="" disabled selected>Select User</option>
+                    <!-- Dynamic User Options -->
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="admin-emi-name">EMI Name <span class="required">*</span></label>
+                <input type="text" id="admin-emi-name" required placeholder="e.g. Car Loan">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="admin-emi-principal">Loan Amount (Principal)</label>
+                    <input type="number" id="admin-emi-principal" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="input-group">
+                    <label for="admin-emi-interest-rate">Interest (% Per Annum)</label>
+                    <input type="number" id="admin-emi-interest-rate" step="0.01" min="0" placeholder="0.00">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="admin-emi-tenure">Tenure (Months) <span class="required">*</span></label>
+                    <input type="number" id="admin-emi-tenure" min="1" required placeholder="12">
+                </div>
+                <div class="input-group">
+                    <label for="admin-emi-amount">Monthly EMI Amount <span class="required">*</span></label>
+                    <input type="number" id="admin-emi-amount" step="0.01" min="0.01" required placeholder="0.00">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="admin-emi-start-date">Start Date <span class="required">*</span></label>
+                    <input type="date" id="admin-emi-start-date" required>
+                </div>
+                <div class="input-group">
+                    <label for="admin-emi-end-date">End Date <span class="required">*</span></label>
+                    <input type="date" id="admin-emi-end-date" required>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="admin-emi-due-date">Due Date <span class="required">*</span></label>
+                    <input type="text" id="admin-emi-due-date" required placeholder="e.g. 5" value="5">
+                </div>
+                <div class="input-group">
+                    <label for="admin-emi-payment-type">Payment Type <span class="required">*</span></label>
+                    <select id="admin-emi-payment-type" required>
+                        <option value="Auto" selected>Auto</option>
+                        <option value="Manual">Manual</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="admin-emi-payment-gateway">Payment Gateway</label>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <select id="admin-emi-payment-gateway" style="flex-grow: 1;">
+                            <option value="" selected>None / N/A</option>
+                            <option value="GPay">GPay</option>
+                            <option value="PhonePe">PhonePe</option>
+                            <option value="Paytm">Paytm</option>
+                        </select>
+                        <button type="button" class="btn-primary btn-sm inline-add-btn" data-type="payment-type" style="padding: 0 12px; border-radius: 6px;" title="Add Payment Gateway Inline"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="admin-emi-payment-bank">Payment Bank</label>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <select id="admin-emi-payment-bank" style="flex-grow: 1;">
+                            <option value="" selected>None / N/A</option>
+                            <!-- Dynamic Options populated by JS -->
+                        </select>
+                        <button type="button" class="btn-primary btn-sm inline-add-btn" data-type="bank-mode" style="padding: 0 12px; border-radius: 6px;" title="Add Bank Mode Inline"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="admin-emi-createddate">Created Date <span class="required">*</span></label>
+                <input type="date" id="admin-emi-createddate" required>
+            </div>
+
+            <!-- Dynamic custom fields container -->
+            <div id="admin-emi-custom-fields" class="input-group-full" style="display: contents;">
+                <!-- Dynamic custom fields rendered by JS -->
+            </div>
+
+            <div class="modal-footer" style="margin-top: 15px;">
+                <button type="button" class="btn-secondary" onclick="closeAdminEmiModal()">Cancel</button>
+                <button type="submit" class="btn-primary" id="btn-admin-emi-submit">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>

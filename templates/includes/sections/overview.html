@@ -1,0 +1,121 @@
+<!-- OVERVIEW SECTION -->
+<section id="section-overview" class="content-section hidden">
+    <header class="section-header">
+        <h1>Financial Overview</h1>
+        <p>Analyze your spending distributions and trends over time.</p>
+    </header>
+
+    <!-- Overview Filters Panel -->
+    <div class="overview-filters-bar">
+        <div class="filter-group">
+            <label for="overview-month">Month</label>
+            <select id="overview-month">
+                <option value="">Current Month</option>
+                <option value="01">January</option>
+                <option value="02">February</option>
+                <option value="03">March</option>
+                <option value="04">April</option>
+                <option value="05">May</option>
+                <option value="06">June</option>
+                <option value="07">July</option>
+                <option value="08">August</option>
+                <option value="09">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="overview-year">Year</label>
+            <select id="overview-year">
+                <option value="">Current Year</option>
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+                <option value="2028">2028</option>
+            </select>
+        </div>
+        <button class="btn-primary btn-sm" onclick="loadCharts()" style="margin-top: auto; height: 38px;">Apply Filter</button>
+    </div>
+
+    <!-- Debit/Credit summary cards grid -->
+    <div class="metrics-grid">
+        <div class="metric-card card-month" onclick="showOverviewDetails('month-debits')" style="cursor: pointer;">
+            <div class="metric-info">
+                <h3>Month Debits</h3>
+                 <span class="metric-value" id="overview-month-debit">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-arrow-down-long" style="color: var(--color-secondary);"></i>
+            </div>
+        </div>
+        <div class="metric-card card-all" onclick="showOverviewDetails('month-credits')" style="cursor: pointer;">
+            <div class="metric-info">
+                <h3>Month Credits</h3>
+                <span class="metric-value" id="overview-month-credit">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-arrow-up-long" style="color: var(--color-success);"></i>
+            </div>
+        </div>
+        <div class="metric-card card-month" onclick="showOverviewDetails('month-interest')" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2); cursor: pointer;">
+            <div class="metric-info">
+                <h3>Month Interest</h3>
+                <span class="metric-value" id="overview-month-interest" style="color: var(--color-primary);">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-percent" style="color: var(--color-primary);"></i>
+            </div>
+        </div>
+        <div class="metric-card card-month" onclick="showOverviewDetails('total-debits')" style="cursor: pointer;">
+            <div class="metric-info">
+                <h3>Total Debits</h3>
+                <span class="metric-value" id="overview-total-debit">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+        </div>
+        <div class="metric-card card-all" onclick="showOverviewDetails('total-credits')" style="cursor: pointer;">
+            <div class="metric-info">
+                <h3>Total Credits</h3>
+                <span class="metric-value" id="overview-total-credit">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-credit-card"></i>
+            </div>
+        </div>
+        <div class="metric-card card-all" onclick="showOverviewDetails('total-interest')" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2); cursor: pointer;">
+            <div class="metric-info">
+                <h3>Total Interest</h3>
+                <span class="metric-value" id="overview-total-interest" style="color: var(--color-primary);">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-coins" style="color: var(--color-primary);"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <!-- Category Chart Card -->
+        <div class="content-card chart-card">
+            <div class="card-header">
+                <h2>Expenses by Category (Current Month)</h2>
+            </div>
+            <div class="chart-container">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Trend Chart Card -->
+        <div class="content-card chart-card">
+            <div class="card-header">
+                <h2>Monthly Spending Trend (Last 6 Months)</h2>
+            </div>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+    </div>
+</section>

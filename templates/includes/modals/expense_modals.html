@@ -1,0 +1,206 @@
+<!-- EDIT EXPENSE MODAL -->
+<div id="edit-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2>Edit Expense</h2>
+            <button class="btn-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="edit-expense-form" class="modal-form">
+            <input type="hidden" id="edit-id">
+            <div class="input-group">
+                <label for="edit-amount">Amount ({{ active_currency_symbol or '₹' }}) <span class="required">*</span></label>
+                <input type="number" id="edit-amount" step="0.01" min="0.01" required placeholder="0.00">
+            </div>
+            <div class="input-group">
+                <label for="edit-category">Category <span class="required">*</span></label>
+                <div style="display: flex; gap: 8px; width: 100%;">
+                    <select id="edit-category" required style="flex-grow: 1;">
+                        <!-- Dynamic Options -->
+                    </select>
+                    <button type="button" class="btn-primary btn-sm inline-add-btn" data-type="category" style="padding: 0 12px; border-radius: 6px;" title="Add Category Inline"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="input-group hidden" id="edit-category-other-wrapper">
+                <label for="edit-category-other">Specify Custom Category <span class="required">*</span></label>
+                <input type="text" id="edit-category-other" placeholder="e.g. Interest">
+            </div>
+            <div class="input-group">
+                <label for="edit-date">Date <span class="required">*</span></label>
+                <input type="date" id="edit-date" required>
+            </div>
+            <div class="input-group">
+                <label for="edit-bank-mode">Bank Mode</label>
+                <div style="display: flex; gap: 8px; width: 100%;">
+                    <select id="edit-bank-mode" style="flex-grow: 1;">
+                        <option value="">None / N/A</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                    <button type="button" class="btn-primary btn-sm inline-add-btn" data-type="bank-mode" style="padding: 0 12px; border-radius: 6px;" title="Add Bank Mode Inline"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="edit-payment-type">Payment Gateway</label>
+                <div style="display: flex; gap: 8px; width: 100%;">
+                    <select id="edit-payment-type" style="flex-grow: 1;">
+                        <option value="">None / N/A</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                    <button type="button" class="btn-primary btn-sm inline-add-btn" data-type="payment-type" style="padding: 0 12px; border-radius: 6px;" title="Add Payment Gateway Inline"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="edit-payment-method">Payment Method <span class="required">*</span></label>
+                <select id="edit-payment-method" required>
+                    <option value="Debit">Debit</option>
+                    <option value="Credit">Credit</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="edit-payment-category">Payment Source</label>
+                <div style="display: flex; gap: 8px; width: 100%;">
+                    <select id="edit-payment-category" style="flex-grow: 1;">
+                        <option value="">None / N/A</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                    <button type="button" class="btn-primary btn-sm inline-add-btn" data-type="payment-category" style="padding: 0 12px; border-radius: 6px;" title="Add Payment Source Inline"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="input-group hidden" id="edit-interest-wrapper">
+                <label for="edit-interest">Interest ({{ active_currency_symbol or '₹' }})</label>
+                <input type="number" id="edit-interest" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="input-group">
+                <label for="edit-createddate">Created Date <span class="required">*</span></label>
+                <input type="date" id="edit-createddate" required>
+            </div>
+
+            <!-- Dynamic custom fields container -->
+            <div id="edit-expense-custom-fields" class="input-group-full" style="display: contents;">
+                <!-- Dynamic custom fields rendered by JS -->
+            </div>
+            
+            <div class="input-group" id="edit-status-wrapper" style="display: flex; align-items: center; gap: 8px; flex-direction: row; margin-top: 15px;">
+                <input type="checkbox" id="edit-status" checked style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+                <label for="edit-status" style="margin: 0; cursor: pointer; font-weight: 500; font-size: 0.95rem;">Paid</label>
+            </div>
+            <div class="input-group">
+                <label for="edit-description">Description</label>
+                <input type="text" id="edit-description" placeholder="e.g. Grocery shopping">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- IMPORT EXPENSE MODAL -->
+<div id="import-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2>Import Expenses</h2>
+            <button class="btn-close" onclick="closeImportModal()">&times;</button>
+        </div>
+        <form id="import-expense-form" class="modal-form" enctype="multipart/form-data">
+            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.4;">
+                Upload an Excel file (.xlsx) to import multiple expenses at once. The sheet should include headers: 
+                <strong>Date</strong> (YYYY-MM-DD), <strong>Category</strong>, <strong>Amount</strong>. 
+                Other optional columns: <strong>Description</strong>, <strong>Gateway</strong>, <strong>Bank</strong>, <strong>Source</strong>, <strong>Method</strong>, <strong>Interest</strong>.
+            </p>
+            <div style="margin: 5px 0 10px 0;">
+                <a href="/api/expenses/import-template" class="btn-text" style="color: var(--color-accent); font-weight: 500; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Excel Template
+                </a>
+            </div>
+            <div class="input-group">
+                <label for="import-file">Select Excel File <span class="required">*</span></label>
+                <input type="file" id="import-file" accept=".xlsx" required style="padding: 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); color: var(--text-primary); width: 100%;">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeImportModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Upload & Import</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EXPORT EXPENSE MODAL -->
+<div id="export-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2>Export Expenses</h2>
+            <button class="btn-close" onclick="closeExportModal()">&times;</button>
+        </div>
+        <form id="export-expense-form" class="modal-form">
+            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.4;">
+                Select the Month and Year you want to export. Leave them blank to export all records.
+            </p>
+            <div class="input-group">
+                <label for="export-month">Month</label>
+                <select id="export-month">
+                    <option value="">All Months</option>
+                    <option value="01">January</option>
+                    <option value="02">February</option>
+                    <option value="03">March</option>
+                    <option value="04">April</option>
+                    <option value="05">May</option>
+                    <option value="06">June</option>
+                    <option value="07">July</option>
+                    <option value="08">August</option>
+                    <option value="09">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="export-year">Year</label>
+                <select id="export-year">
+                    <option value="">All Years</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeExportModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Download Excel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- CHART DETAILS POPUP MODAL -->
+<div id="chart-details-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 800px; width: 90%;">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 12px; margin-bottom: 15px;">
+            <h2 id="chart-details-title" style="margin: 0; font-size: 1.25rem;">Expense Details</h2>
+            <button class="btn-close" onclick="closeModal('chart-details-modal')">&times;</button>
+        </div>
+        <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+            <table class="expense-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border-glass);">
+                        <th style="text-align: left; padding: 10px;">Date</th>
+                        <th style="text-align: left; padding: 10px;">Category</th>
+                        <th style="text-align: left; padding: 10px;">Description</th>
+                        <th style="text-align: center; padding: 10px;">Method</th>
+                        <th style="text-align: right; padding: 10px;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="chart-details-body">
+                    <!-- Dynamic details entries -->
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-glass); padding-top: 15px; margin-top: 15px;">
+            <div style="font-weight: 600; font-size: 1.05rem; color: var(--text-primary);">
+                Total: <span id="chart-details-total" style="color: var(--color-primary);">₹0.00</span>
+            </div>
+            <button type="button" class="btn-secondary" onclick="closeModal('chart-details-modal')">Close</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,202 @@
+<!-- DASHBOARD SECTION -->
+<section id="section-dashboard" class="content-section">
+    <header class="section-header">
+        <h1>Dashboard</h1>
+        <p>Track your daily spendings and keep your finances healthy.</p>
+    </header>
+
+    <!-- Key Metrics Cards -->
+    <div class="metrics-grid">
+        <div class="metric-card card-month">
+            <div class="metric-info">
+                <h3>This Month</h3>
+                <span class="metric-value" id="month-total">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-calendar-days"></i>
+            </div>
+        </div>
+        <div class="metric-card card-all">
+            <div class="metric-info">
+                <h3>Total Spent</h3>
+                <span class="metric-value" id="all-total">₹0.00</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-coins"></i>
+            </div>
+        </div>
+        <div class="metric-card card-count">
+            <div class="metric-info">
+                <h3>Transactions</h3>
+                <span class="metric-value" id="transaction-count">0</span>
+            </div>
+            <div class="metric-icon">
+                <i class="fa-solid fa-receipt"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Expense List Card -->
+    <div class="content-card expense-list-card">
+        <div class="card-header">
+            <h2>Recent Expenses</h2>
+            <div class="card-actions">
+                <button class="btn-danger btn-sm hidden" id="btn-bulk-delete-expenses" onclick="bulkDeleteExpenses()">
+                    <i class="fa-solid fa-trash-can"></i> <span>Delete Selected</span>
+                </button>
+                <button class="btn-secondary" onclick="toggleFilters()">
+                    <i class="fa-solid fa-filter"></i> <span>Filter</span>
+                </button>
+                <button class="btn-secondary" onclick="openImportModal()">
+                    <i class="fa-solid fa-file-import"></i> <span>Import</span>
+                </button>
+                <button class="btn-secondary" onclick="openExportModal()">
+                    <i class="fa-solid fa-file-export"></i> <span>Export</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters Panel (collapsible) -->
+        <div id="filters-panel" class="filters-panel hidden">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="filter-category">Category</label>
+                    <select id="filter-category">
+                        <option value="">All Categories</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-bank-mode">Bank</label>
+                    <select id="filter-bank-mode">
+                        <option value="">All Banks</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-payment-type">Payment Gateway</label>
+                    <select id="filter-payment-type">
+                        <option value="">All Gateways</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-payment-method">Payment Method</label>
+                    <select id="filter-payment-method">
+                        <option value="">All Methods</option>
+                        <option value="Debit">Debit</option>
+                        <option value="Credit">Credit</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-status">Payment Status</label>
+                    <select id="filter-status">
+                        <option value="">All Statuses</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Unpaid">Unpaid</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-payment-category">Payment Source</label>
+                    <select id="filter-payment-category">
+                        <option value="">All Sources</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-month">Month</label>
+                    <select id="filter-month">
+                        <option value="">All Months</option>
+                        <option value="01">January</option>
+                        <option value="02">February</option>
+                        <option value="03">March</option>
+                        <option value="04">April</option>
+                        <option value="05">May</option>
+                        <option value="06">June</option>
+                        <option value="07">July</option>
+                        <option value="08">August</option>
+                        <option value="09">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-year">Year</label>
+                    <select id="filter-year">
+                        <option value="">All Years</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-start-date">From</label>
+                    <input type="date" id="filter-start-date">
+                </div>
+                <div class="filter-group">
+                    <label for="filter-end-date">To</label>
+                    <input type="date" id="filter-end-date">
+                </div>
+                <div class="filter-group search-group">
+                    <label for="filter-search">Search</label>
+                    <div class="search-input-wrapper">
+                        <input type="text" id="filter-search" placeholder="Search desc...">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="filters-footer">
+                <button class="btn-text" onclick="resetFilters()">Reset Filters</button>
+                <button class="btn-primary btn-sm" onclick="fetchExpenses()">Apply Filters</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Credit/Debit Totals & Year Totals summary bar -->
+        <div class="dashboard-summary-bar">
+            <div class="summary-item">
+                <span class="summary-label">Filtered Debits:</span>
+                <span class="summary-value debit-text" id="dashboard-filtered-debit">₹0.00</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Filtered Credits:</span>
+                <span class="summary-value credit-text" id="dashboard-filtered-credit">₹0.00</span>
+            </div>
+            <div class="summary-item year-total-item hidden" id="dashboard-year-total-wrapper">
+                <span class="summary-label" id="dashboard-year-total-label">2026 Totals:</span>
+                <span class="summary-value" id="dashboard-year-debit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Debits: ₹0.00</span>
+                <span class="summary-value" id="dashboard-year-credit" style="color: var(--text-primary); font-size: 0.9rem; font-weight: 500;">Credits: ₹0.00</span>
+            </div>
+        </div>
+
+        <!-- Expense Table Container -->
+        <div class="table-container">
+            <table class="expense-table" id="expense-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="expense-select-all" style="cursor: pointer; width: 16px; height: 16px;"></th>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Gateway</th>
+                        <th>Source</th>
+                        <th class="text-center">Method</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">Interest</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="expense-list-body">
+                    <!-- Dynamic entries go here -->
+                </tbody>
+            </table>
+            <div id="no-expenses-msg" class="empty-state hidden">
+                <i class="fa-solid fa-folder-open"></i>
+                <p>No expenses found. Add some to get started!</p>
+            </div>
+        </div>
+    </div>
+</section>

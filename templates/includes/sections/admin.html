@@ -1,0 +1,642 @@
+<!-- ADMINISTRATION SECTION -->
+<section id="section-admin" class="content-section hidden">
+    <header class="section-header">
+        <h1>Administration Panel</h1>
+        <p>Manage system users, roles, permissions, and category configurations.</p>
+    </header>
+
+    <!-- Admin sub-tabs -->
+    <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="admin-users">
+            <i class="fa-solid fa-users"></i> Users
+        </button>
+        <button class="admin-tab" data-tab="admin-emis">
+            <i class="fa-solid fa-receipt"></i> EMIs
+        </button>
+        <button class="admin-tab" data-tab="admin-roles">
+            <i class="fa-solid fa-shield-halved"></i> Roles & Privileges
+        </button>
+        <button class="admin-tab" data-tab="admin-expense-control">
+            <i class="fa-solid fa-sliders"></i> Expense Control List
+        </button>
+        <button class="admin-tab" data-tab="admin-expense-columns">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Expense Columns
+        </button>
+        <button class="admin-tab" data-tab="admin-excel-columns">
+            <i class="fa-solid fa-table-list"></i> Excel Columns
+        </button>
+        <button class="admin-tab" data-tab="admin-currencies">
+            <i class="fa-solid fa-coins"></i> Currencies
+        </button>
+    </div>
+
+    <!-- Tab 1: Users Management -->
+    <div id="tab-admin-users" class="admin-sub-section">
+        <!-- Security Settings Toggle Card -->
+        <div class="content-card" style="margin-bottom: 20px; padding: 15px 20px;">
+            <div class="card-header" style="border-bottom: none; padding-bottom: 0; margin-bottom: 0;">
+                <h2><i class="fa-solid fa-shield-halved" style="color: var(--color-warning); margin-right: 8px;"></i> Security Settings (OTP Verification)</h2>
+            </div>
+            <div style="display: flex; gap: 40px; margin-top: 15px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.95rem; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" id="setting-register-otp" style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+                    Enable OTP Verification on User Signup (Registration)
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.95rem; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" id="setting-login-otp" style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+                    Enable MFA OTP Verification on Login
+                </label>
+            </div>
+        </div>
+
+        <div class="admin-grid">
+            <!-- Users List Table -->
+            <div class="content-card">
+                <div class="card-header">
+                   <h2>System Users</h2>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Current Role</th>
+                                <th>Change Role</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-users-list">
+                            <!-- Dynamic entries -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Create User Form -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Create New User</h2>
+                </div>
+                <form id="admin-create-user-form" class="modal-form">
+                    <div class="input-group">
+                        <label for="admin-new-username">Username <span class="required">*</span></label>
+                        <input type="text" id="admin-new-username" required placeholder="Enter username">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-password">Password <span class="required">*</span></label>
+                        <input type="password" id="admin-new-password" required placeholder="Enter password (min 6 chars)">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-role">Role <span class="required">*</span></label>
+                        <select id="admin-new-role" required>
+                            <option value="" disabled selected>Select Role</option>
+                            <!-- Dynamic Roles -->
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary admin-full-width">Create User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: EMIs Management -->
+    <div id="tab-admin-emis" class="admin-sub-section hidden">
+        <div class="admin-grid" style="grid-template-columns: 2fr 1fr; gap: 20px;">
+            <!-- EMI Columns Configuration List -->
+            <div class="content-card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
+                    <h2>EMI Columns List</h2>
+                    <div style="margin-bottom: 0; display: flex; gap: 8px;">
+                        <select id="admin-emi-columns-filter" class="table-input" style="max-width: 150px; padding: 6px 12px; margin: 0; background-color: #ffffff; color: #000000">
+                            <option value="import" selected>Import</option> 
+                            <option value="export">Export</option>
+                        </select>
+                    </div>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; padding: 15px 20px; line-height: 1.5;">
+                    Manage import/export status and display order for EMI fields. Required fields cannot be disabled. Lower order values display first.
+                </p>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Column Label</th>
+                                <th>Database Field</th>
+                                <th class="text-center">Required</th>
+                                <th class="text-center">Order</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-emi-columns-list">
+                            <!-- Dynamic rows generated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div style="padding: 15px 20px; display: flex; justify-content: flex-end; border-top: 1px solid var(--border-color);">
+                    <button type="button" class="btn-primary" id="btn-save-emi-columns">Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Add Custom Column Form for EMIs -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Add Custom Column for EMIs</h2>
+                </div>
+                <form id="admin-create-emi-column-form" class="modal-form" style="padding: 20px;">
+                    <div class="input-group">
+                        <label for="admin-new-emi-col-key">Database Field Key <span class="required">*</span></label>
+                        <input type="text" id="admin-new-emi-col-key" required placeholder="e.g. loan_provider (lowercase, underscores)">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-emi-col-label">Column Label / Header <span class="required">*</span></label>
+                        <input type="text" id="admin-new-emi-col-label" required placeholder="e.g. Loan Provider">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-emi-col-order">Display Order</label>
+                        <input type="number" id="admin-new-emi-col-order" min="0" placeholder="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-emi-col-parent">Parent Column (Optional)</label>
+                        <select id="admin-new-emi-col-parent" class="form-control" style="background-color: #ffffff; color: #000000; padding: 8px;">
+                            <option value="">None (Always Show)</option>
+                            <!-- Dynamic options populated by JS -->
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-emi-col-trigger">Parent Trigger Value</label>
+                        <input type="text" id="admin-new-emi-col-trigger" placeholder="e.g. Credit or Yes">
+                    </div>
+                    <div style="display: flex; gap: 20px; margin-bottom: 15px; margin-top: 15px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
+                            <input type="checkbox" id="admin-new-emi-col-import" checked style="width:16px; height:16px; margin:0;"> Enable Import
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
+                            <input type="checkbox" id="admin-new-emi-col-export" checked style="width:16px; height:16px; margin:0;"> Enable Export
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-primary admin-full-width">Create Column</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Expense Columns Management (New Menu) -->
+    <div id="tab-admin-expense-columns" class="admin-sub-section hidden">
+        <div class="admin-grid" style="grid-template-columns: 2fr 1fr; gap: 20px;">
+            <!-- Expense Columns Configuration List -->
+            <div class="content-card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
+                    <h2>Expense Columns List</h2>
+                    <div style="margin-bottom: 0; display: flex; gap: 8px;">
+                        <select id="admin-expense-columns-filter" class="table-input" style="max-width: 150px; padding: 6px 12px; margin: 0; background-color: #ffffff; color: #000000">
+                            <option value="import" selected>Import</option> 
+                            <option value="export">Export</option>
+                        </select>
+                    </div>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; padding: 15px 20px; line-height: 1.5;">
+                    Manage import/export status and display order for Expense fields. Required fields cannot be disabled. Lower order values display first.
+                </p>
+                <div class="table-container">
+                    <table class="expense-table">
+                        <thead>
+                            <tr>
+                                <th>Column Label</th>
+                                <th>Database Field</th>
+                                <th class="text-center">Required</th>
+                                <th class="text-center">Order</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-expense-columns-list">
+                            <!-- Dynamic rows generated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div style="padding: 15px 20px; display: flex; justify-content: flex-end; border-top: 1px solid var(--border-color);">
+                    <button type="button" class="btn-primary" id="btn-save-expense-columns-tab">Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Add Custom Column Form for Expenses -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Add Custom Column for Expenses</h2>
+                </div>
+                <form id="admin-create-expense-column-tab-form" class="modal-form" style="padding: 20px;">
+                    <div class="input-group">
+                        <label for="admin-new-expense-col-key">Database Field Key <span class="required">*</span></label>
+                        <input type="text" id="admin-new-expense-col-key" required placeholder="e.g. merchant_name (lowercase, underscores)">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-expense-col-label">Column Label / Header <span class="required">*</span></label>
+                        <input type="text" id="admin-new-expense-col-label" required placeholder="e.g. Merchant Name">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-expense-col-order">Display Order</label>
+                        <input type="number" id="admin-new-expense-col-order" min="0" placeholder="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-expense-col-parent">Parent Column (Optional)</label>
+                        <select id="admin-new-expense-col-parent" class="form-control" style="background-color: #ffffff; color: #000000; padding: 8px;">
+                            <option value="">None (Always Show)</option>
+                            <!-- Dynamic options populated by JS -->
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-expense-col-trigger">Parent Trigger Value</label>
+                        <input type="text" id="admin-new-expense-col-trigger" placeholder="e.g. Credit or Yes">
+                    </div>
+                    <div style="display: flex; gap: 20px; margin-bottom: 15px; margin-top: 15px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
+                            <input type="checkbox" id="admin-new-expense-col-import" checked style="width:16px; height:16px; margin:0;"> Enable Import
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
+                            <input type="checkbox" id="admin-new-expense-col-export" checked style="width:16px; height:16px; margin:0;"> Enable Export
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-primary admin-full-width">Create Column</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 2: Roles & Privileges -->
+    <div id="tab-admin-roles" class="admin-sub-section hidden">
+        <div class="admin-grid">
+            <!-- Roles Privileges Matrix -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Role Permissions Matrix</h2>
+                </div>
+                <div class="table-container">
+                    <table class="privilege-matrix">
+                        <thead>
+                            <tr>
+                                <th>Role</th>
+                                <th>View</th>
+                                <th>Add</th>
+                                <th>Edit</th>
+                                <th>Delete</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-privileges-matrix-body">
+                            <!-- Dynamic Roles Matrix -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Create Role Form -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Create New Role</h2>
+                </div>
+                <form id="admin-create-role-form" class="modal-form">
+                    <div class="input-group">
+                        <label for="admin-new-role-name">Role Name <span class="required">*</span></label>
+                        <input type="text" id="admin-new-role-name" required placeholder="e.g. Manager">
+                    </div>
+                    <button type="submit" class="btn-primary admin-full-width">Create Role</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 3: Expense Control List (Unified categories, bank modes, payment gateways, payment sources) -->
+    <div id="tab-admin-expense-control" class="admin-sub-section hidden">
+        <div class="control-switcher-bar" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+            <label for="expense-control-select" style="font-weight: 600; font-size: 1.1rem; color: var(--text-muted);">Manage List Type:</label>
+            <select id="expense-control-select" class="form-control" style="max-width: 300px; padding: 0.5rem; border-radius: 6px; font-weight: 500; background-color: #ffffff; color: #000000;">
+                <option value="categories" selected>Categories</option>
+                <option value="bank-modes">Bank Modes</option>
+                <option value="payment-types">Payment Gateways</option>
+                <option value="payment-categories">Payment Sources</option>
+            </select>
+        </div>
+
+        <!-- Inner sections toggled dynamically -->
+        
+        <!-- Sub-tab Categories -->
+        <div id="sub-expense-control-categories" class="control-sub-section">
+            <div class="admin-grid">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Expense Categories</h2>
+                        <button class="btn-primary btn-sm" id="btn-save-categories-order">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Category Name</th>
+                                    <th class="text-center">Display Order</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-categories-list">
+                                <!-- Dynamic categories entries with inputs -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Create Category</h2>
+                    </div>
+                    <form id="admin-create-category-form" class="modal-form">
+                        <div class="input-group">
+                            <label for="admin-new-cat-name">Category Name <span class="required">*</span></label>
+                            <input type="text" id="admin-new-cat-name" required placeholder="e.g. Investments">
+                        </div>
+                        <div class="input-group">
+                            <label for="admin-new-cat-order">Display Order</label>
+                            <input type="number" id="admin-new-cat-order" placeholder="0">
+                        </div>
+                        <button type="submit" class="btn-primary admin-full-width">Create Category</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub-tab Bank Modes -->
+        <div id="sub-expense-control-bank-modes" class="control-sub-section hidden">
+            <div class="admin-grid">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Bank Modes</h2>
+                        <button class="btn-primary btn-sm" id="btn-save-bank-modes">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Bank Name</th>
+                                    <th class="text-center">Display Order</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-bank-modes-list">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Create Bank Mode</h2>
+                    </div>
+                    <form id="admin-create-bank-mode-form" class="modal-form">
+                        <div class="input-group">
+                            <label for="admin-new-bm-name">Bank Name <span class="required">*</span></label>
+                            <input type="text" id="admin-new-bm-name" required placeholder="e.g. HDFC">
+                        </div>
+                        <div class="input-group">
+                            <label for="admin-new-bm-order">Display Order</label>
+                            <input type="number" id="admin-new-bm-order" placeholder="0">
+                        </div>
+                        <button type="submit" class="btn-primary admin-full-width">Create Bank Mode</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub-tab Payment Gateways -->
+        <div id="sub-expense-control-payment-types" class="control-sub-section hidden">
+            <div class="admin-grid">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Payment Gateways</h2>
+                        <button class="btn-primary btn-sm" id="btn-save-payment-types">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Payment Gateway</th>
+                                    <th class="text-center">Display Order</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-payment-types-list">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Create Payment Gateway</h2>
+                    </div>
+                    <form id="admin-create-payment-type-form" class="modal-form">
+                        <div class="input-group">
+                            <label for="admin-new-pt-name">Payment Gateway <span class="required">*</span></label>
+                            <input type="text" id="admin-new-pt-name" required placeholder="e.g. UPI">
+                        </div>
+                        <div class="input-group">
+                            <label for="admin-new-pt-order">Display Order</label>
+                            <input type="number" id="admin-new-pt-order" placeholder="0">
+                        </div>
+                        <button type="submit" class="btn-primary admin-full-width">Create Payment Gateway</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub-tab Payment Sources -->
+        <div id="sub-expense-control-payment-categories" class="control-sub-section hidden">
+            <div class="admin-grid">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Payment Sources</h2>
+                        <button class="btn-primary btn-sm" id="btn-save-payment-categories">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Payment Source</th>
+                                    <th class="text-center">Display Order</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-payment-categories-list">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Create Payment Source</h2>
+                    </div>
+                    <form id="admin-create-payment-category-form" class="modal-form">
+                        <div class="input-group">
+                            <label for="admin-new-pc-name">Payment Source <span class="required">*</span></label>
+                            <input type="text" id="admin-new-pc-name" required placeholder="e.g. Salary">
+                        </div>
+                        <div class="input-group">
+                            <label for="admin-new-pc-order">Display Order</label>
+                            <input type="number" id="admin-new-pc-order" placeholder="0">
+                        </div>
+                        <button type="submit" class="btn-primary admin-full-width">Create Payment Source</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 7: Excel Columns Configuration -->
+    <div id="tab-admin-excel-columns" class="admin-sub-section hidden">
+        <div class="admin-grid">
+            <div class="content-card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
+                    <h2>Excel Import & Export Columns</h2>
+                    <div style="margin-bottom: 0; display: flex; gap: 8px;">
+                        <select id="admin-excel-columns-target" class="table-input" style="max-width: 150px; padding: 6px 12px; margin: 0; background-color: #ffffff; color: #000000">
+                            <option value="expense" selected>Expenses</option>
+                            <option value="emi">EMIs</option>
+                        </select>
+                        <select id="admin-excel-columns-filter" class="table-input" style="max-width: 150px; padding: 6px 12px; margin: 0; background-color: #ffffff; color: #000000">
+                            <option value="import" selected>Import</option> 
+                            <option value="export">Export</option>
+                        </select>
+                    </div>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; padding: 15px 20px; line-height: 1.5;">
+                    Enable or disable optional columns for the Excel templates, exports, and imports. Required columns must always remain active to ensure entries can be properly parsed and saved.
+                </p>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Column Label</th>
+                                <th>Database Field</th>
+                                <th class="text-center">Required</th>
+                                <th class="text-center">Order</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-excel-columns-list">
+                            <!-- Dynamic rows generated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div style="padding: 15px 20px; display: flex; justify-content: flex-end; border-top: 1px solid var(--border-color);">
+                    <button type="button" class="btn-primary" id="btn-save-excel-columns">Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Add Custom Column Form -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>Add Custom Column</h2>
+                </div>
+                <form id="admin-create-column-form" class="modal-form" style="padding: 20px;">
+                    <div class="input-group">
+                        <label for="admin-new-col-key">Database Field Key <span class="required">*</span></label>
+                        <input type="text" id="admin-new-col-key" required placeholder="e.g. merchant_name (lowercase, underscores)">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-col-label">Column Label / Header <span class="required">*</span></label>
+                        <input type="text" id="admin-new-col-label" required placeholder="e.g. Merchant Name">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-col-order">Display Order</label>
+                        <input type="number" id="admin-new-col-order" min="0" placeholder="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-col-parent">Parent Column (Optional)</label>
+                        <select id="admin-new-col-parent" class="form-control" style="background-color: #ffffff; color: #000000; padding: 8px;">
+                            <option value="">None (Always Show)</option>
+                            <!-- Dynamic options populated by JS -->
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-col-trigger">Parent Trigger Value</label>
+                        <input type="text" id="admin-new-col-trigger" placeholder="e.g. Credit or Yes">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-new-col-target-type">Target Table <span class="required">*</span></label>
+                        <select id="admin-new-col-target-type" class="form-control" style="background-color: #ffffff; color: #000000; padding: 8px;">
+                            <option value="expense">Expenses</option>
+                            <option value="emi">EMIs</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 20px; margin-bottom: 15px; margin-top: 15px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
+                            <input type="checkbox" id="admin-new-col-import" checked style="width:16px; height:16px; margin:0;"> Enable Import
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
+                            <input type="checkbox" id="admin-new-col-export" checked style="width:16px; height:16px; margin:0;"> Enable Export
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-primary admin-full-width">Create Column</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 8: Currencies Configuration -->
+    <div id="tab-admin-currencies" class="admin-sub-section hidden">
+        <div class="admin-grid">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>All Currencies</h2>
+                </div>
+                <div class="table-container">
+                    <table class="expense-table">
+                        <thead>
+                            <tr>
+                                <th>Country</th>
+                                <th>Description</th>
+                                <th class="text-center">Symbol</th>
+                                <th class="text-center">Active</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-currencies-list">
+                            <!-- Dynamic currency rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="content-card">
+                <div class="card-header">
+                    <h2 id="admin-currency-form-title">Add Currency</h2>
+                </div>
+                <form id="admin-currency-form" class="modal-form">
+                    <input type="hidden" id="admin-currency-id">
+                    <div class="input-group">
+                        <label for="admin-currency-country">Country <span class="required">*</span></label>
+                        <input type="text" id="admin-currency-country" required placeholder="e.g. India">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-currency-desc">Country Description <span class="required">*</span></label>
+                        <input type="text" id="admin-currency-desc" required placeholder="e.g. Indian Rupee">
+                    </div>
+                    <div class="input-group">
+                        <label for="admin-currency-symbol">Currency Symbol <span class="required">*</span></label>
+                        <input type="text" id="admin-currency-symbol" required placeholder="e.g. ₹">
+                    </div>
+                    <div class="form-actions-inline" style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button type="submit" id="admin-currency-submit-btn" class="btn-primary" style="flex: 1;">Add Currency</button>
+                        <button type="button" id="admin-currency-cancel-btn" class="btn-secondary hidden" onclick="resetCurrencyForm()" style="flex: 1;">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,96 @@
+<!-- CHANGE USER PASSWORD MODAL -->
+<div id="change-user-password-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2>Change User Password</h2>
+            <button class="btn-close" onclick="closeChangePasswordModal()">&times;</button>
+        </div>
+        <form id="change-user-password-form" class="modal-form">
+            <input type="hidden" id="change-user-id">
+            <div style="margin-bottom: 20px;">
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">Change password for user: </span>
+                <strong id="change-user-username" style="color: var(--text-primary); font-size: 0.95rem;"></strong>
+            </div>
+            <div class="input-group">
+                <label for="change-user-new-password">New Password <span class="required">*</span></label>
+                <input type="password" id="change-user-new-password" required placeholder="Enter new password (min 6 chars)">
+            </div>
+            <div class="input-group">
+                <label for="change-user-confirm-password">Confirm Password <span class="required">*</span></label>
+                <input type="password" id="change-user-confirm-password" required placeholder="Confirm new password">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Update Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- OVERVIEW DETAILS MODAL -->
+<div id="overview-details-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 800px; width: 90%;">
+        <div class="modal-header">
+            <h2 id="overview-details-title">Calculation Details</h2>
+            <button class="btn-close" onclick="closeOverviewDetailsModal()">&times;</button>
+        </div>
+        <div style="padding: 15px 25px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <span style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Formula / Filter</span>
+                <div style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary); margin-top: 2px;" id="overview-details-formula">Sum of contributing items</div>
+            </div>
+            <div class="text-right">
+                <span style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Calculated Sum</span>
+                <div style="font-weight: 600; font-size: 1.2rem; color: var(--color-success); margin-top: 2px;" id="overview-details-total">Total: ₹0.00</div>
+            </div>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table class="expense-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Method</th>
+                            <th>Bank / Gateway</th>
+                            <th class="text-right">Amount</th>
+                            <th class="text-right">Interest</th>
+                        </tr>
+                    </thead>
+                    <tbody id="overview-details-tbody">
+                        <!-- Dynamic items -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 15px 20px; display: flex; justify-content: flex-end;">
+            <button class="btn-secondary" onclick="closeOverviewDetailsModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- INLINE CONTROL ITEM CREATION MODAL -->
+<div id="inline-control-modal" class="modal-overlay hidden" style="z-index: 1100;">
+    <div class="modal-card" style="max-width: 400px;">
+        <div class="modal-header">
+            <h2 id="inline-control-modal-title">Add New Item</h2>
+            <button type="button" class="btn-close" onclick="closeInlineControlModal()">&times;</button>
+        </div>
+        <form id="inline-control-form" class="modal-form">
+            <input type="hidden" id="inline-control-type">
+            <div class="input-group">
+                <label for="inline-control-name">Name <span class="required">*</span></label>
+                <input type="text" id="inline-control-name" required placeholder="e.g. Shopping">
+            </div>
+            <div class="input-group">
+                <label for="inline-control-order">Display Order</label>
+                <input type="number" id="inline-control-order" placeholder="0">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeInlineControlModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>

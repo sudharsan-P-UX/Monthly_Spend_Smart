@@ -1,0 +1,410 @@
+color: var(--color-secondary);
+background: rgba(244, 63, 94, 0.15);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    font-size: 0.9rem;
+}
+
+/* Overview Chart Layout */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 30px;
+}
+
+.chart-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+}
+
+.chart-container {
+    position: relative;
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 280px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Modal Overlay Styling */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(5, 7, 13, 0.85);
+    z-index: 200;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: 65px 20px;
+    opacity: 1;
+}
+
+.modal-card {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-premium);
+    width: 100%;
+    max-width: 480px;
+    padding: 30px;
+    opacity: 1;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.8rem;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    line-height: 1;
+}
+
+.btn-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.required {
+    color: var(--color-secondary);
+}
+
+/* Animations */
+@keyframes pulseGlow {
+    0%, 100% {
+        transform: scale(1);
+        text-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+    }
+    50% {
+        transform: scale(1.05);
+        text-shadow: 0 0 25px rgba(6, 182, 212, 0.7);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Utilities */
+.hidden {
+    display: none !important;
+}
+
+/* Standalone Add Expense Form Page */
+.form-card {
+    max-width: 650px;
+    margin: 20px auto;
+}
+
+.standalone-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.standalone-form .input-group-full {
+    grid-column: span 2;
+}
+
+.standalone-form .form-actions {
+    grid-column: span 2;
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+/* Administration Panel Styles */
+.admin-tabs {
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid var(--border-glass);
+    padding-bottom: 1px;
+    margin-bottom: 25px;
+}
+
+.admin-tab {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    border-bottom: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-tab:hover {
+    color: var(--text-primary);
+}
+
+.admin-tab.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 30px;
+    align-items: start;
+}
+
+.admin-full-width {
+    display: block;
+    width: 100%;
+}
+
+.privilege-matrix {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.privilege-matrix th, .privilege-matrix td {
+    padding: 14px 12px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.privilege-matrix th:first-child, .privilege-matrix td:first-child {
+    text-align: left;
+    font-weight: 500;
+}
+
+/* Custom Checkbox inside Privilege Matrix */
+.checkbox-container {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    font-size: 18px;
+    user-select: none;
+}
+
+.checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    height: 18px;
+    width: 18px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    border-radius: 4px;
+    transition: var(--transition-smooth);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--text-secondary);
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+}
+
+.checkmark:after {
+    content: "";
+    display: none;
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-container .checkmark:after {
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    margin-bottom: 1px;
+}
+
+.checkbox-container input:disabled ~ .checkmark {
+    background-color: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.03);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* Table inputs for Categories */
+.table-input {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    font-family: var(--font-family);
+    font-size: 0.85rem;
+    width: 100%;
+    transition: var(--transition-smooth);
+}
+
+.table-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+}
+
+.table-input-order {
+    max-width: 70px;
+    text-align: center;
+}
+
+/* Badges for roles */
+.role-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+
+.badge-admin {
+    background: rgba(168, 85, 247, 0.12);
+    border-color: rgba(168, 85, 247, 0.25);
+    color: #e9d5ff;
+}
+
+.badge-user {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.25);
+    color: #c7d2fe;
+}
+
+.badge-viewer {
+    background: rgba(100, 116, 139, 0.12);
+    border-color: rgba(100, 116, 139, 0.25);
+    color: #cbd5e1;
+}
+
+/* Responsive Scaling */
+@media (max-width: 900px) {
+    .dashboard-body {
+        padding: 0;
+        height: auto;
+        min-height: 100vh;
+    }
+    .app-layout {
+        flex-direction: column;
+        height: auto;
+        border-radius: 0;
+        border: none;
+    }
+    .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-glass);
+        padding: 20px;
+    }
+    .sidebar-header {
+        margin-bottom: 20px;
+    }
+    .sidebar-nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        flex-grow: 0;
+        gap: 10px;
+    }
+    .nav-item {
+        flex-grow: 1;
+        justify-content: center;
+    }
+    .add-expense-btn {
+        margin-top: 0;
+        width: auto;

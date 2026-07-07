@@ -1,0 +1,61 @@
+<!-- User Profile Modal -->
+<div id="user-profile-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2>User Profile</h2>
+            <button type="button" class="close-btn" onclick="closeModal('user-profile-modal')">&times;</button>
+        </div>
+        <form id="user-profile-form" class="modal-form" style="padding: 20px;">
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="input-group">
+                    <label for="profile-first-name">First Name</label>
+                    <input type="text" id="profile-first-name" placeholder="First Name">
+                </div>
+                <div class="input-group">
+                    <label for="profile-last-name">Last Name</label>
+                    <input type="text" id="profile-last-name" placeholder="Last Name">
+                </div>
+            </div>
+            <div class="input-group" style="margin-top: 15px;">
+                <label for="profile-username">Username</label>
+                <input type="text" id="profile-username" readonly disabled style="opacity: 0.7; cursor: not-allowed; background: rgba(255,255,255,0.05);">
+            </div>
+            <div class="input-group" style="margin-top: 15px;">
+                <label for="profile-email">Email Address</label>
+                <input type="email" id="profile-email" placeholder="Email Address">
+            </div>
+            <div class="input-group" style="margin-top: 15px;">
+                <label for="profile-phone">Phone Number</label>
+                <input type="text" id="profile-phone" placeholder="Phone Number">
+            </div>
+            <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-secondary" onclick="closeModal('user-profile-modal')">Cancel</button>
+                <button type="submit" class="btn-primary">Save Profile</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Logged-in User Change Password Modal -->
+<div id="user-change-password-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 400px;">
+        <div class="modal-header">
+            <h2>Change Password</h2>
+            <button type="button" class="close-btn" onclick="closeModal('user-change-password-modal')">&times;</button>
+        </div>
+        <form id="user-change-password-form" class="modal-form" style="padding: 20px;">
+            <div class="input-group">
+                <label for="profile-new-password">New Password</label>
+                <input type="password" id="profile-new-password" placeholder="New Password (Min 6 chars)" required minlength="6">
+            </div>
+            <div class="input-group" style="margin-top: 15px;">
+                <label for="profile-confirm-password">Confirm New Password</label>
+                <input type="password" id="profile-confirm-password" placeholder="Confirm Password" required minlength="6">
+            </div>
+            <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-secondary" onclick="closeModal('user-change-password-modal')">Cancel</button>
+                <button type="submit" class="btn-primary">Save Password</button>
+            </div>
+        </form>
+    </div>
+</div>

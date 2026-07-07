@@ -1,0 +1,49 @@
+<!-- Sidebar Navigation -->
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <i class="fa-solid fa-wallet logo-icon"></i>
+        <h2>SpendSmart</h2>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-target="dashboard" id="nav-dashboard">
+            <i class="fa-solid fa-house"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-target="add-expense" id="nav-add-expense">
+            <i class="fa-solid fa-plus"></i>
+            <span>Add Expense</span>
+        </a>
+        <a href="#" class="nav-item" data-target="emi" id="nav-emi">
+            <i class="fa-solid fa-receipt"></i>
+            <span>EMI</span>
+        </a>
+        <a href="#" class="nav-item" data-target="overview" id="nav-overview">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Overview</span>
+        </a>
+        <a href="#" class="nav-item hidden" data-target="admin" id="nav-admin">
+            <i class="fa-solid fa-user-gear"></i>
+            <span>Admin</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer" style="position: relative;">
+        <div class="user-info" id="user-profile-menu-trigger" style="cursor: pointer; position: relative;">
+            <i class="fa-regular fa-circle-user"></i>
+            <span>Hi, {{ username }}</span>
+            
+            <!-- Profile Dropdown Menu -->
+            <div id="profile-dropdown" class="profile-dropdown">
+                <div class="dropdown-item" id="dropdown-profile-btn">
+                    <i class="fa-solid fa-id-card"></i> <span>Profile</span>
+                </div>
+                <div class="dropdown-item" id="dropdown-password-btn">
+                    <i class="fa-solid fa-key"></i> <span>Change Password</span>
+                </div>
+            </div>
+        </div>
+        <a href="/logout" class="logout-link">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>Logout</span>
+        </a>
+    </div>
+</aside>
