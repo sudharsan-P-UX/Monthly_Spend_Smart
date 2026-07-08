@@ -99,7 +99,7 @@ def get_user_privileges(user_id):
     try:
         # Check role from UserRole
         row = cursor.execute(
-            'SELECT RoleId FROM UserRole WHERE LoginId = ? AND isactive = TRUE LIMIT 1',
+            'SELECT RoleId FROM UserRole WHERE LoginId = ? AND isactive = 1 LIMIT 1',
             (user_id,)
         ).fetchone()
         
@@ -111,7 +111,7 @@ def get_user_privileges(user_id):
         
         # Check privileges from RefRoleAccess
         priv_row = cursor.execute(
-            'SELECT Editaccess, DeleteAccess, Addaccess, updateaccess FROM RefRoleAccess WHERE RoleId = ? AND isactive = TRUE LIMIT 1',
+            'SELECT Editaccess, DeleteAccess, Addaccess, updateaccess FROM RefRoleAccess WHERE RoleId = ? AND isactive = 1 LIMIT 1',
             (role_id,)
         ).fetchone()
         

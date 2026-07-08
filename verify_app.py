@@ -16,7 +16,54 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         # Override database path for testing
         database.DB_PATH = 'test_expenses.db'
         
-        # Initialize test database
+        # Clean up database tables for a fresh test run
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM UserRole")
+            cursor.execute("DELETE FROM UserLoginDetails")
+            cursor.execute("DELETE FROM Refusers")
+            cursor.execute("DELETE FROM RefRoleAccess")
+            cursor.execute("DELETE FROM RefRole")
+            cursor.execute("DELETE FROM expenses")
+            cursor.execute("DELETE FROM emis")
+            cursor.execute("DELETE FROM otps")
+            cursor.execute("DELETE FROM categories")
+            cursor.execute("DELETE FROM bank_modes")
+            cursor.execute("DELETE FROM payment_types")
+            cursor.execute("DELETE FROM payment_categories")
+            cursor.execute("DELETE FROM settings")
+            cursor.execute("DELETE FROM excel_columns")
+            
+            # Reset sequences
+            is_pg = conn.__class__.__name__ == 'PostgresConnectionWrapper'
+            if is_pg:
+                seeded_tables = [
+                    ('reffieldtype', 'fieldtypeid'),
+                    ('refrole', 'roleid'),
+                    ('refimportexport', 'importexportid'),
+                    ('refcurreny', 'currencyid'),
+                    ('categories', 'id'),
+                    ('bank_modes', 'id'),
+                    ('payment_types', 'id'),
+                    ('payment_categories', 'id'),
+                    ('refusers', 'loginid'),
+                    ('expenses', 'id'),
+                    ('emis', 'id')
+                ]
+                for table, pk in seeded_tables:
+                    try:
+                        cursor.execute(f"SELECT setval(pg_get_serial_sequence('{table}', '{pk}'), 1, false)")
+                    except Exception:
+                        pass
+            conn.commit()
+        except Exception as e:
+            print(f"Error in test setUp cleanup: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+            
+        # Initialize test database (seeds everything fresh)
         database.init_db()
         
         # Flask testing client setup
@@ -36,17 +83,30 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         conn = database.get_db_connection()
         cursor = conn.cursor()
         
-        # Verify users table exists
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        is_pg = conn.__class__.__name__ == 'PostgresConnectionWrapper'
+        
+        # Verify Refusers table exists
+        if is_pg:
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name = 'refusers'")
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='refusers'")
         self.assertIsNotNone(cursor.fetchone())
         
         # Verify expenses table exists
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='expenses'")
+        if is_pg:
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name = 'expenses'")
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='expenses'")
         self.assertIsNotNone(cursor.fetchone())
         
         # Verify new columns exist in expenses
-        cursor.execute("PRAGMA table_info(expenses)")
-        cols = [row['name'] for row in cursor.fetchall()]
+        if is_pg:
+            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'expenses'")
+            cols = [row[0].lower() for row in cursor.fetchall()]
+        else:
+            cursor.execute("PRAGMA table_info(expenses)")
+            cols = [row['name'] for row in cursor.fetchall()]
+            
         self.assertIn('bank_mode', cols)
         self.assertIn('payment_type', cols)
         self.assertIn('payment_category', cols)
@@ -56,12 +116,11 @@ class ExpenseTrackerTestCase(unittest.TestCase):
 
     def test_user_creation_and_auth(self):
         """Test database user CRUD and checking pass hashes"""
-        h_pass = generate_password_hash('testpassword')
-        user_id = database.create_user('testuser', h_pass)
+        user_id = database.create_user('testuser', 'testpassword')
         self.assertIsNotNone(user_id)
         
         # Try duplicating user registration (should fail)
-        dup_id = database.create_user('testuser', h_pass)
+        dup_id = database.create_user('testuser', 'testpassword')
         self.assertIsNone(dup_id)
         
         # Retrieve user
@@ -72,8 +131,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
     def test_logged_in_user_profile_and_password_endpoints(self):
         """Test fetching/updating user profile details and password as a logged in user"""
         # Create test user
-        h_pass = generate_password_hash('pass123')
-        user_id = database.create_user('profileuser', h_pass)
+        user_id = database.create_user('profileuser', 'pass123')
         
         # Log in
         with self.app.session_transaction() as sess:
@@ -92,7 +150,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
             'first_name': 'John',
             'last_name': 'Doe',
             'email': 'john@example.com',
-            'phone': '1234567890'
+            'phone': '1234567891'
         })
         self.assertEqual(r_post.status_code, 200)
         res = json.loads(r_post.data.decode())
@@ -104,7 +162,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertEqual(data_new['first_name'], 'John')
         self.assertEqual(data_new['last_name'], 'Doe')
         self.assertEqual(data_new['email'], 'john@example.com')
-        self.assertEqual(data_new['phone'], '1234567890')
+        self.assertEqual(data_new['phone'], '1234567891')
         
         # Test POST update password
         r_pass = self.app.post('/api/user/change-password', json={
@@ -117,11 +175,10 @@ class ExpenseTrackerTestCase(unittest.TestCase):
 
     def test_expense_crud(self):
         """Test adding, listing, updating, deleting expenses in DB"""
-        h_pass = generate_password_hash('password123')
-        user_id = database.create_user('expuser', h_pass)
+        user_id = database.create_user('expuser', 'password123')
         
         # Add expense with new fields
-        exp_id = database.add_expense(user_id, 45.50, 'Food & Dining', 'Dinner with team', '2026-06-25', bank_mode='SBI', payment_type='GPay', payment_category='Salary', payment_method='Debit', status='Unpaid')
+        exp_id = database.add_expense(user_id, 45.50, 'Food & Dining', 'Dinner with team', '2036-06-25', bank_mode='SBI', payment_type='GPay', payment_category='Salary', payment_method='Debit', status='Unpaid')
         self.assertIsNotNone(exp_id)
         
         # Get expense
@@ -143,6 +200,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         expenses_unpaid = database.get_expenses(user_id, status='Unpaid')
         self.assertEqual(len(expenses_unpaid), 1)
         
+        # Filter paid expenses (should be 0, as status is Unpaid)
         expenses_paid = database.get_expenses(user_id, status='Paid')
         self.assertEqual(len(expenses_paid), 0)
         
@@ -162,7 +220,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertEqual(len(expenses_amount_search_fail), 0)
         
         # Update expense
-        success = database.update_expense(exp_id, user_id, 50.00, 'Food & Dining', 'Dinner with team (updated)', '2026-06-25', bank_mode='Kotak', payment_type='PhonePe', payment_category='Loan', interest=5.00, payment_method='Credit', status='Paid')
+        success = database.update_expense(exp_id, user_id, 50.00, 'Food & Dining', 'Dinner with team (updated)', '2036-06-25', bank_mode='Kotak', payment_type='PhonePe', payment_category='Loan', interest=5.00, payment_method='Credit', status='Paid')
         self.assertTrue(success)
         
         updated_exp = database.get_expense_by_id(exp_id, user_id)
@@ -236,24 +294,46 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         cursor = conn.cursor()
         
         # Verify roles
-        roles = cursor.execute("SELECT id, name FROM roles ORDER BY id").fetchall()
+        roles = cursor.execute("SELECT RoleId as id, RoleName as name FROM RefRole ORDER BY RoleId").fetchall()
         self.assertEqual(len(roles), 3)
         self.assertEqual(roles[0]['name'], 'Admin')
         self.assertEqual(roles[1]['name'], 'User')
         self.assertEqual(roles[2]['name'], 'Viewer')
         
         # Verify privileges for Viewer
-        viewer_privs = cursor.execute("SELECT * FROM role_privileges WHERE role_id = 3").fetchone()
-        self.assertIsNotNone(viewer_privs)
+        priv_row = cursor.execute("SELECT Editaccess, DeleteAccess, Addaccess FROM RefRoleAccess WHERE RoleId = 3").fetchone()
+        self.assertIsNotNone(priv_row)
+        
+        def parse_bit(val):
+            if val is None:
+                return 1
+            if isinstance(val, str):
+                return 1 if '1' in val else 0
+            if isinstance(val, bytes):
+                return 1 if b'\x01' in val or b'1' in val else 0
+            return 1 if bool(val) else 0
+            
+        viewer_privs = {
+            'can_view': 1,
+            'can_add': parse_bit(priv_row[2] if isinstance(priv_row, tuple) else priv_row.get('addaccess', 0)),
+            'can_edit': parse_bit(priv_row[0] if isinstance(priv_row, tuple) else priv_row.get('editaccess', 0)),
+            'can_delete': parse_bit(priv_row[1] if isinstance(priv_row, tuple) else priv_row.get('deleteaccess', 0))
+        }
+        
         self.assertEqual(viewer_privs['can_view'], 1)
         self.assertEqual(viewer_privs['can_add'], 0)
         self.assertEqual(viewer_privs['can_edit'], 0)
         self.assertEqual(viewer_privs['can_delete'], 0)
         
         # Verify admin user exists
-        admin = cursor.execute("SELECT * FROM users WHERE username = 'admin'").fetchone()
+        admin = cursor.execute("SELECT * FROM Refusers WHERE Username = 'admin'").fetchone()
         self.assertIsNotNone(admin)
-        self.assertEqual(admin['role_id'], 1)
+        
+        admin_id = admin['loginid'] if 'loginid' in admin else admin[0]
+        user_role = cursor.execute("SELECT RoleId FROM UserRole WHERE LoginId = ?", (admin_id,)).fetchone()
+        self.assertIsNotNone(user_role)
+        role_id = user_role['roleid'] if 'roleid' in user_role else user_role[0]
+        self.assertEqual(role_id, 1)
         
         # Verify default categories are seeded
         cats_count = cursor.execute("SELECT COUNT(*) FROM categories").fetchone()[0]
@@ -265,8 +345,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         """Test API endpoint restriction for users with Viewer role"""
         # Register a viewer user
         # Note: default created user role is User (2). We will manually update it to Viewer (3).
-        h_pass = generate_password_hash('password123')
-        user_id = database.create_user('vieweruser', h_pass, role_id=3)
+        user_id = database.create_user('vieweruser', 'password123', role_id=3)
         self.assertIsNotNone(user_id)
         
         # Log in as vieweruser
@@ -508,8 +587,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
     def test_month_year_filters_and_year_totals(self):
         """Test month, year filtering, year totals API, and interest tracking"""
         # Register and log in a user
-        h_pass = generate_password_hash('password123')
-        user_id = database.create_user('filteruser', h_pass, role_id=2)
+        user_id = database.create_user('filteruser', 'password123', role_id=2)
         self.assertIsNotNone(user_id)
         
         login_resp = self.app.post('/login', data=json.dumps({
@@ -605,8 +683,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         import datetime
 
         # 1. Register and log in a user
-        h_pass = generate_password_hash('password123')
-        user_id = database.create_user('exceluser', h_pass, role_id=2)
+        user_id = database.create_user('exceluser', 'password123', role_id=2)
         self.assertIsNotNone(user_id)
         
         login_resp = self.app.post('/login', data=json.dumps({
@@ -899,8 +976,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.app.get('/logout')
 
         # 9. Create a test user, log in as admin, and change that user's password via Admin API
-        h_pass = generate_password_hash('user123')
-        test_user_id = database.create_user('testpwduser', h_pass, role_id=2)
+        test_user_id = database.create_user('testpwduser', 'user123', role_id=2)
         self.assertIsNotNone(test_user_id)
 
         # Try admin change password without admin login (should return 401)
@@ -1295,7 +1371,10 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         # Promote user to admin
         conn = database.get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET role_id = (SELECT id FROM roles WHERE name = 'Admin') WHERE username = 'admin_test2'")
+        user_row = cursor.execute("SELECT LoginId FROM Refusers WHERE Username = 'admin_test2'").fetchone()
+        self.assertIsNotNone(user_row)
+        user_id = user_row['loginid'] if 'loginid' in user_row else user_row[0]
+        cursor.execute("UPDATE UserRole SET RoleId = 1 WHERE LoginId = ?", (user_id,))
         conn.commit()
         conn.close()
         
@@ -1401,7 +1480,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         
         # Verify user is created in database with profile fields
         conn = database.get_db_connection()
-        db_user = conn.cursor().execute("SELECT * FROM users WHERE username = ?", ('otp_test_user',)).fetchone()
+        db_user = conn.cursor().execute("SELECT Username as username, Firstname as first_name, Lastname as last_name, Email as email, Phone as phone FROM Refusers WHERE Username = ?", ('otp_test_user',)).fetchone()
         conn.close()
         self.assertEqual(db_user['first_name'], 'Test')
         self.assertEqual(db_user['last_name'], 'OTP')
@@ -1418,6 +1497,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         if 'DATABASE_PATH' in os.environ:
             del os.environ['DATABASE_PATH']
         try:
+            database.set_setting('login_otp_enabled', '1')
             resp = self.app.post('/login', data=json.dumps({
                 'username': 'otp_test_user',
                 'password': 'password123'

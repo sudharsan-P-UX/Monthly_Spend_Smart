@@ -35,7 +35,7 @@ def register_login_routes(app):
                     if database.VercelDb.check_password_expiry(user['id']):
                         return jsonify({'success': False, 'expired': True, 'message': 'Your password has expired (90 days limit). Please reset your password.'}), 403
 
-                    is_testing = app.testing or app.config.get('TESTING', False) or os.environ.get('DATABASE_PATH') == 'test_expenses.db'
+                    is_testing = app.testing
                     if is_testing:
                         session['user_id'] = user['id']
                         session['username'] = user['username']
@@ -82,7 +82,7 @@ def register_login_routes(app):
             return jsonify({'error': 'Target email or phone is required.'}), 400
             
         conn = database.get_db_connection()
-        user = conn.cursor().execute("SELECT * FROM users WHERE email = ? OR phone = ?", (target, target)).fetchone()
+        user = conn.cursor().execute("SELECT * FROM Refusers WHERE Email = ? OR Phone = ?", (target, target)).fetchone()
         conn.close()
         if user:
             return jsonify({'error': 'This email or phone number is already registered.'}), 400

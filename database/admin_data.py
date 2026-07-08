@@ -65,14 +65,11 @@ def add_role(name):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute('INSERT INTO RefRole (RoleName, IsActive, displayOrder) VALUES (?, TRUE, 0)', (name,))
+        cursor.execute('INSERT INTO RefRole (RoleName, IsActive, displayOrder) VALUES (?, 1, 0)', (name,))
         role_id = cursor.lastrowid
         
-        # Insert default role privileges
-        is_pg = is_pg_conn(conn)
-        cast_bit_1 = "CAST(? AS BIT(1))" if is_pg else "?"
         cursor.execute(
-            f'INSERT INTO RefRoleAccess (RoleId, MenuId, Editaccess, DeleteAccess, Addaccess, updateaccess, isactive) VALUES (?, 1, {cast_bit_1}, {cast_bit_1}, {cast_bit_1}, {cast_bit_1}, TRUE)',
+            'INSERT INTO RefRoleAccess (RoleId, MenuId, Editaccess, DeleteAccess, Addaccess, updateaccess, isactive) VALUES (?, 1, ?, ?, ?, ?, 1)',
             (role_id, 1, 1, 1, 1)
         )
         conn.commit()
@@ -94,12 +91,9 @@ def update_role_privileges(role_id, can_view, can_add, can_edit, can_delete):
         # Delete old privileges
         cursor.execute('DELETE FROM RefRoleAccess WHERE RoleId = ?', (role_id,))
         
-        is_pg = is_pg_conn(conn)
-        cast_bit = "CAST(? AS BIT(1))" if is_pg else "?"
-        
         cursor.execute(
-            f'''INSERT INTO RefRoleAccess (RoleId, MenuId, Editaccess, DeleteAccess, Addaccess, updateaccess, isactive) 
-               VALUES (?, 1, {cast_bit}, {cast_bit}, {cast_bit}, {cast_bit}, TRUE)''',
+            '''INSERT INTO RefRoleAccess (RoleId, MenuId, Editaccess, DeleteAccess, Addaccess, updateaccess, isactive) 
+               VALUES (?, 1, ?, ?, ?, ?, 1)''',
             (role_id, int(can_edit), int(can_delete), int(can_add), int(can_edit))
         )
         conn.commit()

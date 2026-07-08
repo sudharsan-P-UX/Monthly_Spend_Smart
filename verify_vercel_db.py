@@ -23,6 +23,19 @@ class VercelDbTestCase(unittest.TestCase):
         # Initialize test database
         database.init_db()
         
+        # Clean up any potential test leftovers from previous runs
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM Refusers WHERE Username = ?", ('testuser',))
+            cursor.execute("DELETE FROM RefRole WHERE RoleName = ?", ('Manager',))
+            cursor.execute("DELETE FROM Refcurreny WHERE Country = ?", ('Canada',))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        finally:
+            conn.close()
+        
     def tearDown(self):
         # Remove test database
         if os.path.exists('test_vercel_expenses.db'):
@@ -44,8 +57,11 @@ class VercelDbTestCase(unittest.TestCase):
             'expenses', 'emis', 'otps', 'settings'
         ]
         
-        # Query existing tables in SQLite master
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        # Query existing tables depending on database type
+        if conn.__class__.__name__ == 'PostgresConnectionWrapper':
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = [row[0].lower() for row in cursor.fetchall()]
         
         for table in expected_tables:

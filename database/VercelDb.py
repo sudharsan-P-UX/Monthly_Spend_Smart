@@ -44,6 +44,11 @@ class PostgresCursorWrapper:
                 table_name = match.group(1)
                 query = f"SELECT column_name AS name FROM information_schema.columns WHERE table_name = '{table_name}'"
 
+        if "strftime('%m', date)" in query:
+            query = query.replace("strftime('%m', date)", "substring(date from 6 for 2)")
+        if "strftime('%Y', date)" in query:
+            query = query.replace("strftime('%Y', date)", "substring(date from 1 for 4)")
+
         if "INSERT OR IGNORE" in query:
             query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
             query += " ON CONFLICT DO NOTHING"
@@ -65,7 +70,6 @@ class PostgresCursorWrapper:
         is_insert = query.strip().upper().startswith("INSERT INTO")
         if is_insert and "RETURNING" not in query.upper():
             # Check what key we return
-            import re
             table_match = re.search(r"INSERT\s+(?:IGNORE\s+|OR\s+REPLACE\s+)?INTO\s+([A-Za-z0-9_]+)", query, re.IGNORECASE)
             if table_match:
                 table_name = table_match.group(1).lower()
@@ -87,7 +91,10 @@ class PostgresCursorWrapper:
                     'currency': 'CurrencyId',
                     'settings': 'Settingid'
                 }
-                pk_col = pk_map.get(table_name, 'id')
+                if table_name == 'excel_columns':
+                    pk_col = 'column_key'
+                else:
+                    pk_col = pk_map.get(table_name, 'id')
                 query = query.rstrip('; ') + f" RETURNING {pk_col}"
 
         try:
@@ -254,6 +261,24 @@ def init_vercel_db():
                 statements = [s.strip() for s in sql.split(';') if s.strip()]
                 for stmt in statements:
                     cursor.execute(stmt)
+                
+                # Reset sequences for tables that were seeded with explicit IDs
+                seeded_tables = [
+                    ('reffieldtype', 'fieldtypeid'),
+                    ('refrole', 'roleid'),
+                    ('refimportexport', 'importexportid'),
+                    ('refcurreny', 'currencyid'),
+                    ('categories', 'id'),
+                    ('bank_modes', 'id'),
+                    ('payment_types', 'id'),
+                    ('payment_categories', 'id')
+                ]
+                for table, pk in seeded_tables:
+                    try:
+                        cursor.execute(f"SELECT setval(pg_get_serial_sequence('{table}', '{pk}'), COALESCE(MAX({pk}), 1)) FROM {table}")
+                    except Exception as seq_err:
+                        print(f"Error resetting sequence for {table}: {seq_err}")
+                
                 conn.commit()
             except Exception as e:
                 print(f"Error running VercelDb.sql: {e}")

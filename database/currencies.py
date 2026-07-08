@@ -16,7 +16,7 @@ def get_active_currency():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        row = cursor.execute('SELECT CurrencyId as id, Country as country, Description as country_desc, symbol, active as is_active FROM Refcurreny WHERE active = TRUE LIMIT 1').fetchone()
+        row = cursor.execute('SELECT CurrencyId as id, Country as country, Description as country_desc, symbol, active as is_active FROM Refcurreny WHERE active = 1 LIMIT 1').fetchone()
         if row:
             # Create a dictionary where all keys are lowercase
             d = dict(row)
@@ -30,7 +30,7 @@ def add_currency(country, country_desc, symbol):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            'INSERT INTO Refcurreny (Country, Description, symbol, active) VALUES (?, ?, ?, FALSE)',
+            'INSERT INTO Refcurreny (Country, Description, symbol, active) VALUES (?, ?, ?, 0)',
             (country, country_desc, symbol)
         )
         conn.commit()
@@ -71,7 +71,7 @@ def delete_currency(currency_id):
             next_row = cursor.execute('SELECT CurrencyId FROM Refcurreny LIMIT 1').fetchone()
             if next_row:
                 next_id = next_row['currencyid'] if 'currencyid' in next_row else next_row[0]
-                cursor.execute('UPDATE Refcurreny SET active = TRUE WHERE CurrencyId = ?', (next_id,))
+                cursor.execute('UPDATE Refcurreny SET active = 1 WHERE CurrencyId = ?', (next_id,))
                 conn.commit()
         return True
     except Exception:
@@ -83,8 +83,8 @@ def set_active_currency(currency_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute('UPDATE Refcurreny SET active = FALSE')
-        cursor.execute('UPDATE Refcurreny SET active = TRUE WHERE CurrencyId = ?', (currency_id,))
+        cursor.execute('UPDATE Refcurreny SET active = 0')
+        cursor.execute('UPDATE Refcurreny SET active = 1 WHERE CurrencyId = ?', (currency_id,))
         conn.commit()
         return True
     except Exception:

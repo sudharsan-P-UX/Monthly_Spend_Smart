@@ -50,8 +50,8 @@ def get_all_emis():
     conn = get_db_connection()
     cursor = conn.cursor()
     emis = cursor.execute(
-        '''SELECT emis.*, users.username 
-           FROM emis JOIN users ON emis.user_id = users.id 
+        '''SELECT emis.*, Refusers.Username as username 
+           FROM emis JOIN Refusers ON emis.user_id = Refusers.LoginId 
            ORDER BY emis.start_date DESC'''
     ).fetchall()
     conn.close()

@@ -43,14 +43,14 @@ def register_register_routes(app):
             
         if email:
             conn = database.get_db_connection()
-            user_by_email = conn.cursor().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+            user_by_email = conn.cursor().execute("SELECT * FROM Refusers WHERE Email = ?", (email,)).fetchone()
             conn.close()
             if user_by_email:
                 return jsonify({'success': False, 'message': 'Email address is already registered.'}), 400
                 
         if phone:
             conn = database.get_db_connection()
-            user_by_phone = conn.cursor().execute("SELECT * FROM users WHERE phone = ?", (phone,)).fetchone()
+            user_by_phone = conn.cursor().execute("SELECT * FROM Refusers WHERE Phone = ?", (phone,)).fetchone()
             conn.close()
             if user_by_phone:
                 return jsonify({'success': False, 'message': 'Phone number is already registered.'}), 400
@@ -81,7 +81,7 @@ def register_register_routes(app):
         
         conn = database.get_db_connection()
         cursor = conn.cursor()
-        user = cursor.execute('SELECT username, first_name, last_name, email, phone FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        user = cursor.execute('SELECT Username as username, Firstname as first_name, Lastname as last_name, Email as email, Phone as phone FROM Refusers WHERE LoginId = ?', (session['user_id'],)).fetchone()
         conn.close()
         
         if user:
