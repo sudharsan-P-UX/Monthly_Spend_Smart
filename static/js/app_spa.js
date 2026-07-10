@@ -52,7 +52,7 @@ async function fetchUserPrivileges() {
     }
 }
 
-function applyUserPrivileges() {
+async function applyUserPrivileges() {
     // Show Admin sidebar item for everyone (admins edit, users view read-only column config)
     const navAdmin = document.getElementById('nav-admin');
     if (navAdmin) {
@@ -84,10 +84,25 @@ function applyUserPrivileges() {
         }
     }
 
-    // Toggle inline add buttons - visible to everyone since users manage their own child table config
+    // Toggle inline add buttons based on security setting
+    let inlineAddEnabled = false;
+    try {
+        const settingsResp = await fetch(`/api/settings/public?t=${new Date().getTime()}`);
+        if (settingsResp.ok) {
+            const settingsData = await settingsResp.json();
+            inlineAddEnabled = settingsData.inline_add_enabled;
+        }
+    } catch (err) {
+        console.error('Error fetching settings for privileges:', err);
+    }
+
     const inlineBtns = document.querySelectorAll('.inline-add-btn');
     inlineBtns.forEach(btn => {
-        btn.style.display = 'inline-block';
+        if (inlineAddEnabled) {
+            btn.style.display = 'inline-block';
+        } else {
+            btn.style.display = 'none';
+        }
     });
 
     // Refresh expense table to reflect action buttons privileges

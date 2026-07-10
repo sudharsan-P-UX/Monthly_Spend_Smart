@@ -4,8 +4,18 @@ import sqlite3
 import json
 from werkzeug.security import generate_password_hash
 
+# Mock dotenv module to prevent loading .env during test execution
+import sys
+import types
+dotenv_mock = types.ModuleType('dotenv')
+dotenv_mock.load_dotenv = lambda *args, **kwargs: None
+sys.modules['dotenv'] = dotenv_mock
+
 # Set environment before imports
 os.environ['DATABASE_PATH'] = 'test_expenses.db'
+for k in ['DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_HOST', 'POSTGRES_PORT', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB']:
+    if k in os.environ:
+        del os.environ[k]
 
 # Import local modules
 import database
@@ -15,53 +25,49 @@ class ExpenseTrackerTestCase(unittest.TestCase):
     def setUp(self):
         # Override database path for testing
         database.DB_PATH = 'test_expenses.db'
+        database.connection.DB_PATH = 'test_expenses.db'
+        database.VercelDb.DB_PATH = 'test_expenses.db'
         
         # Clean up database tables for a fresh test run
         conn = database.get_db_connection()
         cursor = conn.cursor()
+        
+        tables_to_delete = [
+            "UserRole", "UserLoginDetails", "Refusers", "RefRoleAccess", "RefRole",
+            "expenses", "emis", "otps", "categories", "bank_modes", "payment_types",
+            "payment_categories", "settings", "excel_columns", "Refcurreny", "user_expense_controls"
+        ]
+        for tbl in tables_to_delete:
+            try:
+                cursor.execute(f"DELETE FROM {tbl}")
+            except Exception:
+                pass
+                
+        # Reset sequences if PostgreSQL
+        is_pg = conn.__class__.__name__ == 'PostgresConnectionWrapper'
+        if is_pg:
+            seeded_tables = [
+                ('reffieldtype', 'fieldtypeid'),
+                ('refrole', 'roleid'),
+                ('refimportexport', 'importexportid'),
+                ('refcurreny', 'currencyid'),
+                ('categories', 'id'),
+                ('bank_modes', 'id'),
+                ('payment_types', 'id'),
+                ('payment_categories', 'id'),
+                ('refusers', 'loginid'),
+                ('expenses', 'id'),
+                ('emis', 'id')
+            ]
+            for table, pk in seeded_tables:
+                try:
+                    cursor.execute(f"SELECT setval(pg_get_serial_sequence('{table}', '{pk}'), 1, false)")
+                except Exception:
+                    pass
         try:
-            cursor.execute("DELETE FROM UserRole")
-            cursor.execute("DELETE FROM UserLoginDetails")
-            cursor.execute("DELETE FROM Refusers")
-            cursor.execute("DELETE FROM RefRoleAccess")
-            cursor.execute("DELETE FROM RefRole")
-            cursor.execute("DELETE FROM expenses")
-            cursor.execute("DELETE FROM emis")
-            cursor.execute("DELETE FROM otps")
-            cursor.execute("DELETE FROM categories")
-            cursor.execute("DELETE FROM bank_modes")
-            cursor.execute("DELETE FROM payment_types")
-            cursor.execute("DELETE FROM payment_categories")
-            cursor.execute("DELETE FROM settings")
-            cursor.execute("DELETE FROM excel_columns")
-            cursor.execute("DELETE FROM Refcurreny")
-            cursor.execute("DELETE FROM user_expense_controls")
-            
-            # Reset sequences
-            is_pg = conn.__class__.__name__ == 'PostgresConnectionWrapper'
-            if is_pg:
-                seeded_tables = [
-                    ('reffieldtype', 'fieldtypeid'),
-                    ('refrole', 'roleid'),
-                    ('refimportexport', 'importexportid'),
-                    ('refcurreny', 'currencyid'),
-                    ('categories', 'id'),
-                    ('bank_modes', 'id'),
-                    ('payment_types', 'id'),
-                    ('payment_categories', 'id'),
-                    ('refusers', 'loginid'),
-                    ('expenses', 'id'),
-                    ('emis', 'id')
-                ]
-                for table, pk in seeded_tables:
-                    try:
-                        cursor.execute(f"SELECT setval(pg_get_serial_sequence('{table}', '{pk}'), 1, false)")
-                    except Exception:
-                        pass
             conn.commit()
-        except Exception as e:
-            print(f"Error in test setUp cleanup: {e}")
-            conn.rollback()
+        except Exception:
+            pass
         finally:
             conn.close()
             
@@ -91,14 +97,14 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         if is_pg:
             cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name = 'refusers'")
         else:
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='refusers'")
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND LOWER(name)='refusers'")
         self.assertIsNotNone(cursor.fetchone())
         
         # Verify expenses table exists
         if is_pg:
             cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_name = 'expenses'")
         else:
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='expenses'")
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND LOWER(name)='expenses'")
         self.assertIsNotNone(cursor.fetchone())
         
         # Verify new columns exist in expenses
@@ -317,9 +323,9 @@ class ExpenseTrackerTestCase(unittest.TestCase):
             
         viewer_privs = {
             'can_view': 1,
-            'can_add': parse_bit(priv_row[2] if isinstance(priv_row, tuple) else priv_row.get('addaccess', 0)),
-            'can_edit': parse_bit(priv_row[0] if isinstance(priv_row, tuple) else priv_row.get('editaccess', 0)),
-            'can_delete': parse_bit(priv_row[1] if isinstance(priv_row, tuple) else priv_row.get('deleteaccess', 0))
+            'can_add': parse_bit(priv_row[2]),
+            'can_edit': parse_bit(priv_row[0]),
+            'can_delete': parse_bit(priv_row[1])
         }
         
         self.assertEqual(viewer_privs['can_view'], 1)

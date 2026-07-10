@@ -249,6 +249,8 @@ async function handleAdminChangeUserPassword(e) {
         return;
     }
 
+    closeChangePasswordModal();
+
     try {
         const response = await fetch('/api/admin/users/edit', {
             method: 'POST',
@@ -267,13 +269,14 @@ async function handleAdminChangeUserPassword(e) {
         if (response.ok && result.success) {
             alert('User details updated successfully!');
             showAppAlert('User details updated successfully!', true);
-            closeChangePasswordModal();
             await adminFetchUsers();
         } else {
             showAppAlert(result.error || 'Failed to update user.');
+            openEditUserModal(userId, document.getElementById('change-user-username').textContent, firstName, lastName, email, phone);
         }
     } catch (err) {
         showAppAlert('Network error updating user.');
+        openEditUserModal(userId, document.getElementById('change-user-username').textContent, firstName, lastName, email, phone);
     }
 }
 
@@ -475,10 +478,12 @@ async function adminFetchSettings() {
             const emailCheckbox = document.getElementById('setting-register-email-otp');
             const phoneCheckbox = document.getElementById('setting-register-phone-otp');
             const loginCheckbox = document.getElementById('setting-login-otp');
+            const inlineAddCheckbox = document.getElementById('setting-inline-add');
             
             if (emailCheckbox) emailCheckbox.checked = settings.register_email_otp_enabled;
             if (phoneCheckbox) phoneCheckbox.checked = settings.register_phone_otp_enabled;
             if (loginCheckbox) loginCheckbox.checked = settings.login_otp_enabled;
+            if (inlineAddCheckbox) inlineAddCheckbox.checked = settings.inline_add_enabled;
         }
     } catch (err) {
         console.error('Error fetching security settings:', err);
@@ -489,7 +494,8 @@ async function adminUpdateSettings() {
     const emailCheckbox = document.getElementById('setting-register-email-otp');
     const phoneCheckbox = document.getElementById('setting-register-phone-otp');
     const loginCheckbox = document.getElementById('setting-login-otp');
-    if (!emailCheckbox || !phoneCheckbox || !loginCheckbox) return;
+    const inlineAddCheckbox = document.getElementById('setting-inline-add');
+    if (!emailCheckbox || !phoneCheckbox || !loginCheckbox || !inlineAddCheckbox) return;
 
     try {
         const response = await fetch('/api/admin/settings/update', {
@@ -498,12 +504,17 @@ async function adminUpdateSettings() {
             body: JSON.stringify({
                 register_email_otp_enabled: emailCheckbox.checked,
                 register_phone_otp_enabled: phoneCheckbox.checked,
-                login_otp_enabled: loginCheckbox.checked
+                login_otp_enabled: loginCheckbox.checked,
+                inline_add_enabled: inlineAddCheckbox.checked
             })
         });
         const result = await response.json();
         if (response.ok && result.success) {
             showAppAlert('Security settings updated successfully!', true);
+            // Refresh privilege UI immediately if settings changed
+            if (typeof applyUserPrivileges === 'function') {
+                applyUserPrivileges();
+            }
         } else {
             showAppAlert(result.error || 'Failed to update security settings.');
             await adminFetchSettings();

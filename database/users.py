@@ -145,11 +145,12 @@ def get_user_privileges(user_id):
         if priv_row:
             # Map database keys
             # SQLite returns by tuple index, PostgreSQL returns DictRow
-            if isinstance(priv_row, dict) or not isinstance(priv_row, (tuple, list)):
-                # Dict-like row
-                edit = priv_row.get('editaccess', 1)
-                delete = priv_row.get('deleteaccess', 1)
-                add = priv_row.get('addaccess', 1)
+            if not isinstance(priv_row, (tuple, list)):
+                # Convert keys to lowercase to be database-agnostic
+                r_dict = {k.lower(): v for k, v in dict(priv_row).items()}
+                edit = r_dict.get('editaccess', 1)
+                delete = r_dict.get('deleteaccess', 1)
+                add = r_dict.get('addaccess', 1)
             else:
                 edit = priv_row[0]
                 delete = priv_row[1]

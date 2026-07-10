@@ -232,7 +232,8 @@ CREATE TABLE IF NOT EXISTS settings (
 INSERT INTO settings (Setting, value) VALUES
 ('register_email_otp_enabled', '0'),
 ('register_phone_otp_enabled', '0'),
-('login_otp_enabled', '0')
+('login_otp_enabled', '0'),
+('inline_add_enabled', '0')
 ON CONFLICT (Setting) DO NOTHING;
 
 -- Lookup Tables

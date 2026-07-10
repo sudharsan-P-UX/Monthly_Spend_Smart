@@ -302,18 +302,22 @@ def init_vercel_db():
                 # Clean up Postgres-specific syntax
                 sql_clean = re.sub(r'SERIAL PRIMARY KEY', 'INTEGER PRIMARY KEY AUTOINCREMENT', sql, flags=re.IGNORECASE)
                 sql_clean = re.sub(r'TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'DATETIME DEFAULT CURRENT_TIMESTAMP', sql_clean, flags=re.IGNORECASE)
-                sql_clean = re.sub(r'TIMESTAMP DEFAULT \(CURRENT_TIMESTAMP \+ INTERVAL \'90 days\'\)', 'DATETIME DEFAULT DATEADD(day, 90, CURRENT_TIMESTAMP)', sql_clean, flags=re.IGNORECASE)
+                sql_clean = re.sub(r'TIMESTAMP DEFAULT \(CURRENT_TIMESTAMP \+ INTERVAL \'90 days\'\)', "DATETIME", sql_clean, flags=re.IGNORECASE)
                 sql_clean = re.sub(r'TIMESTAMP', 'DATETIME', sql_clean, flags=re.IGNORECASE)
                 sql_clean = re.sub(r'ON CONFLICT \([^\)]+\) DO NOTHING', '', sql_clean, flags=re.IGNORECASE)
+                sql_clean = re.sub(r'INSERT INTO', 'INSERT OR IGNORE INTO', sql_clean, flags=re.IGNORECASE)
                 statements = [s.strip() for s in sql_clean.split(';') if s.strip()]
                 for stmt in statements:
                     try:
                         cursor.execute(stmt)
-                    except Exception:
-                        pass
+                    except Exception as stmt_err:
+                        err_msg = str(stmt_err).encode('ascii', 'ignore').decode('ascii')
+                        stmt_msg = str(stmt).encode('ascii', 'ignore').decode('ascii')
+                        print(f"Failed SQLite statement: {stmt_msg} -> {err_msg}")
                 conn.commit()
             except Exception as e:
-                print(f"Error running SQLite init: {e}")
+                err_msg = str(e).encode('ascii', 'ignore').decode('ascii')
+                print(f"Error running SQLite init: {err_msg}")
                 conn.rollback()
                 
     conn.close()

@@ -28,6 +28,17 @@ def init_db():
         conn.commit()
     except Exception:
         pass
+    try:
+        cursor.execute("INSERT OR IGNORE INTO settings (Setting, value) VALUES ('inline_add_enabled', '0')")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        # Force register_email_otp_enabled to 0 by default
+        cursor.execute("UPDATE settings SET value = '0' WHERE Setting = 'register_email_otp_enabled'")
+        conn.commit()
+    except Exception:
+        pass
     finally:
         conn.close()
     

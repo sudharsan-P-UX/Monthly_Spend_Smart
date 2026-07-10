@@ -8,11 +8,13 @@ def register_admin_settings_routes(app):
         reg_email = database.get_setting('register_email_otp_enabled', '0')
         reg_phone = database.get_setting('register_phone_otp_enabled', '0')
         login_otp = database.get_setting('login_otp_enabled', '0')
+        inline_add = database.get_setting('inline_add_enabled', '0')
         return jsonify({
             'registration_otp_enabled': (reg_email == '1' or reg_phone == '1'),
             'register_email_otp_enabled': reg_email == '1',
             'register_phone_otp_enabled': reg_phone == '1',
-            'login_otp_enabled': login_otp == '1'
+            'login_otp_enabled': login_otp == '1',
+            'inline_add_enabled': inline_add == '1'
         })
 
     @app.route('/api/admin/settings', methods=['GET'])
@@ -21,11 +23,13 @@ def register_admin_settings_routes(app):
         reg_email = database.get_setting('register_email_otp_enabled', '0')
         reg_phone = database.get_setting('register_phone_otp_enabled', '0')
         login_otp = database.get_setting('login_otp_enabled', '0')
+        inline_add = database.get_setting('inline_add_enabled', '0')
         return jsonify({
             'registration_otp_enabled': (reg_email == '1' or reg_phone == '1'),
             'register_email_otp_enabled': reg_email == '1',
             'register_phone_otp_enabled': reg_phone == '1',
-            'login_otp_enabled': login_otp == '1'
+            'login_otp_enabled': login_otp == '1',
+            'inline_add_enabled': inline_add == '1'
         })
 
     @app.route('/api/admin/settings/update', methods=['POST'])
@@ -35,9 +39,11 @@ def register_admin_settings_routes(app):
         reg_email = '1' if data.get('register_email_otp_enabled') else '0'
         reg_phone = '1' if data.get('register_phone_otp_enabled') else '0'
         login_enabled = '1' if data.get('login_otp_enabled') else '0'
+        inline_enabled = '1' if data.get('inline_add_enabled') else '0'
         
         database.set_setting('register_email_otp_enabled', reg_email)
         database.set_setting('register_phone_otp_enabled', reg_phone)
         database.set_setting('login_otp_enabled', login_enabled)
+        database.set_setting('inline_add_enabled', inline_enabled)
         
         return jsonify({'success': True, 'message': 'Security settings updated successfully.'})
