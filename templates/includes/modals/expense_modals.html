@@ -204,3 +204,40 @@
         </div>
     </div>
 </div>
+
+<!-- MULTIPLE ADD PREVIEW MODAL -->
+<div id="add-preview-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 800px; width: 90%;">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 12px; margin-bottom: 15px;">
+            <h2 style="margin: 0; font-size: 1.25rem;">Confirm Added Expenses</h2>
+            <button class="btn-close" onclick="closeAddPreviewModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">You are about to save the following expenses. Please review the details below.</p>
+            <table class="data-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">Interest</th>
+                        <th class="text-center">Method</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="add-preview-body">
+                    <!-- Dynamic preview entries -->
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; border-top: 1px solid var(--border-glass); padding-top: 15px; margin-top: 15px;">
+            <div style="font-weight: 600; font-size: 1.05rem; color: var(--text-primary); margin-right: auto;">
+                Total: <span id="add-preview-total" style="color: var(--color-primary);">₹0.00</span>
+            </div>
+            <button type="button" class="btn-secondary" onclick="closeAddPreviewModal()"><i class="fa-solid fa-pen-to-square"></i> Update</button>
+            <button type="button" class="btn-primary" id="btn-confirm-add-preview" onclick="handleConfirmAddPreview()"><i class="fa-solid fa-circle-check"></i> Save</button>
+        </div>
+    </div>
+</div>
+

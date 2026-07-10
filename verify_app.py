@@ -1733,7 +1733,35 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertTrue(bulk_res['success'])
         self.assertEqual(len(bulk_res['ids']), 2)
 
+        # Test Chatbot API endpoint
+        # First, query chatbot when logged in as admin
+        resp = self.app.post('/api/chat', data=json.dumps({
+            'message': 'total spent this month'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('reply', json.loads(resp.data))
+
+        # Query chatbot for category breakdown
+        resp = self.app.post('/api/chat', data=json.dumps({
+            'message': 'category breakdown this month'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('reply', json.loads(resp.data))
+
+        # Query chatbot for credit spending
+        resp = self.app.post('/api/chat', data=json.dumps({
+            'message': 'credit spending this month'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('reply', json.loads(resp.data))
+
         self.app.get('/logout')
+
+        # Test chatbot API unauthorized when logged out
+        resp = self.app.post('/api/chat', data=json.dumps({
+            'message': 'total spent'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 401)
 
 if __name__ == '__main__':
     unittest.main()

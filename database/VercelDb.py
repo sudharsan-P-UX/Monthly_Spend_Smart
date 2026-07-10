@@ -5,6 +5,7 @@ import re
 import uuid
 import hashlib
 import datetime
+import time
 import sqlite3
 import psycopg2
 import psycopg2.extras
@@ -186,72 +187,92 @@ class PostgresConnectionWrapper:
 
 def get_vercel_db_connection():
     """Obtains a Postgres connection compatible with Vercel deployment requirements."""
+    is_vercel = os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+    
+    # Support up to 3 connection attempts with 3 seconds delay for PostgreSQL (e.g. to let sleeping DB wake up)
+    max_retries = 3
+    retry_delay = 3
+
     if DATABASE_URL:
-        try:
-            url = DATABASE_URL
-            if url.startswith("postgres://"):
-                url = url.replace("postgres://", "postgresql://", 1)
-            conn = psycopg2.connect(url, connect_timeout=15)
-            return PostgresConnectionWrapper(conn)
-        except Exception as e:
-            print(f"[DATABASE WARNING] Failed to connect to Postgres via DATABASE_URL: {e}. Falling back to SQLite.")
-            conn = sqlite3.connect(DB_PATH)
-            conn.row_factory = sqlite3.Row
-            return conn
+        url = DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        
+        last_exception = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                conn = psycopg2.connect(url, connect_timeout=15)
+                return PostgresConnectionWrapper(conn)
+            except Exception as e:
+                last_exception = e
+                print(f"[DATABASE CONNECTION ATTEMPT {attempt}/{max_retries}] Failed to connect via DATABASE_URL: {e}")
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+        
+        # All retries failed. DO NOT fallback silently to SQLite.
+        print(f"[DATABASE ERROR] All {max_retries} attempts to connect to Postgres failed. Raising exception.")
+        raise last_exception
+
     elif os.environ.get('POSTGRES_HOST'):
         is_local = POSTGRES_HOST in ('localhost', '127.0.0.1', '::1')
         sslmode = 'prefer' if is_local else 'require'
-        try:
-            conn = psycopg2.connect(
-                host=POSTGRES_HOST,
-                port=POSTGRES_PORT,
-                user=POSTGRES_USER,
-                password=POSTGRES_PASSWORD,
-                dbname=POSTGRES_DB,
-                connect_timeout=15,
-                sslmode=sslmode
-            )
-            return PostgresConnectionWrapper(conn)
-        except psycopg2.OperationalError as e:
-            print(f"[DATABASE WARNING] Failed to connect to PostgreSQL at {POSTGRES_HOST}: {e}.")
-            if "does not exist" in str(e):
-                try:
-                    conn_default = psycopg2.connect(
-                        host=POSTGRES_HOST,
-                        port=POSTGRES_PORT,
-                        user=POSTGRES_USER,
-                        password=POSTGRES_PASSWORD,
-                        dbname="postgres",
-                        connect_timeout=15,
-                        sslmode=sslmode
-                    )
-                    conn_default.autocommit = True
-                    cursor = conn_default.cursor()
-                    cursor.execute(f'CREATE DATABASE "{POSTGRES_DB}"')
-                    cursor.close()
-                    conn_default.close()
+        
+        last_exception = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                conn = psycopg2.connect(
+                    host=POSTGRES_HOST,
+                    port=POSTGRES_PORT,
+                    user=POSTGRES_USER,
+                    password=POSTGRES_PASSWORD,
+                    dbname=POSTGRES_DB,
+                    connect_timeout=15,
+                    sslmode=sslmode
+                )
+                return PostgresConnectionWrapper(conn)
+            except Exception as e:
+                last_exception = e
+                print(f"[DATABASE CONNECTION ATTEMPT {attempt}/{max_retries}] Failed to connect to host {POSTGRES_HOST}: {e}")
+                
+                # Auto-create database check on first attempt if "does not exist"
+                if attempt == 1 and isinstance(e, psycopg2.OperationalError) and "does not exist" in str(e):
+                    try:
+                        conn_default = psycopg2.connect(
+                            host=POSTGRES_HOST,
+                            port=POSTGRES_PORT,
+                            user=POSTGRES_USER,
+                            password=POSTGRES_PASSWORD,
+                            dbname="postgres",
+                            connect_timeout=15,
+                            sslmode=sslmode
+                        )
+                        conn_default.autocommit = True
+                        cursor = conn_default.cursor()
+                        cursor.execute(f'CREATE DATABASE "{POSTGRES_DB}"')
+                        cursor.close()
+                        conn_default.close()
+                        print(f"Auto-created database '{POSTGRES_DB}'. Retrying connection...")
+                        continue  # retry immediately
+                    except Exception as create_err:
+                        print(f"[DATABASE ERROR] Failed to auto-create database {POSTGRES_DB}: {create_err}")
+                
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
                     
-                    conn = psycopg2.connect(
-                        host=POSTGRES_HOST,
-                        port=POSTGRES_PORT,
-                        user=POSTGRES_USER,
-                        password=POSTGRES_PASSWORD,
-                        dbname=POSTGRES_DB,
-                        connect_timeout=15,
-                        sslmode=sslmode
-                    )
-                    return PostgresConnectionWrapper(conn)
-                except Exception as create_err:
-                    print(f"[DATABASE ERROR] Failed to auto-create database {POSTGRES_DB}: {create_err}. Falling back to SQLite.")
-                    conn = sqlite3.connect(DB_PATH)
-                    conn.row_factory = sqlite3.Row
-                    return conn
-            else:
-                print(f"[DATABASE WARNING] Falling back to SQLite due to: {e}")
-                conn = sqlite3.connect(DB_PATH)
-                conn.row_factory = sqlite3.Row
-                return conn
+        # All retries failed. DO NOT fallback silently to SQLite.
+        print(f"[DATABASE ERROR] All {max_retries} attempts to connect to Postgres at {POSTGRES_HOST} failed. Raising exception.")
+        raise last_exception
+
     else:
+        # No Postgres config was provided.
+        # If running on Vercel, SQLite is ephemeral and not supported, so fail explicitly.
+        if is_vercel:
+            raise RuntimeError(
+                "Database is not configured for Vercel production! "
+                "Please configure 'DATABASE_URL' or 'POSTGRES_URL' environment variable in your Vercel project settings. "
+                "SQLite is not supported in Vercel production as serverless storage is ephemeral."
+            )
+        # Otherwise (local development), use SQLite fallback.
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         return conn

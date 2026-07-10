@@ -1,0 +1,189 @@
+<!-- CHATBOT FLOATING WIDGET -->
+<div id="spendsmart-chatbot-container" style="position: fixed; bottom: 25px; right: 25px; z-index: 1000; font-family: inherit;">
+    <!-- Chatbot Toggle Button -->
+    <button id="chatbot-toggle-btn" onclick="toggleChatbot()" style="width: 55px; height: 55px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), #6366f1); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: none; transition: transform 0.2s, box-shadow 0.2s;">
+        <i class="fa-solid fa-comments" id="chatbot-toggle-icon"></i>
+    </button>
+
+    <!-- Chatbot Window -->
+    <div id="chatbot-window" style="position: absolute; bottom: 70px; right: 0; width: 360px; height: 480px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid var(--border-glass); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); transform: translateY(20px); opacity: 0; pointer-events: none; transition: transform 0.3s ease, opacity 0.3s ease;">
+        <!-- Header -->
+        <div style="background: rgba(30, 41, 59, 0.5); padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-glass);">
+            <div style="font-size: 0.95rem; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background-color: #22c55e; display: inline-block; box-shadow: 0 0 8px #22c55e; animation: pulse 2s infinite;"></span>
+                <span>SpendSmart Assistant</span>
+            </div>
+            <button onclick="toggleChatbot()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.1rem; padding: 0 5px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Chat Messages Body -->
+        <div id="chatbot-messages" style="flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+            <!-- Welcome message -->
+            <div class="chatbot-msg bot" style="align-self: flex-start; max-width: 85%; font-size: 0.85rem; line-height: 1.4; background: rgba(30, 41, 59, 0.8); color: var(--text-primary); border: 1px solid var(--border-glass); padding: 8px 12px; border-radius: 12px 12px 12px 2px;">
+                Hello! I am your SpendSmart Assistant. Ask me anything about your expenses for this month or last month!
+            </div>
+        </div>
+
+        <!-- Suggestions Box -->
+        <div id="chatbot-suggestions" style="padding: 8px 12px; display: flex; gap: 8px; overflow-x: auto; border-top: 1px solid var(--border-glass); background: rgba(15, 23, 42, 0.5); scrollbar-width: none;">
+            <span onclick="sendSuggestion('Total spent this month')" style="padding: 6px 12px; border-radius: 15px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-size: 0.72rem; cursor: pointer; white-space: nowrap; transition: background 0.2s;">Total Spent</span>
+            <span onclick="sendSuggestion('Total credit card spent this month')" style="padding: 6px 12px; border-radius: 15px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-size: 0.72rem; cursor: pointer; white-space: nowrap; transition: background 0.2s;">Credit Card Spent</span>
+            <span onclick="sendSuggestion('Category breakdown this month')" style="padding: 6px 12px; border-radius: 15px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-size: 0.72rem; cursor: pointer; white-space: nowrap; transition: background 0.2s;">Category Breakdown</span>
+        </div>
+
+        <!-- Input Area -->
+        <div style="padding: 10px 12px; display: flex; gap: 8px; border-top: 1px solid var(--border-glass); background: rgba(30, 41, 59, 0.3);">
+            <input type="text" id="chatbot-input" onkeypress="handleChatKeyPress(event)" placeholder="Ask about your spending..." style="flex-grow: 1; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-glass); color: white; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; outline: none; transition: border-color 0.2s;">
+            <button onclick="submitChatMessage()" style="background: var(--color-primary); border: none; color: white; border-radius: 6px; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.95rem; transition: background-color 0.2s;">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    #chatbot-suggestions::-webkit-scrollbar {
+        display: none;
+    }
+    #chatbot-input:focus {
+        border-color: var(--color-primary) !important;
+    }
+    #chatbot-toggle-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    }
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+</style>
+
+<script>
+    let isChatbotOpen = false;
+
+    function toggleChatbot() {
+        const windowEl = document.getElementById('chatbot-window');
+        const iconEl = document.getElementById('chatbot-toggle-icon');
+        isChatbotOpen = !isChatbotOpen;
+        
+        if (isChatbotOpen) {
+            windowEl.style.transform = 'translateY(0)';
+            windowEl.style.opacity = '1';
+            windowEl.style.pointerEvents = 'auto';
+            iconEl.className = 'fa-solid fa-chevron-down';
+            
+            // Auto focus input
+            setTimeout(() => {
+                document.getElementById('chatbot-input').focus();
+            }, 100);
+        } else {
+            windowEl.style.transform = 'translateY(20px)';
+            windowEl.style.opacity = '0';
+            windowEl.style.pointerEvents = 'none';
+            iconEl.className = 'fa-solid fa-comments';
+        }
+    }
+
+    function handleChatKeyPress(e) {
+        if (e.key === 'Enter') {
+            submitChatMessage();
+        }
+    }
+
+    function appendMessage(text, isBot = false) {
+        const messagesContainer = document.getElementById('chatbot-messages');
+        if (!messagesContainer) return;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `chatbot-msg ${isBot ? 'bot' : 'user'}`;
+        
+        // Base styling for bubbles
+        msgDiv.style.alignSelf = isBot ? 'flex-start' : 'flex-end';
+        msgDiv.style.maxWidth = '85%';
+        msgDiv.style.fontSize = '0.85rem';
+        msgDiv.style.lineHeight = '1.4';
+        
+        if (isBot) {
+            msgDiv.style.background = 'rgba(30, 41, 59, 0.8)';
+            msgDiv.style.color = 'var(--text-primary)';
+            msgDiv.style.border = '1px solid var(--border-glass)';
+            msgDiv.style.padding = '8px 12px';
+            msgDiv.style.borderRadius = '12px 12px 12px 2px';
+        } else {
+            msgDiv.style.background = 'var(--color-primary)';
+            msgDiv.style.color = 'white';
+            msgDiv.style.padding = '8px 12px';
+            msgDiv.style.borderRadius = '12px 12px 2px 12px';
+        }
+
+        // Format simple markdown links and bold text
+        let formattedText = text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/\n/g, '<br>');
+
+        msgDiv.innerHTML = formattedText;
+        messagesContainer.appendChild(msgDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    async function sendChatMessage(text) {
+        if (!text.trim()) return;
+
+        // Render user message locally
+        appendMessage(text, false);
+
+        // Render typing bubble for bot
+        const messagesContainer = document.getElementById('chatbot-messages');
+        const typingDiv = document.createElement('div');
+        typingDiv.id = 'chatbot-typing';
+        typingDiv.style.alignSelf = 'flex-start';
+        typingDiv.style.background = 'rgba(30, 41, 59, 0.8)';
+        typingDiv.style.color = 'var(--text-secondary)';
+        typingDiv.style.border = '1px solid var(--border-glass)';
+        typingDiv.style.padding = '8px 12px';
+        typingDiv.style.borderRadius = '12px 12px 12px 2px';
+        typingDiv.style.fontSize = '0.82rem';
+        typingDiv.textContent = 'Typing...';
+        messagesContainer.appendChild(typingDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+            
+            const typingEl = document.getElementById('chatbot-typing');
+            if (typingEl) typingEl.remove();
+
+            if (response.ok) {
+                const result = await response.json();
+                appendMessage(result.reply || "Sorry, I couldn't compute the response.", true);
+            } else {
+                appendMessage("Failed to connect to assistant.", true);
+            }
+        } catch (err) {
+            const typingEl = document.getElementById('chatbot-typing');
+            if (typingEl) typingEl.remove();
+            appendMessage("Network error connecting to chatbot helper.", true);
+        }
+    }
+
+    function submitChatMessage() {
+        const input = document.getElementById('chatbot-input');
+        const text = input.value.trim();
+        if (!text) return;
+        
+        input.value = '';
+        sendChatMessage(text);
+    }
+
+    function sendSuggestion(text) {
+        sendChatMessage(text);
+    }
+</script>

@@ -303,6 +303,14 @@ function handleAddItemToExpenseList(e) {
     // Clear only amount and description
     amountInput.value = '';
     descriptionInput.value = '';
+
+    // Scroll to top smoothly
+    const container = document.getElementById('section-add-expense');
+    if (container) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 }
 
 function renderPendingExpensesTable() {
@@ -327,6 +335,9 @@ function renderPendingExpensesTable() {
             <td>${escapeHTML(item.date)}</td>
             <td>${escapeHTML(item.description || '-')}</td>
             <td class="text-center">
+                <button type="button" class="btn-icon text-primary" onclick="editPendingExpense(${index})" title="Edit" style="margin-right: 8px;">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
                 <button type="button" class="btn-icon text-danger" onclick="removePendingExpense(${index})" title="Remove">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
@@ -341,50 +352,141 @@ function removePendingExpense(index) {
     renderPendingExpensesTable();
 }
 
-window.removePendingExpense = removePendingExpense;
+function editPendingExpense(index) {
+    const item = pendingExpensesList[index];
+    if (!item) return;
 
-// ADD EXPENSE
-async function handleAddExpense(e) {
-    e.preventDefault();
-    const amount = document.getElementById('add-amount').value;
-    let category = document.getElementById('add-category').value;
-    const date = document.getElementById('add-date').value;
-    const bank_mode = document.getElementById('add-bank-mode').value;
-    const payment_type = document.getElementById('add-payment-type').value;
-    const payment_category = document.getElementById('add-payment-category').value;
-    const payment_method = document.getElementById('add-payment-method') ? document.getElementById('add-payment-method').value : 'Debit';
-    const status = document.getElementById('add-status') && document.getElementById('add-status').checked ? 'Paid' : 'Unpaid';
-    const description = document.getElementById('add-description').value;
-    const interestVal = document.getElementById('add-interest') ? document.getElementById('add-interest').value : '';
-    const interest = interestVal === '' ? 0.0 : parseFloat(interestVal) || 0.0;
-    const createddate = document.getElementById('add-createddate').value;
-
-    let payload;
-    if (pendingExpensesList.length > 0) {
-        payload = pendingExpensesList;
-    } else {
-        if (!amount || parseFloat(amount) <= 0) {
-            showAppAlert('Please enter a valid amount greater than zero.');
-            return;
-        }
-        if (!category) {
-            showAppAlert('Please select a category.');
-            return;
-        }
-        if (category.toLowerCase() === 'other') {
-            const customCat = document.getElementById('add-category-other').value.trim();
-            if (!customCat) {
-                showAppAlert('Please specify the custom category name.');
-                return;
+    // Populate form fields
+    document.getElementById('add-amount').value = item.amount;
+    
+    const catSelect = document.getElementById('add-category');
+    if (catSelect) {
+        let exists = false;
+        for (let i = 0; i < catSelect.options.length; i++) {
+            if (catSelect.options[i].value === item.category) {
+                exists = true;
+                break;
             }
-            category = customCat;
         }
-        payload = { amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status, createddate };
-        document.querySelectorAll('#add-expense-custom-fields .custom-expense-field').forEach(input => {
-            payload[input.getAttribute('data-key')] = input.value;
-        });
+        if (!exists && item.category) {
+            catSelect.value = 'other';
+            const otherWrapper = document.getElementById('add-category-other-wrapper');
+            if (otherWrapper) otherWrapper.classList.remove('hidden');
+            const otherInput = document.getElementById('add-category-other');
+            if (otherInput) otherInput.value = item.category;
+        } else {
+            catSelect.value = item.category;
+            const otherWrapper = document.getElementById('add-category-other-wrapper');
+            if (otherWrapper) otherWrapper.classList.add('hidden');
+        }
     }
 
+    document.getElementById('add-date').value = item.date;
+    document.getElementById('add-bank-mode').value = item.bank_mode || '';
+    document.getElementById('add-payment-type').value = item.payment_type || '';
+    document.getElementById('add-payment-category').value = item.payment_category || '';
+    if (document.getElementById('add-payment-method')) {
+        document.getElementById('add-payment-method').value = item.payment_method || 'Debit';
+    }
+    
+    const statusCheckbox = document.getElementById('add-status');
+    if (statusCheckbox) {
+        statusCheckbox.checked = (item.status === 'Paid');
+    }
+
+    document.getElementById('add-description').value = item.description || '';
+    
+    const interestInput = document.getElementById('add-interest');
+    if (interestInput) {
+        interestInput.value = item.interest || '';
+        const interestWrapper = document.getElementById('add-interest-wrapper');
+        if (interestWrapper) {
+            if (item.payment_method === 'Credit') {
+                interestWrapper.classList.remove('hidden');
+            } else {
+                interestWrapper.classList.add('hidden');
+            }
+        }
+    }
+    document.getElementById('add-createddate').value = item.createddate || item.date;
+
+    document.querySelectorAll('#add-expense-custom-fields .custom-expense-field').forEach(input => {
+        const key = input.getAttribute('data-key');
+        input.value = item[key] || '';
+    });
+
+    // Remove from list
+    pendingExpensesList.splice(index, 1);
+    renderPendingExpensesTable();
+
+    // Scroll smoothly to top
+    const container = document.getElementById('section-add-expense');
+    if (container) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+window.removePendingExpense = removePendingExpense;
+window.editPendingExpense = editPendingExpense;
+
+// ADD EXPENSE
+function openAddPreviewModal() {
+    const modal = document.getElementById('add-preview-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+    
+    // Render the list of pending expenses
+    const tbody = document.getElementById('add-preview-body');
+    const totalSpan = document.getElementById('add-preview-total');
+    if (tbody) {
+        tbody.innerHTML = '';
+        let total = 0;
+        pendingExpensesList.forEach(item => {
+            const tr = document.createElement('tr');
+            total += parseFloat(item.amount) || 0;
+            
+            // Format interest if present
+            const interestVal = parseFloat(item.interest) || 0;
+            
+            tr.innerHTML = `
+                <td>${escapeHTML(item.date)}</td>
+                <td><span class="badge" style="background-color: var(--color-primary-light); color: var(--color-primary);">${escapeHTML(item.category)}</span></td>
+                <td>${escapeHTML(item.description || '-')}</td>
+                <td class="text-right"><strong>${activeCurrencySymbol}${parseFloat(item.amount).toFixed(2)}</strong></td>
+                <td class="text-right">${activeCurrencySymbol}${interestVal.toFixed(2)}</td>
+                <td class="text-center"><span class="badge ${(item.payment_method === 'Credit') ? 'badge-credit' : 'badge-debit'}">${item.payment_method}</span></td>
+                <td class="text-center"><span class="badge ${(item.status === 'Paid') ? 'badge-credit' : 'badge-debit'}">${item.status}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+        if (totalSpan) {
+            const formatter = getCurrencyFormatter(activeCurrencySymbol);
+            totalSpan.textContent = formatter.format(total);
+        }
+    }
+}
+
+function closeAddPreviewModal() {
+    const modal = document.getElementById('add-preview-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+async function handleConfirmAddPreview() {
+    closeAddPreviewModal();
+    if (pendingExpensesList.length > 0) {
+        await saveExpensesPayload(pendingExpensesList);
+    }
+}
+
+window.closeAddPreviewModal = closeAddPreviewModal;
+window.handleConfirmAddPreview = handleConfirmAddPreview;
+
+async function saveExpensesPayload(payload) {
     try {
         const response = await fetch('/api/expenses/add', {
             method: 'POST',
@@ -418,9 +520,15 @@ async function handleAddExpense(e) {
             if (document.getElementById('add-status-wrapper')) {
                 document.getElementById('add-status-wrapper').classList.remove('hidden');
             }
-            document.getElementById('add-interest').value = "";
-            document.getElementById('add-interest-wrapper').classList.add('hidden');
-            document.getElementById('add-category-other-wrapper').classList.add('hidden');
+            if (document.getElementById('add-interest')) {
+                document.getElementById('add-interest').value = "";
+            }
+            if (document.getElementById('add-interest-wrapper')) {
+                document.getElementById('add-interest-wrapper').classList.add('hidden');
+            }
+            if (document.getElementById('add-category-other-wrapper')) {
+                document.getElementById('add-category-other-wrapper').classList.add('hidden');
+            }
             
             // Redirect to dashboard page view
             switchView('dashboard');
@@ -433,6 +541,65 @@ async function handleAddExpense(e) {
         }
     } catch (err) {
         showAppAlert('Network error adding expense.');
+    }
+}
+
+// ADD EXPENSE
+async function handleAddExpense(e) {
+    e.preventDefault();
+    const amount = document.getElementById('add-amount').value;
+    let category = document.getElementById('add-category').value;
+    const date = document.getElementById('add-date').value;
+    const bank_mode = document.getElementById('add-bank-mode').value;
+    const payment_type = document.getElementById('add-payment-type').value;
+    const payment_category = document.getElementById('add-payment-category').value;
+    const payment_method = document.getElementById('add-payment-method') ? document.getElementById('add-payment-method').value : 'Debit';
+    const status = document.getElementById('add-status') && document.getElementById('add-status').checked ? 'Paid' : 'Unpaid';
+    const description = document.getElementById('add-description').value;
+    const interestVal = document.getElementById('add-interest') ? document.getElementById('add-interest').value : '';
+    const interest = interestVal === '' ? 0.0 : parseFloat(interestVal) || 0.0;
+    const createddate = document.getElementById('add-createddate').value;
+
+    // Check if there is an active valid expense currently typed in the form
+    const hasCurrentFormExpense = amount && parseFloat(amount) > 0 && category;
+
+    if (hasCurrentFormExpense) {
+        // Automatically add the current form fields to the pending list
+        if (category.toLowerCase() === 'other') {
+            const customCat = document.getElementById('add-category-other').value.trim();
+            if (!customCat) {
+                showAppAlert('Please specify the custom category name.');
+                return;
+            }
+            category = customCat;
+        }
+        
+        const payload = { amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status, createddate };
+        document.querySelectorAll('#add-expense-custom-fields .custom-expense-field').forEach(input => {
+            payload[input.getAttribute('data-key')] = input.value;
+        });
+        
+        pendingExpensesList.push(payload);
+        renderPendingExpensesTable();
+        
+        // Clear amount, description, and interest in form so they don't get double added
+        document.getElementById('add-amount').value = '';
+        document.getElementById('add-description').value = '';
+        if (document.getElementById('add-interest')) {
+            document.getElementById('add-interest').value = '';
+        }
+    }
+
+    if (pendingExpensesList.length > 0) {
+        if (pendingExpensesList.length > 1) {
+            // Multiple items: show preview modal
+            openAddPreviewModal();
+        } else {
+            // Exactly 1 item total: save directly
+            await saveExpensesPayload(pendingExpensesList);
+        }
+    } else {
+        showAppAlert('Please enter a valid amount and details first.');
     }
 }
 

@@ -7,6 +7,17 @@ import datetime
 # Use a test SQLite file to test connection/schema logic without requiring actual PostgreSQL setup
 os.environ['DATABASE_PATH'] = 'test_vercel_expenses.db'
 
+# Mock dotenv module to prevent loading .env during test execution
+import sys
+import types
+dotenv_mock = types.ModuleType('dotenv')
+dotenv_mock.load_dotenv = lambda *args, **kwargs: None
+sys.modules['dotenv'] = dotenv_mock
+
+for k in ['DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_HOST', 'POSTGRES_PORT', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB']:
+    if k in os.environ:
+        del os.environ[k]
+
 # Import database module
 import database
 import database.VercelDb
