@@ -187,12 +187,20 @@ class PostgresConnectionWrapper:
 def get_vercel_db_connection():
     """Obtains a Postgres connection compatible with Vercel deployment requirements."""
     if DATABASE_URL:
-        url = DATABASE_URL
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        conn = psycopg2.connect(url)
-        return PostgresConnectionWrapper(conn)
+        try:
+            url = DATABASE_URL
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql://", 1)
+            conn = psycopg2.connect(url, connect_timeout=15)
+            return PostgresConnectionWrapper(conn)
+        except Exception as e:
+            print(f"[DATABASE WARNING] Failed to connect to Postgres via DATABASE_URL: {e}. Falling back to SQLite.")
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            return conn
     elif os.environ.get('POSTGRES_HOST'):
+        is_local = POSTGRES_HOST in ('localhost', '127.0.0.1', '::1')
+        sslmode = 'prefer' if is_local else 'require'
         try:
             conn = psycopg2.connect(
                 host=POSTGRES_HOST,
@@ -200,10 +208,12 @@ def get_vercel_db_connection():
                 user=POSTGRES_USER,
                 password=POSTGRES_PASSWORD,
                 dbname=POSTGRES_DB,
-                connect_timeout=2
+                connect_timeout=15,
+                sslmode=sslmode
             )
             return PostgresConnectionWrapper(conn)
         except psycopg2.OperationalError as e:
+            print(f"[DATABASE WARNING] Failed to connect to PostgreSQL at {POSTGRES_HOST}: {e}.")
             if "does not exist" in str(e):
                 try:
                     conn_default = psycopg2.connect(
@@ -212,7 +222,8 @@ def get_vercel_db_connection():
                         user=POSTGRES_USER,
                         password=POSTGRES_PASSWORD,
                         dbname="postgres",
-                        connect_timeout=2
+                        connect_timeout=15,
+                        sslmode=sslmode
                     )
                     conn_default.autocommit = True
                     cursor = conn_default.cursor()
@@ -226,15 +237,17 @@ def get_vercel_db_connection():
                         user=POSTGRES_USER,
                         password=POSTGRES_PASSWORD,
                         dbname=POSTGRES_DB,
-                        connect_timeout=2
+                        connect_timeout=15,
+                        sslmode=sslmode
                     )
                     return PostgresConnectionWrapper(conn)
-                except Exception:
-                    # SQLite fallback
+                except Exception as create_err:
+                    print(f"[DATABASE ERROR] Failed to auto-create database {POSTGRES_DB}: {create_err}. Falling back to SQLite.")
                     conn = sqlite3.connect(DB_PATH)
                     conn.row_factory = sqlite3.Row
                     return conn
             else:
+                print(f"[DATABASE WARNING] Falling back to SQLite due to: {e}")
                 conn = sqlite3.connect(DB_PATH)
                 conn.row_factory = sqlite3.Row
                 return conn

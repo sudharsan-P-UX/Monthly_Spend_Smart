@@ -251,6 +251,98 @@ async function updateOverviewStats() {
     }
 }
 
+let pendingExpensesList = [];
+
+function handleAddItemToExpenseList(e) {
+    e.preventDefault();
+    const amountInput = document.getElementById('add-amount');
+    const amountVal = amountInput.value;
+    let category = document.getElementById('add-category').value;
+    const date = document.getElementById('add-date').value;
+    const bank_mode = document.getElementById('add-bank-mode').value;
+    const payment_type = document.getElementById('add-payment-type').value;
+    const payment_category = document.getElementById('add-payment-category').value;
+    const payment_method = document.getElementById('add-payment-method') ? document.getElementById('add-payment-method').value : 'Debit';
+    const status = document.getElementById('add-status') && document.getElementById('add-status').checked ? 'Paid' : 'Unpaid';
+    const descriptionInput = document.getElementById('add-description');
+    const description = descriptionInput.value;
+    const interestVal = document.getElementById('add-interest') ? document.getElementById('add-interest').value : '';
+    const interest = interestVal === '' ? 0.0 : parseFloat(interestVal) || 0.0;
+    const createddate = document.getElementById('add-createddate').value;
+
+    if (!amountVal || parseFloat(amountVal) <= 0) {
+        showAppAlert('Please enter a valid amount greater than zero.');
+        return;
+    }
+    if (!category) {
+        showAppAlert('Please select a category.');
+        return;
+    }
+    if (!date) {
+        showAppAlert('Please select a date.');
+        return;
+    }
+
+    if (category.toLowerCase() === 'other') {
+        const customCat = document.getElementById('add-category-other').value.trim();
+        if (!customCat) {
+            showAppAlert('Please specify the custom category name.');
+            return;
+        }
+        category = customCat;
+    }
+
+    const payload = { amount: amountVal, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status, createddate };
+    document.querySelectorAll('#add-expense-custom-fields .custom-expense-field').forEach(input => {
+        payload[input.getAttribute('data-key')] = input.value;
+    });
+
+    pendingExpensesList.push(payload);
+    renderPendingExpensesTable();
+
+    // Clear only amount and description
+    amountInput.value = '';
+    descriptionInput.value = '';
+}
+
+function renderPendingExpensesTable() {
+    const container = document.getElementById('added-expenses-list-container');
+    const tbody = document.getElementById('added-expenses-list-tbody');
+    if (!container || !tbody) return;
+
+    if (pendingExpensesList.length === 0) {
+        container.classList.add('hidden');
+        tbody.innerHTML = '';
+        return;
+    }
+
+    container.classList.remove('hidden');
+    tbody.innerHTML = '';
+
+    pendingExpensesList.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${parseFloat(item.amount).toFixed(2)}</strong></td>
+            <td><span class="badge" style="background-color: var(--color-primary-light); color: var(--color-primary);">${escapeHTML(item.category)}</span></td>
+            <td>${escapeHTML(item.date)}</td>
+            <td>${escapeHTML(item.description || '-')}</td>
+            <td class="text-center">
+                <button type="button" class="btn-icon text-danger" onclick="removePendingExpense(${index})" title="Remove">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function removePendingExpense(index) {
+    pendingExpensesList.splice(index, 1);
+    renderPendingExpensesTable();
+}
+
+window.removePendingExpense = removePendingExpense;
+
 // ADD EXPENSE
 async function handleAddExpense(e) {
     e.preventDefault();
@@ -265,23 +357,35 @@ async function handleAddExpense(e) {
     const description = document.getElementById('add-description').value;
     const interestVal = document.getElementById('add-interest') ? document.getElementById('add-interest').value : '';
     const interest = interestVal === '' ? 0.0 : parseFloat(interestVal) || 0.0;
+    const createddate = document.getElementById('add-createddate').value;
 
-    if (category.toLowerCase() === 'other') {
-        const customCat = document.getElementById('add-category-other').value.trim();
-        if (!customCat) {
-            showAppAlert('Please specify the custom category name.');
+    let payload;
+    if (pendingExpensesList.length > 0) {
+        payload = pendingExpensesList;
+    } else {
+        if (!amount || parseFloat(amount) <= 0) {
+            showAppAlert('Please enter a valid amount greater than zero.');
             return;
         }
-        category = customCat;
-    }
-
-    try {
-        const createddate = document.getElementById('add-createddate').value;
-        const payload = { amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status, createddate };
+        if (!category) {
+            showAppAlert('Please select a category.');
+            return;
+        }
+        if (category.toLowerCase() === 'other') {
+            const customCat = document.getElementById('add-category-other').value.trim();
+            if (!customCat) {
+                showAppAlert('Please specify the custom category name.');
+                return;
+            }
+            category = customCat;
+        }
+        payload = { amount, category, date, description, bank_mode, payment_type, payment_category, interest, payment_method, status, createddate };
         document.querySelectorAll('#add-expense-custom-fields .custom-expense-field').forEach(input => {
             payload[input.getAttribute('data-key')] = input.value;
         });
+    }
 
+    try {
         const response = await fetch('/api/expenses/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -290,7 +394,10 @@ async function handleAddExpense(e) {
         const result = await response.json();
         
         if (response.ok && result.success) {
-            showAppAlert('Expense added successfully!', true);
+            showAppAlert(result.message || 'Expense added successfully!', true);
+            
+            pendingExpensesList = [];
+            renderPendingExpensesTable();
             
             // Reset form fields but keep date as today
             document.getElementById('standalone-add-expense-form').reset();

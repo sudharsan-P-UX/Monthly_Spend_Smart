@@ -158,6 +158,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (standaloneAddForm) {
         standaloneAddForm.addEventListener('submit', handleAddExpense);
     }
+    const btnAddItemToList = document.getElementById('btn-add-item-to-list');
+    if (btnAddItemToList) {
+        btnAddItemToList.addEventListener('click', handleAddItemToExpenseList);
+    }
+    const resetBtn = document.getElementById('add-expense-reset-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (typeof pendingExpensesList !== 'undefined') {
+                pendingExpensesList = [];
+                renderPendingExpensesTable();
+            }
+        });
+    }
     const editForm = document.getElementById('edit-expense-form');
     if (editForm) {
         editForm.addEventListener('submit', handleEditExpense);

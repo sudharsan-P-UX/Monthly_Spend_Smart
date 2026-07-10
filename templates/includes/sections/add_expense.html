@@ -7,9 +7,10 @@
 
     <div class="content-card form-card">
         <form id="standalone-add-expense-form" class="standalone-form">
-            <div class="input-group">
+            <div class="input-group" id="amount-input-group">
                 <label for="add-amount">Amount ({{ active_currency_symbol or '₹' }}) <span class="required">*</span></label>
                 <input type="number" id="add-amount" step="0.01" min="0.01" required placeholder="0.00">
+                <button type="button" id="btn-add-item-to-list" class="btn-secondary" style="margin-top: 8px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem;"><i class="fa-solid fa-plus"></i> ADD</button>
             </div>
             <div class="input-group">
                 <label for="add-category">Category <span class="required">*</span></label>
@@ -88,6 +89,28 @@
                 <label for="add-description">Description</label>
                 <input type="text" id="add-description" placeholder="e.g. Grocery shopping">
             </div>
+            
+            <!-- Pending Added Expenses List Table -->
+            <div id="added-expenses-list-container" class="input-group-full hidden" style="margin-top: 20px; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 10px; font-size: 1rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">Pending Expense List</h3>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Amount</th>
+                                <th>Category</th>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th style="width: 80px;" class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="added-expenses-list-tbody">
+                            <!-- Dynamically added rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="form-actions">
                 <button type="reset" class="btn-secondary" id="add-expense-reset-btn">Reset</button>
                 <button type="submit" class="btn-primary">Add Expense</button>

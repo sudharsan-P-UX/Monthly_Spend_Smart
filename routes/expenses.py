@@ -48,51 +48,75 @@ def register_expense_routes(app):
     @app.route('/api/expenses/add', methods=['POST'])
     @require_privilege('can_add')
     def add_expense_api():
-        data = request.get_json() or {}
-        amount = data.get('amount')
-        category = data.get('category')
-        description = data.get('description', '')
-        date = data.get('date')
-        bank_mode = data.get('bank_mode', '')
-        payment_type = data.get('payment_type', '')
-        payment_category = data.get('payment_category', '')
-        payment_method = data.get('payment_method', 'Debit')
-        interest = data.get('interest', 0.0)
-        status = data.get('status', 'Paid')
-        createddate = data.get('createddate')
-        if not createddate:
-            createddate = date
-        
-        # Validations
-        if amount is None or not category or not date:
-            return jsonify({'error': 'Amount, Category, and Date are required.'}), 400
+        payload = request.get_json()
+        if not payload:
+            return jsonify({'error': 'No data provided.'}), 400
             
-        try:
-            amount = float(amount)
-            if amount <= 0:
-                return jsonify({'error': 'Amount must be greater than zero.'}), 400
-        except ValueError:
-            return jsonify({'error': 'Amount must be a number.'}), 400
+        # Standardize single item to a list
+        if isinstance(payload, dict):
+            items = [payload]
+            is_bulk = False
+        elif isinstance(payload, list):
+            items = payload
+            is_bulk = True
+        else:
+            return jsonify({'error': 'Invalid payload format.'}), 400
+            
+        added_ids = []
+        for data in items:
+            amount = data.get('amount')
+            category = data.get('category')
+            description = data.get('description', '')
+            date = data.get('date')
+            bank_mode = data.get('bank_mode', '')
+            payment_type = data.get('payment_type', '')
+            payment_category = data.get('payment_category', '')
+            payment_method = data.get('payment_method', 'Debit')
+            interest = data.get('interest', 0.0)
+            status = data.get('status', 'Paid')
+            createddate = data.get('createddate')
+            if not createddate:
+                createddate = date
+            
+            # Validations
+            if amount is None or not category or not date:
+                return jsonify({'error': 'Amount, Category, and Date are required.'}), 400
+                
+            try:
+                amount = float(amount)
+                if amount <= 0:
+                    return jsonify({'error': 'Amount must be greater than zero.'}), 400
+            except ValueError:
+                return jsonify({'error': 'Amount must be a number.'}), 400
 
-        try:
-            interest = float(interest)
-            if interest < 0:
-                return jsonify({'error': 'Interest cannot be negative.'}), 400
-        except ValueError:
-            interest = 0.0
-            
-        # Extract dynamic custom fields
-        standard_keys = {'amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status', 'createddate'}
-        extra_fields = {k: v for k, v in data.items() if k not in standard_keys}
-            
-        expense_id = database.add_expense(
-            session['user_id'], amount, category, description, date,
-            bank_mode=bank_mode, payment_type=payment_type, payment_category=payment_category,
-            interest=interest, payment_method=payment_method, status=status,
-            createddate=createddate,
-            **extra_fields
-        )
-        return jsonify({'success': True, 'id': expense_id, 'message': 'Expense added successfully.'})
+            try:
+                interest = float(interest)
+                if interest < 0:
+                    return jsonify({'error': 'Interest cannot be negative.'}), 400
+            except ValueError:
+                interest = 0.0
+                
+            # Extract dynamic custom fields
+            standard_keys = {'amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status', 'createddate'}
+            extra_fields = {k: v for k, v in data.items() if k not in standard_keys}
+                
+            expense_id = database.add_expense(
+                session['user_id'], amount, category, description, date,
+                bank_mode=bank_mode, payment_type=payment_type, payment_category=payment_category,
+                interest=interest, payment_method=payment_method, status=status,
+                createddate=createddate,
+                **extra_fields
+            )
+            if expense_id:
+                added_ids.append(expense_id)
+                
+        if is_bulk:
+            return jsonify({'success': True, 'ids': added_ids, 'message': f'{len(added_ids)} expenses added successfully.'})
+        else:
+            if added_ids:
+                return jsonify({'success': True, 'id': added_ids[0], 'message': 'Expense added successfully.'})
+            else:
+                return jsonify({'error': 'Failed to add expense.'}), 500
 
     @app.route('/api/expenses/edit/<int:expense_id>', methods=['POST'])
     @require_privilege('can_edit')

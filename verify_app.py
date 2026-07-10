@@ -1707,6 +1707,26 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         resp = self.app.get('/api/active-currency')
         self.assertEqual(json.loads(resp.data)['symbol'], '$')
 
+        # Verify bulk additions endpoint
+        resp = self.app.post('/api/expenses/add', data=json.dumps([
+            {
+                'amount': 100.0,
+                'category': 'Food',
+                'date': '2026-07-10',
+                'description': 'Bulk item 1'
+            },
+            {
+                'amount': 250.5,
+                'category': 'Rent',
+                'date': '2026-07-10',
+                'description': 'Bulk item 2'
+            }
+        ]), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        bulk_res = json.loads(resp.data)
+        self.assertTrue(bulk_res['success'])
+        self.assertEqual(len(bulk_res['ids']), 2)
+
         self.app.get('/logout')
 
 if __name__ == '__main__':
