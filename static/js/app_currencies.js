@@ -62,18 +62,43 @@ function adminRenderCurrenciesTable(currencies) {
     if (!tbody) return;
     tbody.innerHTML = '';
     
+    const is_admin = currentUserPrivileges && currentUserPrivileges.is_admin;
+    
+    // Hide or show Add Currency card (form card)
+    const currencyFormCard = document.getElementById('admin-currency-form')?.closest('.content-card');
+    if (currencyFormCard) {
+        if (is_admin) {
+            currencyFormCard.classList.remove('hidden');
+        } else {
+            currencyFormCard.classList.add('hidden');
+        }
+    }
+    
+    // Hide or show Actions header in the table
+    const thActions = document.querySelector('#tab-admin-currencies table th:last-child');
+    if (thActions) {
+        if (is_admin) {
+            thActions.style.display = '';
+        } else {
+            thActions.style.display = 'none';
+        }
+    }
+    
     currencies.forEach(curr => {
         const tr = document.createElement('tr');
         const checked = curr.is_active ? 'checked' : '';
         
-        let actionsHtml = `
-            <button class="btn-icon btn-icon-edit" onclick="adminEditCurrency(${curr.id})" title="Edit Currency" style="color: var(--color-primary);">
-                <i class="fa-solid fa-pen-to-square"></i>
-            </button>
-            <button class="btn-icon btn-icon-delete" onclick="adminDeleteCurrency(${curr.id}, '${escapeHTML(curr.country)}')" title="Delete Currency">
-                <i class="fa-solid fa-trash-can"></i>
-            </button>
-        `;
+        let actionsHtml = '';
+        if (is_admin) {
+            actionsHtml = `
+                <button class="btn-icon btn-icon-edit" onclick="adminEditCurrency(${curr.id})" title="Edit Currency" style="color: var(--color-primary);">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button class="btn-icon btn-icon-delete" onclick="adminDeleteCurrency(${curr.id}, '${escapeHTML(curr.country)}')" title="Delete Currency">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            `;
+        }
         
         tr.innerHTML = `
             <td><strong>${escapeHTML(curr.country)}</strong></td>
@@ -82,7 +107,7 @@ function adminRenderCurrenciesTable(currencies) {
             <td class="text-center">
                 <input type="radio" name="active_currency_radio" ${checked} onchange="adminSetActiveCurrency(${curr.id})">
             </td>
-            <td class="actions-cell">${actionsHtml}</td>
+            ${is_admin ? `<td class="actions-cell">${actionsHtml}</td>` : ''}
         `;
         tbody.appendChild(tr);
     });

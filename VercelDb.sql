@@ -136,7 +136,8 @@ CREATE TABLE IF NOT EXISTS Refusers (
     saltkey VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     isactive INTEGER DEFAULT 1,
-    createddate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    createddate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    active_currency_id INTEGER REFERENCES Refcurreny(CurrencyId)
 );
 
 -- 10. UserRole table
@@ -229,7 +230,8 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- Seed default settings
 INSERT INTO settings (Setting, value) VALUES
-('registration_otp_enabled', '0'),
+('register_email_otp_enabled', '0'),
+('register_phone_otp_enabled', '0'),
 ('login_otp_enabled', '0')
 ON CONFLICT (Setting) DO NOTHING;
 
@@ -308,6 +310,16 @@ INSERT INTO payment_categories (id, name, display_order) VALUES
 (7, 'Credit Line', 5),
 (8, 'Borrow Amount', 6)
 ON CONFLICT (name) DO NOTHING;
+
+-- User Expense Controls Table (Child Table)
+CREATE TABLE IF NOT EXISTS user_expense_controls (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES Refusers(LoginId) ON DELETE CASCADE,
+    control_type VARCHAR(50) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    display_order INTEGER DEFAULT 0,
+    UNIQUE (user_id, control_type, name)
+);
 
 -- Excel Columns Configuration Table
 CREATE TABLE IF NOT EXISTS excel_columns (

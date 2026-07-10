@@ -32,6 +32,24 @@ def create_user(username, password, role_id=2, first_name=None, last_name=None, 
             (user_id, role_id, 1)
         )
         
+        # Seed user expense controls child table
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'category', name, display_order FROM categories",
+            (user_id,)
+        )
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'bank_mode', name, display_order FROM bank_modes",
+            (user_id,)
+        )
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_type', name, display_order FROM payment_types",
+            (user_id,)
+        )
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_category', name, display_order FROM payment_categories",
+            (user_id,)
+        )
+        
         conn.commit()
         return user_id
     except sqlite3.IntegrityError:
@@ -231,13 +249,23 @@ def update_user_password_by_username(username, password):
             (salt, pwd_hash, username)
         )
         # Also update expiry and password change timestamp
-        cursor.execute(
-            '''UPDATE UserRole 
-               SET lastchangePassword = CURRENT_TIMESTAMP, 
-                   PasswordExpiry = (CURRENT_TIMESTAMP + INTERVAL '90 days') 
-               WHERE LoginId = (SELECT LoginId FROM Refusers WHERE Username = ? LIMIT 1)''',
-            (username,)
-        )
+        is_pg = conn.__class__.__name__ == 'PostgresConnectionWrapper'
+        if is_pg:
+            cursor.execute(
+                '''UPDATE UserRole 
+                   SET lastchangePassword = CURRENT_TIMESTAMP, 
+                       PasswordExpiry = (CURRENT_TIMESTAMP + INTERVAL '90 days') 
+                   WHERE LoginId = (SELECT LoginId FROM Refusers WHERE Username = ? LIMIT 1)''',
+                (username,)
+            )
+        else:
+            cursor.execute(
+                '''UPDATE UserRole 
+                   SET lastchangePassword = CURRENT_TIMESTAMP, 
+                       PasswordExpiry = datetime(CURRENT_TIMESTAMP, '+90 days') 
+                   WHERE LoginId = (SELECT LoginId FROM Refusers WHERE Username = ? LIMIT 1)''',
+                (username,)
+            )
         conn.commit()
         return True
     except Exception as e:
@@ -258,13 +286,23 @@ def update_user_password(user_id, password):
             'UPDATE Refusers SET saltkey = ?, password = ? WHERE LoginId = ?',
             (salt, pwd_hash, user_id)
         )
-        cursor.execute(
-            '''UPDATE UserRole 
-               SET lastchangePassword = CURRENT_TIMESTAMP, 
-                   PasswordExpiry = (CURRENT_TIMESTAMP + INTERVAL '90 days') 
-               WHERE LoginId = ?''',
-            (user_id,)
-        )
+        is_pg = conn.__class__.__name__ == 'PostgresConnectionWrapper'
+        if is_pg:
+            cursor.execute(
+                '''UPDATE UserRole 
+                   SET lastchangePassword = CURRENT_TIMESTAMP, 
+                       PasswordExpiry = (CURRENT_TIMESTAMP + INTERVAL '90 days') 
+                   WHERE LoginId = ?''',
+                (user_id,)
+            )
+        else:
+            cursor.execute(
+                '''UPDATE UserRole 
+                   SET lastchangePassword = CURRENT_TIMESTAMP, 
+                       PasswordExpiry = datetime(CURRENT_TIMESTAMP, '+90 days') 
+                   WHERE LoginId = ?''',
+                (user_id,)
+            )
         conn.commit()
         return True
     except Exception as e:

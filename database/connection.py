@@ -20,6 +20,17 @@ def init_db():
     # 1. Initialize schema from VercelDb.sql
     init_vercel_db()
     
+    # Run schema migrations
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("ALTER TABLE Refusers ADD COLUMN active_currency_id INTEGER")
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        conn.close()
+    
     # 2. Seed default admin users if not present
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -40,6 +51,10 @@ def init_db():
                 "INSERT INTO UserRole (LoginId, RoleId, isactive) VALUES (?, ?, ?)",
                 (login_id, 1, 1)
             )
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'category', name, display_order FROM categories", (login_id,))
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'bank_mode', name, display_order FROM bank_modes", (login_id,))
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_type', name, display_order FROM payment_types", (login_id,))
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_category', name, display_order FROM payment_categories", (login_id,))
             conn.commit()
             print("Default admin user created successfully.")
 
@@ -59,6 +74,10 @@ def init_db():
                 "INSERT INTO UserRole (LoginId, RoleId, isactive) VALUES (?, ?, ?)",
                 (login_id, 1, 1)
             )
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'category', name, display_order FROM categories", (login_id,))
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'bank_mode', name, display_order FROM bank_modes", (login_id,))
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_type', name, display_order FROM payment_types", (login_id,))
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_category', name, display_order FROM payment_categories", (login_id,))
             conn.commit()
             print("Default Admin user (adminuser@gmail.com) created successfully.")
     except Exception as e:

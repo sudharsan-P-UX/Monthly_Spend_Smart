@@ -100,7 +100,8 @@ const cancelMfaBtn = document.getElementById('cancel-mfa');
 let tempLoginToken = null;
 let emailVerified = false;
 let phoneVerified = false;
-let registrationOtpEnabled = true;
+let registerEmailOtpEnabled = true;
+let registerPhoneOtpEnabled = true;
 
 const emailInput = document.getElementById('register-email');
 const phoneInput = document.getElementById('register-phone');
@@ -168,13 +169,10 @@ async function verifyOtpCode(target, otpCode, statusElement, onSuccess) {
 }
 
 function checkRegistrationReady() {
-    if (!registrationOtpEnabled) {
-        registerSubmitBtn.disabled = false;
-        registerSubmitBtn.style.opacity = '1';
-        registerSubmitBtn.style.cursor = 'pointer';
-        return;
-    }
-    if (emailVerified && phoneVerified) {
+    const needEmail = registerEmailOtpEnabled && !emailVerified;
+    const needPhone = registerPhoneOtpEnabled && !phoneVerified;
+    
+    if (!needEmail && !needPhone) {
         registerSubmitBtn.disabled = false;
         registerSubmitBtn.style.opacity = '1';
         registerSubmitBtn.style.cursor = 'pointer';
@@ -315,8 +313,12 @@ registerForm.addEventListener('submit', async (e) => {
         showAlert('Passwords do not match.');
         return;
     }
-    if (registrationOtpEnabled && (!emailVerified || !phoneVerified)) {
-        showAlert('Please verify both your email and phone number first.');
+    if (registerEmailOtpEnabled && !emailVerified) {
+        showAlert('Please verify your email address first.');
+        return;
+    }
+    if (registerPhoneOtpEnabled && !phoneVerified) {
+        showAlert('Please verify your phone number first.');
         return;
     }
 
@@ -385,27 +387,34 @@ async function loadSecuritySettings() {
         const response = await fetch('/api/settings/public');
         if (response.ok) {
             const settings = await response.json();
-            registrationOtpEnabled = settings.registration_otp_enabled;
+            registerEmailOtpEnabled = settings.register_email_otp_enabled;
+            registerPhoneOtpEnabled = settings.register_phone_otp_enabled;
             
             const otpFieldsContainer = document.getElementById('otp-registration-fields');
             const firstnameInput = document.getElementById('register-firstname');
             const lastnameInput = document.getElementById('register-lastname');
             
-            if (registrationOtpEnabled) {
-                otpFieldsContainer.classList.remove('hidden');
-                firstnameInput.required = true;
-                lastnameInput.required = true;
+            otpFieldsContainer.classList.remove('hidden');
+            firstnameInput.required = true;
+            lastnameInput.required = true;
+            
+            if (registerEmailOtpEnabled) {
+                btnSendEmailOtp.classList.remove('hidden');
                 emailInput.required = true;
-                phoneInput.required = true;
-                checkRegistrationReady();
             } else {
-                otpFieldsContainer.classList.add('hidden');
-                firstnameInput.required = false;
-                lastnameInput.required = false;
+                btnSendEmailOtp.classList.add('hidden');
                 emailInput.required = false;
-                phoneInput.required = false;
-                checkRegistrationReady();
             }
+            
+            if (registerPhoneOtpEnabled) {
+                btnSendPhoneOtp.classList.remove('hidden');
+                phoneInput.required = true;
+            } else {
+                btnSendPhoneOtp.classList.add('hidden');
+                phoneInput.required = false;
+            }
+            
+            checkRegistrationReady();
         }
     } catch (err) {
         console.error("Failed to load security settings:", err);

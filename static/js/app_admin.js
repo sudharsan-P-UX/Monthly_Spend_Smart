@@ -245,6 +245,10 @@ async function handleAdminChangeUserPassword(e) {
         return;
     }
 
+    if (!confirm('Are you sure you want to save changes for this user?')) {
+        return;
+    }
+
     try {
         const response = await fetch('/api/admin/users/edit', {
             method: 'POST',
@@ -261,6 +265,7 @@ async function handleAdminChangeUserPassword(e) {
         });
         const result = await response.json();
         if (response.ok && result.success) {
+            alert('User details updated successfully!');
             showAppAlert('User details updated successfully!', true);
             closeChangePasswordModal();
             await adminFetchUsers();
@@ -467,10 +472,12 @@ async function adminFetchSettings() {
         const response = await fetch(`/api/admin/settings?t=${new Date().getTime()}`);
         if (response.ok) {
             const settings = await response.json();
-            const regCheckbox = document.getElementById('setting-register-otp');
+            const emailCheckbox = document.getElementById('setting-register-email-otp');
+            const phoneCheckbox = document.getElementById('setting-register-phone-otp');
             const loginCheckbox = document.getElementById('setting-login-otp');
             
-            if (regCheckbox) regCheckbox.checked = settings.registration_otp_enabled;
+            if (emailCheckbox) emailCheckbox.checked = settings.register_email_otp_enabled;
+            if (phoneCheckbox) phoneCheckbox.checked = settings.register_phone_otp_enabled;
             if (loginCheckbox) loginCheckbox.checked = settings.login_otp_enabled;
         }
     } catch (err) {
@@ -479,16 +486,18 @@ async function adminFetchSettings() {
 }
 
 async function adminUpdateSettings() {
-    const regCheckbox = document.getElementById('setting-register-otp');
+    const emailCheckbox = document.getElementById('setting-register-email-otp');
+    const phoneCheckbox = document.getElementById('setting-register-phone-otp');
     const loginCheckbox = document.getElementById('setting-login-otp');
-    if (!regCheckbox || !loginCheckbox) return;
+    if (!emailCheckbox || !phoneCheckbox || !loginCheckbox) return;
 
     try {
         const response = await fetch('/api/admin/settings/update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                registration_otp_enabled: regCheckbox.checked,
+                register_email_otp_enabled: emailCheckbox.checked,
+                register_phone_otp_enabled: phoneCheckbox.checked,
                 login_otp_enabled: loginCheckbox.checked
             })
         });

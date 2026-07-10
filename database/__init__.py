@@ -77,5 +77,9 @@ from database.admin_data import (
     get_payment_categories,
     add_payment_category,
     update_payment_category,
-    delete_payment_category
+    delete_payment_category,
+    get_user_expense_controls,
+    add_user_expense_control,
+    update_user_expense_control,
+    delete_user_expense_control
 )

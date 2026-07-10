@@ -7,7 +7,11 @@ def register_expense_routes(app):
     def get_categories_api():
         if not is_logged_in():
             return jsonify({'error': 'Unauthorized'}), 401
-        cats = database.get_categories()
+        user_privs = database.get_user_privileges(session['user_id'])
+        if user_privs.get('is_admin'):
+            cats = database.get_categories()
+        else:
+            cats = database.get_user_expense_controls(session['user_id'], 'category')
         return jsonify(cats)
 
     @app.route('/api/expenses', methods=['GET'])

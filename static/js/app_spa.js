@@ -25,7 +25,7 @@ function switchView(target) {
     } else if (target === 'admin') {
         loadAdminPanel();
         if (!currentUserPrivileges.is_admin) {
-            switchAdminTab('admin-excel-columns');
+            switchAdminTab('admin-expense-control');
         } else {
             switchAdminTab('admin-users');
         }
@@ -63,7 +63,7 @@ function applyUserPrivileges() {
     const adminTabs = document.querySelectorAll('.admin-tab');
     adminTabs.forEach(tab => {
         const targetTab = tab.getAttribute('data-tab');
-        if (targetTab === 'admin-excel-columns') {
+        if (targetTab === 'admin-expense-control' || targetTab === 'admin-currencies') {
             tab.classList.remove('hidden');
         } else {
             if (currentUserPrivileges.is_admin) {
@@ -84,14 +84,10 @@ function applyUserPrivileges() {
         }
     }
 
-    // Toggle inline add buttons based on admin privileges
+    // Toggle inline add buttons - visible to everyone since users manage their own child table config
     const inlineBtns = document.querySelectorAll('.inline-add-btn');
     inlineBtns.forEach(btn => {
-        if (currentUserPrivileges && currentUserPrivileges.is_admin) {
-            btn.style.display = 'inline-block';
-        } else {
-            btn.style.display = 'none';
-        }
+        btn.style.display = 'inline-block';
     });
 
     // Refresh expense table to reflect action buttons privileges

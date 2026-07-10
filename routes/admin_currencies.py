@@ -1,16 +1,18 @@
-from flask import request, jsonify
+from flask import request, jsonify, session
 import database
-from routes.utils import require_privilege
+from routes.utils import is_logged_in, require_privilege
 
 def register_admin_currencies_routes(app):
     @app.route('/api/active-currency', methods=['GET'])
     def api_get_active_currency():
-        curr = database.get_active_currency()
+        user_id = session.get('user_id')
+        curr = database.get_active_currency(user_id)
         return jsonify(curr)
 
     @app.route('/api/admin/currencies', methods=['GET'])
-    @require_privilege('can_admin')
     def admin_get_currencies():
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
         currs = database.get_all_currencies()
         return jsonify(currs)
 
@@ -49,9 +51,10 @@ def register_admin_currencies_routes(app):
             return jsonify({'error': 'Failed to update. Ensure country name is unique.'}), 400
 
     @app.route('/api/admin/currencies/set_active/<int:curr_id>', methods=['POST'])
-    @require_privilege('can_admin')
     def admin_set_active_currency(curr_id):
-        success = database.set_active_currency(curr_id)
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
+        success = database.set_active_currency(curr_id, session.get('user_id'))
         if success:
             return jsonify({'success': True, 'message': 'Active currency changed successfully.'})
         else:

@@ -1,5 +1,6 @@
 from flask import render_template, redirect, url_for, session, request, jsonify, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 import os
 import random
 import secrets
@@ -54,12 +55,11 @@ def register_login_routes(app):
                     database.create_otp(mfa_target, login_otp)
                     print(f"\n[MOCK MFA] Sent login verification OTP {login_otp} to {mfa_target}\n", flush=True)
                     
-                    temp_token = secrets.token_hex(16)
-                    temp_login_tokens[temp_token] = {
+                    serializer = URLSafeTimedSerializer(current_app.config.get('SECRET_KEY', 'default_secret_key_123'))
+                    temp_token = serializer.dumps({
                         'user_id': user['id'],
-                        'mfa_target': mfa_target,
-                        'expires_at': datetime.datetime.now() + datetime.timedelta(minutes=5)
-                    }
+                        'mfa_target': mfa_target
+                    })
                     return jsonify({
                         'mfa_required': True,
                         'temp_token': temp_token,
@@ -118,13 +118,13 @@ def register_login_routes(app):
         if not temp_token or not otp_code:
             return jsonify({'error': 'Token and OTP code are required.'}), 400
             
-        token_data = temp_login_tokens.get(temp_token)
-        if not token_data:
-            return jsonify({'error': 'MFA session not found.'}), 400
-            
-        if datetime.datetime.now() > token_data['expires_at']:
-            temp_login_tokens.pop(temp_token, None)
+        serializer = URLSafeTimedSerializer(current_app.config.get('SECRET_KEY', 'default_secret_key_123'))
+        try:
+            token_data = serializer.loads(temp_token, max_age=300)
+        except SignatureExpired:
             return jsonify({'error': 'MFA session expired.'}), 400
+        except BadSignature:
+            return jsonify({'error': 'MFA session not found.'}), 400
             
         verified = database.verify_otp(token_data['mfa_target'], otp_code)
         if verified:
@@ -133,7 +133,6 @@ def register_login_routes(app):
                 session['user_id'] = user['id']
                 session['username'] = user['username']
                 database.VercelDb.log_user_login(user['id'], request.headers.get('User-Agent', 'Unknown'), otp_code)
-                temp_login_tokens.pop(temp_token, None)
                 return jsonify({'success': True, 'message': 'Logged in successfully.'})
                 
         return jsonify({'error': 'Invalid or expired OTP code.'}), 400

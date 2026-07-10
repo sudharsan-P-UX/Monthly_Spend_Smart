@@ -334,3 +334,97 @@ def delete_payment_category(pc_id):
         return True
     finally:
         conn.close()
+
+def get_user_expense_controls(user_id, control_type):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        rows = cursor.execute(
+            "SELECT id, name, display_order FROM user_expense_controls WHERE user_id = ? AND control_type = ? ORDER BY display_order ASC, name ASC",
+            (user_id, control_type)
+        ).fetchall()
+        if not rows:
+            # Auto-seed the child table for this user from main tables
+            cursor.execute(
+                "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'category', name, display_order FROM categories",
+                (user_id,)
+            )
+            cursor.execute(
+                "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'bank_mode', name, display_order FROM bank_modes",
+                (user_id,)
+            )
+            cursor.execute(
+                "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_type', name, display_order FROM payment_types",
+                (user_id,)
+            )
+            cursor.execute(
+                "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_category', name, display_order FROM payment_categories",
+                (user_id,)
+            )
+            conn.commit()
+            
+            # Fetch again
+            rows = cursor.execute(
+                "SELECT id, name, display_order FROM user_expense_controls WHERE user_id = ? AND control_type = ? ORDER BY display_order ASC, name ASC",
+                (user_id, control_type)
+            ).fetchall()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"Error in get_user_expense_controls: {e}")
+        return []
+    finally:
+        conn.close()
+
+def add_user_expense_control(user_id, control_type, name, display_order=0):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'INSERT INTO user_expense_controls (user_id, control_type, name, display_order) VALUES (?, ?, ?, ?)',
+            (user_id, control_type, name, display_order)
+        )
+        conn.commit()
+        return cursor.lastrowid
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        return None
+    except Exception as e:
+        conn.rollback()
+        print(f"Error in add_user_expense_control: {e}")
+        return None
+    finally:
+        conn.close()
+
+def update_user_expense_control(user_id, control_id, name, display_order):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'UPDATE user_expense_controls SET name = ?, display_order = ? WHERE id = ? AND user_id = ?',
+            (name, display_order, control_id, user_id)
+        )
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        return False
+    except Exception as e:
+        conn.rollback()
+        print(f"Error in update_user_expense_control: {e}")
+        return False
+    finally:
+        conn.close()
+
+def delete_user_expense_control(user_id, control_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('DELETE FROM user_expense_controls WHERE id = ? AND user_id = ?', (control_id, user_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Error in delete_user_expense_control: {e}")
+        return False
+    finally:
+        conn.close()

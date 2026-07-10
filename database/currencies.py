@@ -12,10 +12,21 @@ def get_all_currencies():
     finally:
         conn.close()
 
-def get_active_currency():
+def get_active_currency(user_id=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        if user_id:
+            try:
+                row = cursor.execute('SELECT active_currency_id FROM Refusers WHERE LoginId = ?', (user_id,)).fetchone()
+                if row:
+                    curr_id = row['active_currency_id'] if 'active_currency_id' in row else row[0]
+                    if curr_id:
+                        curr_row = cursor.execute('SELECT CurrencyId as id, Country as country, Description as country_desc, symbol, active as is_active FROM Refcurreny WHERE CurrencyId = ?', (curr_id,)).fetchone()
+                        if curr_row:
+                            return {k.lower(): v for k, v in dict(curr_row).items()}
+            except Exception as e:
+                print(f"Error getting user active currency: {e}")
         row = cursor.execute('SELECT CurrencyId as id, Country as country, Description as country_desc, symbol, active as is_active FROM Refcurreny WHERE active = 1 LIMIT 1').fetchone()
         if row:
             # Create a dictionary where all keys are lowercase
@@ -79,12 +90,15 @@ def delete_currency(currency_id):
     finally:
         conn.close()
 
-def set_active_currency(currency_id):
+def set_active_currency(currency_id, user_id=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute('UPDATE Refcurreny SET active = 0')
-        cursor.execute('UPDATE Refcurreny SET active = 1 WHERE CurrencyId = ?', (currency_id,))
+        if user_id:
+            cursor.execute('UPDATE Refusers SET active_currency_id = ? WHERE LoginId = ?', (currency_id, user_id))
+        else:
+            cursor.execute('UPDATE Refcurreny SET active = 0')
+            cursor.execute('UPDATE Refcurreny SET active = 1 WHERE CurrencyId = ?', (currency_id,))
         conn.commit()
         return True
     except Exception:

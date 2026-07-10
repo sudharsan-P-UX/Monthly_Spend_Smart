@@ -30,11 +30,18 @@ def register_register_routes(app):
             return jsonify({'success': False, 'message': 'Password must be at least 6 characters.'}), 400
 
         is_testing = app.testing or app.config.get('TESTING', False) or os.environ.get('DATABASE_PATH') == 'test_expenses.db'
-        if not is_testing:
-            reg_otp_enabled = database.get_setting('registration_otp_enabled', '1') == '1'
-            if reg_otp_enabled:
-                if not first_name or not last_name or not email or not phone:
-                    return jsonify({'success': False, 'message': 'First name, last name, email, and phone number are required.'}), 400
+        test_validation = (request.get_json() or {}).get('test_validation', False) if request.is_json else False
+        
+        if not is_testing or test_validation:
+            email_otp_enabled = database.get_setting('register_email_otp_enabled', '0') == '1'
+            phone_otp_enabled = database.get_setting('register_phone_otp_enabled', '0') == '1'
+            
+            if not first_name or not last_name:
+                return jsonify({'success': False, 'message': 'First name and last name are required.'}), 400
+            if email_otp_enabled and not email:
+                return jsonify({'success': False, 'message': 'Email address is required.'}), 400
+            if phone_otp_enabled and not phone:
+                return jsonify({'success': False, 'message': 'Phone number is required.'}), 400
                 
         # Check if username, email or phone is already taken
         existing_user = database.get_user_by_username_or_email(username)

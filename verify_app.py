@@ -34,6 +34,8 @@ class ExpenseTrackerTestCase(unittest.TestCase):
             cursor.execute("DELETE FROM payment_categories")
             cursor.execute("DELETE FROM settings")
             cursor.execute("DELETE FROM excel_columns")
+            cursor.execute("DELETE FROM Refcurreny")
+            cursor.execute("DELETE FROM user_expense_controls")
             
             # Reset sequences
             is_pg = conn.__class__.__name__ == 'PostgresConnectionWrapper'
@@ -1591,6 +1593,120 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertIsNone(emi1)
         self.assertIsNone(emi2)
         
+        self.app.get('/logout')
+
+    def test_user_specific_features(self):
+        # 1. Register a new user
+        # Log in as admin to update settings
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # Set separate registration OTP flags
+        resp = self.app.post('/api/admin/settings/update', data=json.dumps({
+            'register_email_otp_enabled': True,
+            'register_phone_otp_enabled': False,
+            'login_otp_enabled': False
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        self.app.get('/logout')
+
+        # Try to register without email (should fail because email OTP is enabled)
+        resp = self.app.post('/register', data=json.dumps({
+            'username': 'otpuser1',
+            'password': 'password123',
+            'first_name': 'OTP',
+            'last_name': 'User',
+            'test_validation': True
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+
+        # Register successfully with email
+        resp = self.app.post('/register', data=json.dumps({
+            'username': 'otpuser1',
+            'password': 'password123',
+            'first_name': 'OTP',
+            'last_name': 'User',
+            'email': 'otpuser1@example.com',
+            'test_validation': True
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # Get categories (should get child table categories)
+        resp = self.app.get('/api/categories')
+        self.assertEqual(resp.status_code, 200)
+        cats = json.loads(resp.data)
+        self.assertTrue(len(cats) > 0)
+
+        # Create a new custom category for this user
+        resp = self.app.post('/api/admin/categories/create', data=json.dumps({
+            'name': 'CustomCategory1',
+            'display_order': 100
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # Verify it exists in user's categories
+        resp = self.app.get('/api/categories')
+        cats = json.loads(resp.data)
+        cat_names = [c['name'] for c in cats]
+        self.assertIn('CustomCategory1', cat_names)
+
+        # Log out, log in as admin, check admin categories (should NOT contain CustomCategory1)
+        self.app.get('/logout')
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.app.get('/api/categories')
+        admin_cats = json.loads(resp.data)
+        admin_cat_names = [c['name'] for c in admin_cats]
+        self.assertNotIn('CustomCategory1', admin_cat_names)
+
+        # Verify active currency is user-specific
+        # Admin sets active currency to USA ($ - id 2)
+        resp = self.app.post('/api/admin/currencies/set_active/2')
+        self.assertEqual(resp.status_code, 200)
+
+        # Admin active currency is now $
+        resp = self.app.get('/api/active-currency')
+        self.assertEqual(json.loads(resp.data)['symbol'], '$')
+
+        # Log out, log in as otpuser1 (their active currency should fallback to India Rupee as it was never set)
+        self.app.get('/logout')
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'otpuser1',
+            'password': 'password123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # User active currency is ₹ (fallback)
+        resp = self.app.get('/api/active-currency')
+        self.assertEqual(json.loads(resp.data)['symbol'], '₹')
+
+        # User sets active currency to Europe (€ - id 3)
+        resp = self.app.post('/api/admin/currencies/set_active/3')
+        self.assertEqual(resp.status_code, 200)
+
+        # User active currency is now €
+        resp = self.app.get('/api/active-currency')
+        self.assertEqual(json.loads(resp.data)['symbol'], '€')
+
+        # Log out, log in as admin, admin's active currency is still $
+        self.app.get('/logout')
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.app.get('/api/active-currency')
+        self.assertEqual(json.loads(resp.data)['symbol'], '$')
+
         self.app.get('/logout')
 
 if __name__ == '__main__':
