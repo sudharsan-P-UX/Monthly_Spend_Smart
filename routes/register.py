@@ -76,9 +76,36 @@ def register_register_routes(app):
         if not is_logged_in():
             return jsonify({'error': 'Unauthorized'}), 401
         privs = database.get_user_privileges(session['user_id'])
+        
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        role_row = cursor.execute('SELECT RoleId FROM UserRole WHERE LoginId = ? LIMIT 1', (session['user_id'],)).fetchone()
+        
+        role_id = role_row[0] if role_row else 2
+        
+        # Load fine-grained privileges
+        fine_rows = cursor.execute(
+            'SELECT privilege_name, can_add, can_edit, can_delete, can_view, is_mandatory, is_active FROM role_privileges WHERE role_id = ?',
+            (role_id,)
+        ).fetchall()
+        
+        fine_privileges = {}
+        for r in fine_rows:
+            fine_privileges[r['privilege_name']] = {
+                'add': r['can_add'],
+                'edit': r['can_edit'],
+                'delete': r['can_delete'],
+                'view': r['can_view'],
+                'mandatory': r['is_mandatory'],
+                'is_active': r['is_active']
+            }
+        conn.close()
+        
         return jsonify({
             'username': session['username'],
-            'privileges': privs
+            'privileges': privs,
+            'role_id': role_id,
+            'fine_privileges': fine_privileges
         })
 
     @app.route('/api/user/profile', methods=['GET'])

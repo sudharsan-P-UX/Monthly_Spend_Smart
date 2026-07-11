@@ -177,6 +177,51 @@ def get_user_privileges(user_id):
     finally:
         conn.close()
 
+def check_backend_privilege(user_id, privilege_name, action):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        role_row = cursor.execute('SELECT RoleId FROM UserRole WHERE LoginId = ? AND isactive = 1 LIMIT 1', (user_id,)).fetchone()
+        if not role_row:
+            return False
+        role_id = role_row[0]
+        if role_id == 1:
+            return True # Admin always allowed
+            
+        priv_row = cursor.execute(
+            'SELECT can_add, can_edit, can_delete, can_view, is_active FROM role_privileges WHERE role_id = ? AND privilege_name = ? LIMIT 1',
+            (role_id, privilege_name)
+        ).fetchone()
+        if not priv_row:
+            # Fallback: if privilege is not seeded, users (2) can do it, viewers (3) cannot
+            if role_id == 3:
+                return action == 'view'
+            return True
+            
+        if priv_row['is_active'] == 0:
+            return False
+            
+        field_map = {
+            'add': 'can_add',
+            'edit': 'can_edit',
+            'delete': 'can_delete',
+            'view': 'can_view'
+        }
+        val = priv_row[field_map[action]]
+        # Handle SQLite/Postgres boolean types
+        if val is None:
+            return False
+        if isinstance(val, str):
+            return '1' in val
+        if isinstance(val, bytes):
+            return b'\x01' in val or b'1' in val
+        return bool(val)
+    except Exception as e:
+        print(f"Error checking backend privilege: {e}")
+        return False
+    finally:
+        conn.close()
+
 def get_all_users():
     conn = get_db_connection()
     cursor = conn.cursor()

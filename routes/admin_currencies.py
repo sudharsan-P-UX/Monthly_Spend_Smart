@@ -17,8 +17,11 @@ def register_admin_currencies_routes(app):
         return jsonify(currs)
 
     @app.route('/api/admin/currencies/add', methods=['POST'])
-    @require_privilege('can_admin')
     def admin_add_currency():
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
+        if not database.check_backend_privilege(session['user_id'], 'Add Currency', 'add'):
+            return jsonify({'error': 'Forbidden: Missing privilege Add Currency'}), 403
         data = request.get_json() or {}
         country = data.get('country', '').strip()
         country_desc = data.get('country_desc', '').strip()
@@ -34,8 +37,11 @@ def register_admin_currencies_routes(app):
             return jsonify({'error': 'Failed to add currency. Ensure country name is unique.'}), 400
 
     @app.route('/api/admin/currencies/edit/<int:curr_id>', methods=['POST'])
-    @require_privilege('can_admin')
     def admin_edit_currency(curr_id):
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
+        if not database.check_backend_privilege(session['user_id'], 'All Currencies', 'edit'):
+            return jsonify({'error': 'Forbidden: Missing privilege All Currencies'}), 403
         data = request.get_json() or {}
         country = data.get('country', '').strip()
         country_desc = data.get('country_desc', '').strip()
@@ -61,8 +67,11 @@ def register_admin_currencies_routes(app):
             return jsonify({'error': 'Failed to set active currency.'}), 400
 
     @app.route('/api/admin/currencies/delete/<int:curr_id>', methods=['POST', 'DELETE'])
-    @require_privilege('can_admin')
     def admin_delete_currency(curr_id):
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
+        if not database.check_backend_privilege(session['user_id'], 'All Currencies', 'delete'):
+            return jsonify({'error': 'Forbidden: Missing privilege All Currencies'}), 403
         success = database.delete_currency(curr_id)
         if success:
             return jsonify({'success': True, 'message': 'Currency deleted successfully.'})

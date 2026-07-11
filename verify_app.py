@@ -1340,6 +1340,25 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         cols_emi2 = json.loads(resp.data)
         self.assertTrue(any(c['column_key'] == 'test_custom_emi_col' for c in cols_emi2))
 
+        # Test single column update endpoint
+        resp = self.app.post('/api/admin/excel-columns/update-single', data=json.dumps({
+            'column_key': 'test_custom_col',
+            'target_type': 'expense',
+            'column_label': 'Updated Custom Label',
+            'display_order': 42,
+            'is_enabled_import': 0
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # Verify update reflected
+        resp = self.app.get('/api/admin/excel-columns?target_type=expense')
+        cols = json.loads(resp.data)
+        target_col = next((c for c in cols if c['column_key'] == 'test_custom_col'), None)
+        self.assertIsNotNone(target_col)
+        self.assertEqual(target_col['column_label'], 'Updated Custom Label')
+        self.assertEqual(target_col['display_order'], 42)
+        self.assertEqual(target_col['is_enabled_import'], 0)
+
         # 4. Delete the custom columns
         resp = self.app.post('/api/admin/excel-columns/delete', data=json.dumps({
             'column_key': 'test_custom_col',
@@ -1762,7 +1781,138 @@ class ExpenseTrackerTestCase(unittest.TestCase):
             'message': 'total spent'
         }), content_type='application/json')
         self.assertEqual(resp.status_code, 401)
+        self.app.get('/logout')
+
+    def test_custom_role_admin_privileges(self):
+        # 1. Login as admin
+        login_resp = self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        self.assertEqual(login_resp.status_code, 200)
+
+        # 2. Create a new custom role (RoleId = 4)
+        resp = self.app.post('/api/admin/roles/create', data=json.dumps({
+            'name': 'PowerUserRole'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        role_data = json.loads(resp.data)
+        role_id = role_data['id']
+
+        # 3. Create a user assigned to this custom role
+        resp = self.app.post('/api/admin/users/create', data=json.dumps({
+            'username': 'poweruser',
+            'password': 'poweruser123',
+            'role_id': role_id,
+            'first_name': 'Power',
+            'last_name': 'User',
+            'email': 'power@example.com',
+            'phone': '1112223334'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # 4. Fetch and save privileges for the custom role
+        resp = self.app.get(f'/api/admin/roles/privileges?role_id={role_id}')
+        self.assertEqual(resp.status_code, 200)
+        privs_list = json.loads(resp.data)
+        self.assertEqual(len(privs_list), 10)
+        
+        resp = self.app.post('/api/admin/roles/privileges/save', data=json.dumps({
+            'role_id': role_id,
+            'privileges': privs_list
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # 5. Log out as admin, log in as poweruser
+        self.app.get('/logout')
+        resp = self.app.post('/login', data=json.dumps({
+            'username': 'poweruser',
+            'password': 'poweruser123'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # 6. Check that poweruser can add a currency (can_add = 1 is enabled)
+        resp = self.app.post('/api/admin/currencies/add', data=json.dumps({
+            'country': 'Japan',
+            'country_desc': 'Yen',
+            'symbol': '¥'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # 7. Check that poweruser can add a global category
+        resp = self.app.post('/api/admin/categories/create', data=json.dumps({
+            'name': 'PowerCategory',
+            'display_order': 99
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # 8. Log out, log in as admin, verify Japan currency and PowerCategory are in global lists
+        self.app.get('/logout')
+        self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+        
+        resp = self.app.get('/api/admin/currencies')
+        currs = json.loads(resp.data)
+        countries = [c['country'] for c in currs]
+        self.assertIn('Japan', countries)
+
+        resp = self.app.get('/api/categories')
+        cats = json.loads(resp.data)
+        cat_names = [c['name'] for c in cats]
+        self.assertIn('PowerCategory', cat_names)
+
+        # 9. Clean up
+        self.app.get('/logout')
+
+    def test_custom_labels_management(self):
+        """Test fetching, saving, and updating custom screen labels"""
+        # 1. Login as admin
+        self.app.post('/login', data=json.dumps({
+            'username': 'admin',
+            'password': 'admin123'
+        }), content_type='application/json')
+
+        # 2. Get admin labels
+        resp = self.app.get('/api/admin/labels')
+        self.assertEqual(resp.status_code, 200)
+        labels_list = json.loads(resp.data)
+        self.assertTrue(len(labels_list) > 0)
+        
+        # Verify a specific default label exists
+        dashboard_label = next((l for l in labels_list if l['label_key'] == 'home_dashboard'), None)
+        self.assertIsNotNone(dashboard_label)
+        self.assertEqual(dashboard_label['default_value'], 'Dashboard')
+
+        # 3. Update the label to a custom value
+        resp = self.app.post('/api/admin/labels/save', data=json.dumps({
+            'labels': {
+                'home_dashboard': 'My Custom Dashboard'
+            }
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # 4. Fetch public labels and verify the custom value is returned
+        resp = self.app.get('/api/labels')
+        self.assertEqual(resp.status_code, 200)
+        public_labels = json.loads(resp.data)
+        self.assertEqual(public_labels['home_dashboard'], 'My Custom Dashboard')
+
+        # 5. Clean up by resetting to default (empty string or matching default)
+        resp = self.app.post('/api/admin/labels/save', data=json.dumps({
+            'labels': {
+                'home_dashboard': ''
+            }
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # Verify it went back to default
+        resp = self.app.get('/api/labels')
+        public_labels = json.loads(resp.data)
+        self.assertEqual(public_labels['home_dashboard'], 'Dashboard')
+
+        self.app.get('/logout')
 
 if __name__ == '__main__':
     unittest.main()
-

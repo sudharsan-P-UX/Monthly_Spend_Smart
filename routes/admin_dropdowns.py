@@ -51,8 +51,9 @@ def register_admin_dropdowns_routes(app):
         except ValueError:
             display_order = 0
             
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'add')
+        
+        if is_global:
             bm_id = database.add_bank_mode(name, display_order)
         else:
             bm_id = database.add_user_expense_control(session['user_id'], 'bank_mode', name, display_order)
@@ -76,8 +77,9 @@ def register_admin_dropdowns_routes(app):
         except ValueError:
             display_order = 0
             
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'edit')
+        
+        if is_global:
             success = database.update_bank_mode(bm_id, name, display_order)
         else:
             success = database.update_user_expense_control(session['user_id'], bm_id, name, display_order)
@@ -91,8 +93,9 @@ def register_admin_dropdowns_routes(app):
     def admin_delete_bank_mode(bm_id):
         if not is_logged_in():
             return jsonify({'error': 'Unauthorized'}), 401
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'delete')
+        
+        if is_global:
             success = database.delete_bank_mode(bm_id)
         else:
             success = database.delete_user_expense_control(session['user_id'], bm_id)
@@ -117,8 +120,9 @@ def register_admin_dropdowns_routes(app):
         except ValueError:
             display_order = 0
             
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'add')
+        
+        if is_global:
             pt_id = database.add_payment_type(name, display_order)
         else:
             pt_id = database.add_user_expense_control(session['user_id'], 'payment_type', name, display_order)
@@ -142,8 +146,9 @@ def register_admin_dropdowns_routes(app):
         except ValueError:
             display_order = 0
             
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'edit')
+        
+        if is_global:
             success = database.update_payment_type(pt_id, name, display_order)
         else:
             success = database.update_user_expense_control(session['user_id'], pt_id, name, display_order)
@@ -157,8 +162,9 @@ def register_admin_dropdowns_routes(app):
     def admin_delete_payment_type(pt_id):
         if not is_logged_in():
             return jsonify({'error': 'Unauthorized'}), 401
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'delete')
+        
+        if is_global:
             success = database.delete_payment_type(pt_id)
         else:
             success = database.delete_user_expense_control(session['user_id'], pt_id)
@@ -183,8 +189,9 @@ def register_admin_dropdowns_routes(app):
         except ValueError:
             display_order = 0
             
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'add')
+        
+        if is_global:
             pc_id = database.add_payment_category(name, display_order)
         else:
             pc_id = database.add_user_expense_control(session['user_id'], 'payment_category', name, display_order)
@@ -208,8 +215,9 @@ def register_admin_dropdowns_routes(app):
         except ValueError:
             display_order = 0
             
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'edit')
+        
+        if is_global:
             success = database.update_payment_category(pc_id, name, display_order)
         else:
             success = database.update_user_expense_control(session['user_id'], pc_id, name, display_order)
@@ -223,8 +231,9 @@ def register_admin_dropdowns_routes(app):
     def admin_delete_payment_category(pc_id):
         if not is_logged_in():
             return jsonify({'error': 'Unauthorized'}), 401
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'delete')
+        
+        if is_global:
             success = database.delete_payment_category(pc_id)
         else:
             success = database.delete_user_expense_control(session['user_id'], pc_id)

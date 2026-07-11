@@ -72,6 +72,25 @@ def add_role(name):
             'INSERT INTO RefRoleAccess (RoleId, MenuId, Editaccess, DeleteAccess, Addaccess, updateaccess, isactive) VALUES (?, 1, ?, ?, ?, ?, 1)',
             (role_id, 1, 1, 1, 1)
         )
+        
+        default_privileges = [
+            "EMI Columns List",
+            "Add Custom Column for EMIs",
+            "Expense Categories",
+            "Create Category",
+            "Expense Columns List",
+            "Add Custom Column for Expenses",
+            "Excel Import & Export Columns",
+            "Add Custom Column",
+            "All Currencies",
+            "Add Currency"
+        ]
+        for idx, priv in enumerate(default_privileges):
+            cursor.execute(
+                'INSERT INTO role_privileges (role_id, privilege_name, display_order, can_add, can_edit, can_delete, can_view, is_mandatory, is_active) VALUES (?, ?, ?, 1, 1, 1, 1, 1, 1)',
+                (role_id, priv, idx + 1)
+            )
+            
         conn.commit()
         return role_id
     except sqlite3.IntegrityError:
@@ -154,8 +173,13 @@ def add_category(name, display_order=0):
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO categories (name, display_order) VALUES (?, ?)', (name, display_order))
+        last_id = cursor.lastrowid
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT LoginId, 'category', ?, ? FROM Refusers",
+            (name, display_order)
+        )
         conn.commit()
-        return cursor.lastrowid
+        return last_id
     except sqlite3.IntegrityError:
         conn.rollback()
         return None
@@ -203,8 +227,13 @@ def add_bank_mode(name, display_order=0):
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO bank_modes (name, display_order) VALUES (?, ?)', (name, display_order))
+        last_id = cursor.lastrowid
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT LoginId, 'bank_mode', ?, ? FROM Refusers",
+            (name, display_order)
+        )
         conn.commit()
-        return cursor.lastrowid
+        return last_id
     except sqlite3.IntegrityError:
         conn.rollback()
         return None
@@ -252,8 +281,13 @@ def add_payment_type(name, display_order=0):
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO payment_types (name, display_order) VALUES (?, ?)', (name, display_order))
+        last_id = cursor.lastrowid
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT LoginId, 'payment_type', ?, ? FROM Refusers",
+            (name, display_order)
+        )
         conn.commit()
-        return cursor.lastrowid
+        return last_id
     except sqlite3.IntegrityError:
         conn.rollback()
         return None
@@ -301,8 +335,13 @@ def add_payment_category(name, display_order=0):
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO payment_categories (name, display_order) VALUES (?, ?)', (name, display_order))
+        last_id = cursor.lastrowid
+        cursor.execute(
+            "INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT LoginId, 'payment_category', ?, ? FROM Refusers",
+            (name, display_order)
+        )
         conn.commit()
-        return cursor.lastrowid
+        return last_id
     except sqlite3.IntegrityError:
         conn.rollback()
         return None

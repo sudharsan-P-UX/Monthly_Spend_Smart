@@ -4,6 +4,49 @@ let categoryChartInstance = null;
 let trendChartInstance = null;
 let trendMonthsState = [];
 let currentUserPrivileges = { can_view: 1, can_add: 1, can_edit: 1, can_delete: 1, is_admin: false };
+let currentUserRoleId = 2;
+let currentUserFinePrivileges = {};
+let appLabels = {};
+
+function applyDynamicLabels(labels) {
+    if (labels) {
+        appLabels = labels;
+    }
+    document.querySelectorAll('[data-label]').forEach(el => {
+        const key = el.getAttribute('data-label');
+        if (appLabels && appLabels[key]) {
+            const val = appLabels[key];
+            const hasRequired = el.querySelector('.required') !== null;
+            if (hasRequired) {
+                const cleanVal = val.replace(/\s*\*$/, '').trim();
+                el.innerHTML = cleanVal + ' <span class="required">*</span>';
+            } else {
+                el.textContent = val;
+            }
+        }
+    });
+}
+
+async function fetchPublicLabels() {
+    try {
+        const response = await fetch('/api/labels');
+        if (response.ok) {
+            const labels = await response.json();
+            applyDynamicLabels(labels);
+        }
+    } catch (err) {
+        console.error('Error fetching public labels:', err);
+    }
+}
+
+function checkFinePrivilege(name, action) {
+    if (currentUserPrivileges && currentUserPrivileges.is_admin) return true;
+    if (!window.currentUserFinePrivileges) return false;
+    const priv = window.currentUserFinePrivileges[name];
+    if (!priv) return false;
+    if (priv.is_active === 0) return false;
+    return priv[action] === 1;
+}
 let systemRoles = [];
 let systemCategories = [];
 let adminCategoriesLocal = [];
@@ -676,6 +719,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initial data fetch
     await fetchUserPrivileges();
+    await fetchPublicLabels();
     await fetchCategories();
     await fetchBankModes();
     await fetchPaymentTypes();

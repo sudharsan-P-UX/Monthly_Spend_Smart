@@ -86,8 +86,14 @@ async function fetchExpenses() {
             
             if (yearWrapper) yearWrapper.classList.remove('hidden');
             if (yearLabel) yearLabel.textContent = `${selectedYear} Totals:`;
-            if (yearDebit) yearDebit.textContent = `Debits: ${formatter.format(yearData.debit)}`;
-            if (yearCredit) yearCredit.textContent = `Credits: ${formatter.format(yearData.credit)}`;
+            if (yearDebit) {
+                const debitsLabel = window.appLabels['recent_expenses_debits_lbl'] || 'Debits';
+                yearDebit.textContent = `${debitsLabel}: ${formatter.format(yearData.debit)}`;
+            }
+            if (yearCredit) {
+                const creditsLabel = window.appLabels['recent_expenses_credits_lbl'] || 'Credits';
+                yearCredit.textContent = `${creditsLabel}: ${formatter.format(yearData.credit)}`;
+            }
         }
     } catch (err) {
         console.error('Error fetching year totals:', err);
@@ -1057,24 +1063,34 @@ async function filterDashboardCard(type) {
     const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
 
     let title = "Details";
+    let prefix = "monthly_expenses";
 
     if (type === 'month') {
         query += `month=${currentMonth}&year=${currentYear}`;
-        title = "This Month's Expenses";
+        title = window.appLabels['home_this_month'] || "This Month's Expenses";
+        if (title === "This Month") title = "This Month's Expenses";
+        prefix = "monthly_expenses";
     } else if (type === 'all' || type === 'transactions') {
-        title = "All Expenses";
+        title = window.appLabels['home_transactions'] || "All Expenses";
+        prefix = "monthly_expenses";
     } else if (type === 'filtered_debit') {
         query += buildCurrentFilterQuery('Debit');
-        title = "Filtered Debits";
+        title = window.appLabels['filtered_debits_title'] || "Filtered Debits";
+        prefix = "filtered_debits";
     } else if (type === 'filtered_credit') {
         query += buildCurrentFilterQuery('Credit');
-        title = "Filtered Credits";
+        title = window.appLabels['filtered_credits_title'] || "Filtered Credits";
+        prefix = "filtered_credits";
     } else if (type === 'year_debit') {
         query += `year=${currentYear}&payment_method=Debit`;
-        title = `${currentYear} Debits`;
+        let lbl = window.appLabels['year_debits_title'] || "{year} Debits";
+        title = lbl.replace('{year}', currentYear);
+        prefix = "year_debits";
     } else if (type === 'year_credit') {
         query += `year=${currentYear}&payment_method=Credit`;
-        title = `${currentYear} Credits`;
+        let lbl = window.appLabels['year_credits_title'] || "{year} Credits";
+        title = lbl.replace('{year}', currentYear);
+        prefix = "year_credits";
     }
 
     try {
@@ -1082,6 +1098,20 @@ async function filterDashboardCard(type) {
         if (response.ok) {
             const list = await response.json();
             document.getElementById('consolidated-modal-title').textContent = title;
+            
+            // Set dynamic table headers
+            const thDate = document.getElementById('modal-th-date');
+            const thCategory = document.getElementById('modal-th-category');
+            const thDesc = document.getElementById('modal-th-description');
+            const thAmount = document.getElementById('modal-th-amount');
+            const thMethod = document.getElementById('modal-th-method');
+            
+            if (thDate) thDate.textContent = window.appLabels[`${prefix}_date`] || 'Date';
+            if (thCategory) thCategory.textContent = window.appLabels[`${prefix}_category`] || 'Category';
+            if (thDesc) thDesc.textContent = window.appLabels[`${prefix}_description`] || 'Description';
+            if (thAmount) thAmount.textContent = window.appLabels[`${prefix}_amount`] || 'Amount';
+            if (thMethod) thMethod.textContent = window.appLabels[`${prefix}_method`] || 'Method';
+            
             populateConsolidatedModal(list);
             openConsolidatedModal();
         } else {

@@ -90,7 +90,8 @@ class PostgresCursorWrapper:
                     'userlogindetails': 'UserLoginDtlId',
                     'refcurreny': 'CurrencyId',
                     'currency': 'CurrencyId',
-                    'settings': 'Settingid'
+                    'settings': 'Settingid',
+                    'custom_labels': 'label_key'
                 }
                 if table_name == 'excel_columns':
                     pk_col = 'column_key'

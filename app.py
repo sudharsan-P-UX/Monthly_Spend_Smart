@@ -25,6 +25,7 @@ from routes.admin_settings import register_admin_settings_routes
 from routes.admin_currencies import register_admin_currencies_routes
 from routes.excel import register_excel_routes
 from routes.chat import register_chat_routes
+from routes.admin_labels import register_admin_labels_routes
 
 # Register routes on app
 register_index_routes(app)
@@ -40,6 +41,7 @@ register_admin_settings_routes(app)
 register_admin_currencies_routes(app)
 register_excel_routes(app)
 register_chat_routes(app)
+register_admin_labels_routes(app)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

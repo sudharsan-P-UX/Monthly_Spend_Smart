@@ -19,8 +19,9 @@ def register_admin_categories_routes(app):
         except ValueError:
             display_order = 0
             
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'add')
+        
+        if is_global:
             cat_id = database.add_category(name, display_order)
         else:
             cat_id = database.add_user_expense_control(session['user_id'], 'category', name, display_order)
@@ -46,8 +47,9 @@ def register_admin_categories_routes(app):
         except ValueError:
             display_order = 0
             
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'edit')
+        
+        if is_global:
             success = database.update_category(cat_id, name, display_order)
         else:
             success = database.update_user_expense_control(session['user_id'], cat_id, name, display_order)
@@ -61,8 +63,9 @@ def register_admin_categories_routes(app):
     def admin_delete_category(cat_id):
         if not is_logged_in():
             return jsonify({'error': 'Unauthorized'}), 401
-        user_privs = database.get_user_privileges(session['user_id'])
-        if user_privs.get('is_admin'):
+        is_global = database.check_backend_privilege(session['user_id'], 'Create Category', 'delete')
+        
+        if is_global:
             success = database.delete_category(cat_id)
         else:
             success = database.delete_user_expense_control(session['user_id'], cat_id)

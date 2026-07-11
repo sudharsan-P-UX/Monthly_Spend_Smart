@@ -722,9 +722,20 @@ def register_excel_routes(app):
         return jsonify(cols)
 
     @app.route('/api/admin/excel-columns/toggle', methods=['POST'])
-    @require_privilege('can_admin')
     def admin_toggle_excel_column():
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
         data = request.get_json() or {}
+        target_type = data.get('target_type', 'expense')
+        
+        privilege = 'Expense Columns List'
+        if target_type == 'emi':
+            privilege = 'EMI Columns List'
+        elif target_type == 'excel':
+            privilege = 'Excel Import & Export Columns'
+            
+        if not database.check_backend_privilege(session['user_id'], privilege, 'edit'):
+            return jsonify({'error': f'Forbidden: Missing privilege {privilege}'}), 403
         column_key = data.get('column_key')
         is_enabled = data.get('is_enabled')
         type_key = data.get('type_key')
@@ -742,9 +753,25 @@ def register_excel_routes(app):
         return jsonify({'success': True, 'message': 'Column status updated successfully.'})
 
     @app.route('/api/admin/excel-columns/save-all', methods=['POST'])
-    @require_privilege('can_admin')
     def admin_save_all_excel_columns():
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
         data = request.get_json() or {}
+        columns_data = data.get('columns', [])
+        
+        # Check target_type of the first item to determine privilege
+        target_type = 'expense'
+        if columns_data:
+            target_type = columns_data[0].get('target_type', 'expense')
+            
+        privilege = 'Expense Columns List'
+        if target_type == 'emi':
+            privilege = 'EMI Columns List'
+        elif target_type == 'excel':
+            privilege = 'Excel Import & Export Columns'
+            
+        if not database.check_backend_privilege(session['user_id'], privilege, 'edit'):
+            return jsonify({'error': f'Forbidden: Missing privilege {privilege}'}), 403
         columns_data = data.get('columns', [])
         type_key = data.get('type_key', 'import')
         
@@ -770,9 +797,20 @@ def register_excel_routes(app):
         return jsonify({'success': True, 'message': 'All configurations saved successfully.'})
 
     @app.route('/api/admin/excel-columns/update-order', methods=['POST'])
-    @require_privilege('can_admin')
     def admin_update_excel_column_order():
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
         data = request.get_json() or {}
+        target_type = data.get('target_type', 'expense')
+        
+        privilege = 'Expense Columns List'
+        if target_type == 'emi':
+            privilege = 'EMI Columns List'
+        elif target_type == 'excel':
+            privilege = 'Excel Import & Export Columns'
+            
+        if not database.check_backend_privilege(session['user_id'], privilege, 'edit'):
+            return jsonify({'error': f'Forbidden: Missing privilege {privilege}'}), 403
         column_key = data.get('column_key')
         display_order = data.get('display_order')
         target_type = data.get('target_type', 'expense')
@@ -791,10 +829,21 @@ def register_excel_routes(app):
         return jsonify({'success': True, 'message': 'Column order updated successfully.'})
 
     @app.route('/api/admin/excel-columns/create', methods=['POST'])
-    @require_privilege('can_admin')
     def admin_create_excel_column():
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
         import sqlite3
         data = request.get_json() or {}
+        target_type = data.get('target_type', 'expense').strip().lower()
+        
+        privilege = 'Add Custom Column for Expenses'
+        if target_type == 'emi':
+            privilege = 'Add Custom Column for EMIs'
+        elif target_type == 'excel':
+            privilege = 'Add Custom Column'
+            
+        if not database.check_backend_privilege(session['user_id'], privilege, 'add'):
+            return jsonify({'error': f'Forbidden: Missing privilege {privilege}'}), 403
         column_key = data.get('column_key', '').strip().lower()
         column_label = data.get('column_label', '').strip()
         target_type = data.get('target_type', 'expense').strip().lower()
@@ -835,9 +884,20 @@ def register_excel_routes(app):
             conn.close()
 
     @app.route('/api/admin/excel-columns/delete', methods=['POST', 'DELETE'])
-    @require_privilege('can_admin')
     def admin_delete_excel_column():
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
         data = request.get_json() or {}
+        target_type = data.get('target_type', 'expense')
+        
+        privilege = 'Expense Columns List'
+        if target_type == 'emi':
+            privilege = 'EMI Columns List'
+        elif target_type == 'excel':
+            privilege = 'Excel Import & Export Columns'
+            
+        if not database.check_backend_privilege(session['user_id'], privilege, 'delete'):
+            return jsonify({'error': f'Forbidden: Missing privilege {privilege}'}), 403
         column_key = data.get('column_key')
         target_type = data.get('target_type', 'expense')
         
@@ -864,3 +924,54 @@ def register_excel_routes(app):
             return jsonify({'success': True, 'message': 'Column removed successfully.'})
         else:
             return jsonify({'error': 'Column not found.'}), 404
+
+    @app.route('/api/admin/excel-columns/update-single', methods=['POST'])
+    def admin_update_single_excel_column():
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
+        data = request.get_json() or {}
+        column_key = data.get('column_key', '').strip()
+        target_type = data.get('target_type', 'expense').strip().lower()
+        
+        privilege = 'Expense Columns List'
+        if target_type == 'emi':
+            privilege = 'EMI Columns List'
+        elif target_type == 'excel':
+            privilege = 'Excel Import & Export Columns'
+            
+        if not database.check_backend_privilege(session['user_id'], privilege, 'edit'):
+            return jsonify({'error': f'Forbidden: Missing privilege {privilege}'}), 403
+            
+        column_label = data.get('column_label')
+        display_order = data.get('display_order')
+        is_enabled_import = data.get('is_enabled_import')
+        is_enabled_export = data.get('is_enabled_export')
+        
+        if is_enabled_import is not None:
+            is_enabled_import = int(is_enabled_import)
+        if is_enabled_export is not None:
+            is_enabled_export = int(is_enabled_export)
+        if display_order is not None:
+            display_order = int(display_order)
+            
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                UPDATE excel_columns 
+                SET column_label = COALESCE(?, column_label),
+                    display_order = COALESCE(?, display_order),
+                    is_enabled_import = COALESCE(?, is_enabled_import),
+                    is_enabled_export = COALESCE(?, is_enabled_export)
+                WHERE column_key = ? AND target_type = ?
+                """,
+                (column_label, display_order, is_enabled_import, is_enabled_export, column_key, target_type)
+            )
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Column updated successfully.'})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'error': str(e)}), 500
+        finally:
+            conn.close()

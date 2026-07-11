@@ -62,22 +62,35 @@ function adminRenderCurrenciesTable(currencies) {
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    const is_admin = currentUserPrivileges && currentUserPrivileges.is_admin;
+    const canAdd = checkFinePrivilege('Add Currency', 'add');
+    const canEdit = checkFinePrivilege('All Currencies', 'edit');
+    const canDelete = checkFinePrivilege('All Currencies', 'delete');
+    const canView = checkFinePrivilege('All Currencies', 'view');
+    const hasActions = canEdit || canDelete;
+
+    const listCard = document.getElementById('admin-currencies-list')?.closest('.content-card');
+    if (listCard) {
+        if (canView) listCard.classList.remove('hidden');
+        else listCard.classList.add('hidden');
+    }
     
-    // Hide or show Add Currency card (form card)
+    // Hide or show Add Currency card (form card) and adjust grid layout
     const currencyFormCard = document.getElementById('admin-currency-form')?.closest('.content-card');
+    const gridContainer = document.querySelector('#tab-admin-currencies .admin-grid');
     if (currencyFormCard) {
-        if (is_admin) {
+        if (canAdd) {
             currencyFormCard.classList.remove('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '2fr 1fr';
         } else {
             currencyFormCard.classList.add('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '1fr';
         }
     }
     
     // Hide or show Actions header in the table
     const thActions = document.querySelector('#tab-admin-currencies table th:last-child');
     if (thActions) {
-        if (is_admin) {
+        if (hasActions) {
             thActions.style.display = '';
         } else {
             thActions.style.display = 'none';
@@ -89,11 +102,15 @@ function adminRenderCurrenciesTable(currencies) {
         const checked = curr.is_active ? 'checked' : '';
         
         let actionsHtml = '';
-        if (is_admin) {
-            actionsHtml = `
+        if (canEdit) {
+            actionsHtml += `
                 <button class="btn-icon btn-icon-edit" onclick="adminEditCurrency(${curr.id})" title="Edit Currency" style="color: var(--color-primary);">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </button>
+            `;
+        }
+        if (canDelete) {
+            actionsHtml += `
                 <button class="btn-icon btn-icon-delete" onclick="adminDeleteCurrency(${curr.id}, '${escapeHTML(curr.country)}')" title="Delete Currency">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
@@ -107,7 +124,7 @@ function adminRenderCurrenciesTable(currencies) {
             <td class="text-center">
                 <input type="radio" name="active_currency_radio" ${checked} onchange="adminSetActiveCurrency(${curr.id})">
             </td>
-            ${is_admin ? `<td class="actions-cell">${actionsHtml}</td>` : ''}
+            ${hasActions ? `<td class="actions-cell">${actionsHtml}</td>` : ''}
         `;
         tbody.appendChild(tr);
     });
@@ -216,8 +233,9 @@ async function adminDeleteCurrency(id, country) {
 function resetCurrencyForm() {
     document.getElementById('admin-currency-id').value = '';
     document.getElementById('admin-currency-form').reset();
-    document.getElementById('admin-currency-form-title').textContent = 'Add Currency';
-    document.getElementById('admin-currency-submit-btn').textContent = 'Add Currency';
+    const addLabel = window.appLabels['admin_currencies_create_title'] || 'Add Currency';
+    document.getElementById('admin-currency-form-title').textContent = addLabel;
+    document.getElementById('admin-currency-submit-btn').textContent = addLabel;
     document.getElementById('admin-currency-cancel-btn').classList.add('hidden');
 }
 
@@ -447,10 +465,42 @@ function renderAdminExpenseColumnsTabTable(columns) {
 
     const filterSelect = document.getElementById('admin-expense-columns-filter');
     const filterType = filterSelect ? filterSelect.value : 'import';
-    const isAdmin = currentUserPrivileges && currentUserPrivileges.is_admin;
-    const isDisabled = isAdmin ? '' : 'disabled';
+    const canAdd = checkFinePrivilege('Add Custom Column for Expenses', 'add');
+    const canEdit = checkFinePrivilege('Expense Columns List', 'edit');
+    const canDelete = checkFinePrivilege('Expense Columns List', 'delete');
+    const canView = checkFinePrivilege('Expense Columns List', 'view');
+    const isDisabled = canEdit ? '' : 'disabled';
+
+    const listCard = document.getElementById('admin-expense-columns-list')?.closest('.content-card');
+    if (listCard) {
+        if (canView) listCard.classList.remove('hidden');
+        else listCard.classList.add('hidden');
+    }
 
     const systemKeys = ['amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status'];
+
+    // Hide or show the form card and adjust grid layout
+    const colFormCard = document.getElementById('admin-create-expense-column-tab-form')?.closest('.content-card');
+    const gridContainer = document.querySelector('#tab-admin-expense-columns .admin-grid');
+    if (colFormCard) {
+        if (canAdd) {
+            colFormCard.classList.remove('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '2fr 1fr';
+        } else {
+            colFormCard.classList.add('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '1fr';
+        }
+    }
+
+    // Hide or show the Save Changes button
+    const btnSave = document.getElementById('btn-save-expense-columns-tab');
+    if (btnSave) {
+        if (canEdit) {
+            btnSave.parentElement.classList.remove('hidden');
+        } else {
+            btnSave.parentElement.classList.add('hidden');
+        }
+    }
 
     populateParentDropdowns('expense', columns);
 
@@ -464,18 +514,28 @@ function renderAdminExpenseColumnsTabTable(columns) {
 
         const isChecked = (filterType === 'import' ? col.is_enabled_import : col.is_enabled_export) === 1 ? 'checked' : '';
         const isDeletable = !systemKeys.includes(col.column_key);
-        const actionHtml = isDeletable && isAdmin
-            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteExpenseColumnTab('${col.column_key}')" title="Delete Custom Column" style="color: var(--color-danger);">
+        const deleteHtml = isDeletable && canDelete
+            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteExpenseColumnTab('${col.column_key}')" title="Delete Custom Column" style="color: var(--color-danger); margin: 0;">
                  <i class="fa-solid fa-trash-can"></i>
                </button>`
             : '';
+        const updateHtml = canEdit
+            ? `<button type="button" class="btn-icon btn-icon-update" onclick="adminUpdateSingleColumn(this, '${col.column_key}', 'expense')" title="Update Column" style="color: var(--color-primary); margin: 0;">
+                 <i class="fa-solid fa-floppy-disk"></i>
+               </button>`
+            : '';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
 
-        const orderInputHtml = isAdmin
+        const orderInputHtml = canEdit
             ? `<input type="number" class="table-input text-center" style="width: 70px; margin: 0 auto; display: block; padding: 4px;" value="${col.display_order || 0}" min="0">`
             : `<span class="text-center" style="display: block;">${col.display_order || 0}</span>`;
 
+        const labelHtml = canEdit
+            ? `<input type="text" class="table-input column-label-input" value="${escapeHTML(col.column_label)}" style="width: 140px; font-weight: 500; display: inline-block; padding: 4px 8px;">`
+            : `<span style="font-weight: 500;">${escapeHTML(col.column_label)}</span>`;
+
         tr.innerHTML = `
-            <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
+            <td>${labelHtml}</td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
             <td class="text-center">${orderInputHtml}</td>
@@ -485,7 +545,7 @@ function renderAdminExpenseColumnsTabTable(columns) {
                     <span class="checkmark"></span>
                 </label>
             </td>
-            <td class="text-center">${actionHtml}</td>
+            <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
     });

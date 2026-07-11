@@ -196,8 +196,17 @@ background: rgba(244, 63, 94, 0.15);
     display: flex;
     gap: 10px;
     border-bottom: 1px solid var(--border-glass);
-    padding-bottom: 1px;
+    padding-bottom: 10px;
     margin-bottom: 25px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: -30px;
+    z-index: 100;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    margin-top: -10px;
+    padding-top: 10px;
 }
 
 .admin-tab {

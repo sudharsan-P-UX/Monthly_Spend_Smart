@@ -68,6 +68,9 @@ function switchAdminTab(tabName) {
             targetSec.classList.remove('hidden');
         }
     }
+    if (tabName === 'admin-labels') {
+        adminFetchLabels();
+    }
 }
 
 async function loadAdminPanel() {
@@ -84,7 +87,8 @@ async function loadAdminPanel() {
         adminFetchPaymentTypes(),
         adminFetchPaymentCategories(),
         adminFetchExcelColumns(),
-        adminFetchSettings()
+        adminFetchSettings(),
+        adminFetchLabels()
     ]);
 }
 
@@ -123,15 +127,18 @@ function renderAdminUsersTable(users) {
             <td><span style="font-weight: 500;">${escapeHTML(user.username)}</span></td>
             <td><span class="role-badge ${badgeClass}">${escapeHTML(user.role_name || 'User')}</span></td>
             <td>
-                <select class="table-input" style="max-width: 140px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 6px; border-radius: 4px;" onchange="adminChangeUserRole(${user.id}, this.value)">
+                <select class="table-input" style="max-width: 140px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 6px; border-radius: 4px;">
                     ${roleOptions}
                 </select>
             </td>
             <td class="text-center" style="display: flex; justify-content: center; gap: 8px;">
-                <button class="btn-icon btn-icon-edit" onclick="openEditUserModal(${user.id}, '${escapeHTML(user.username)}', '${escapeHTML(user.first_name || '')}', '${escapeHTML(user.last_name || '')}', '${escapeHTML(user.email || '')}', '${escapeHTML(user.phone || '')}')" title="Edit User" style="color: var(--color-warning);">
+                <button class="btn-icon btn-icon-update" onclick="adminChangeUserRole(${user.id}, this.closest('tr').querySelector('select').value)" title="Update User Role" style="color: var(--color-primary); margin: 0;">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                </button>
+                <button class="btn-icon btn-icon-edit" onclick="openEditUserModal(${user.id}, '${escapeHTML(user.username)}', '${escapeHTML(user.first_name || '')}', '${escapeHTML(user.last_name || '')}', '${escapeHTML(user.email || '')}', '${escapeHTML(user.phone || '')}')" title="Edit User" style="color: var(--color-warning); margin: 0;">
                     <i class="fa-solid fa-key"></i>
                 </button>
-                <button class="btn-icon btn-icon-delete" onclick="adminDeleteUser(${user.id}, '${escapeHTML(user.username)}')" title="Delete User">
+                <button class="btn-icon btn-icon-delete" onclick="adminDeleteUser(${user.id}, '${escapeHTML(user.username)}')" title="Delete User" style="margin: 0;">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </td>
@@ -280,14 +287,13 @@ async function handleAdminChangeUserPassword(e) {
     }
 }
 
-// ADMIN ROLES
+// ADMIN // ADMIN ROLES
 async function adminFetchRoles() {
     try {
         const response = await fetch('/api/admin/roles');
         if (response.ok) {
             systemRoles = await response.json();
             renderRolesDropdowns();
-            renderPrivilegesMatrix();
         }
     } catch (err) {
         console.error('Error fetching admin roles:', err);
@@ -302,146 +308,203 @@ function renderRolesDropdowns() {
             roleSelect.innerHTML += `<option value="${role.id}">${escapeHTML(role.name)}</option>`;
         });
     }
+
+    const adminRoleSelect = document.getElementById('admin-role-select');
+    if (adminRoleSelect) {
+        const previousVal = adminRoleSelect.value;
+        adminRoleSelect.innerHTML = '';
+        systemRoles.forEach(role => {
+            adminRoleSelect.innerHTML += `<option value="${role.id}">${escapeHTML(role.name)}</option>`;
+        });
+        if (previousVal && [...adminRoleSelect.options].some(o => o.value === previousVal)) {
+            adminRoleSelect.value = previousVal;
+        } else {
+            adminRoleSelect.value = "1";
+        }
+        adminOnRoleSelected();
+    }
 }
 
-function renderPrivilegesMatrix() {
-    const tbody = document.getElementById('admin-privileges-matrix-body');
+let currentSelectedRolePrivileges = [];
+
+async function adminOnRoleSelected() {
+    const roleSelect = document.getElementById('admin-role-select');
+    if (!roleSelect) return;
+    const roleId = parseInt(roleSelect.value);
+    
+    const actionsContainer = document.getElementById('admin-role-actions-container');
+    const renameInput = document.getElementById('admin-rename-role-input');
+    if (actionsContainer) {
+        if (roleId > 3) {
+            actionsContainer.classList.remove('hidden');
+            const selectedRole = systemRoles.find(r => r.id === roleId);
+            if (renameInput && selectedRole) {
+                renameInput.value = selectedRole.name;
+            }
+        } else {
+            actionsContainer.classList.add('hidden');
+        }
+    }
+    
+    await adminFetchRolePrivileges(roleId);
+}
+
+async function adminFetchRolePrivileges(roleId) {
+    try {
+        const response = await fetch(`/api/admin/roles/privileges?role_id=${roleId}`);
+        if (response.ok) {
+            currentSelectedRolePrivileges = await response.json();
+            renderRolePrivilegesTable(roleId);
+        }
+    } catch (err) {
+        console.error('Error fetching role privileges:', err);
+    }
+}
+
+function renderRolePrivilegesTable(roleId) {
+    const tbody = document.getElementById('admin-role-privileges-tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    systemRoles.forEach(role => {
+    const isReadOnly = roleId === 1;
+    const disabledAttr = isReadOnly ? 'disabled' : '';
+
+    currentSelectedRolePrivileges.forEach((p, idx) => {
         const tr = document.createElement('tr');
-        const isDisabled = role.id === 1 ? 'disabled' : '';
-
-        let nameFieldHtml = '';
-        if (role.id === 1) {
-            nameFieldHtml = `<span style="font-weight: 500;">${escapeHTML(role.name)}</span>`;
-        } else {
-            nameFieldHtml = `<input type="text" class="table-input" value="${escapeHTML(role.name)}" onchange="adminRenameRole(${role.id}, this.value)">`;
-        }
-
-        let actionBtnHtml = '';
-        if (role.id === 1) {
-            actionBtnHtml = `<span class="text-muted">-</span>`;
-        } else {
-            actionBtnHtml = `
-                <button class="btn-icon btn-icon-delete" onclick="adminDeleteRole(${role.id}, '${escapeHTML(role.name)}')" title="Delete Role">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>`;
-        }
-
+        
         tr.innerHTML = `
-            <td>${nameFieldHtml}</td>
-            <td>
+            <td><span style="font-weight: 500;">${escapeHTML(p.privilege_name)}</span></td>
+            <td class="text-center">${p.display_order}</td>
+            <td class="text-center">
                 <label class="checkbox-container">
-                    <input type="checkbox" ${role.can_view ? 'checked' : ''} ${isDisabled} onchange="adminUpdatePrivilege(${role.id}, 'can_view', this.checked)">
+                    <input type="checkbox" ${p.can_add ? 'checked' : ''} ${disabledAttr} onchange="updateLocalRolePrivilege(${idx}, 'can_add', this.checked)">
                     <span class="checkmark"></span>
                 </label>
             </td>
-            <td>
+            <td class="text-center">
                 <label class="checkbox-container">
-                    <input type="checkbox" ${role.can_add ? 'checked' : ''} ${isDisabled} onchange="adminUpdatePrivilege(${role.id}, 'can_add', this.checked)">
+                    <input type="checkbox" ${p.can_edit ? 'checked' : ''} ${disabledAttr} onchange="updateLocalRolePrivilege(${idx}, 'can_edit', this.checked)">
                     <span class="checkmark"></span>
                 </label>
             </td>
-            <td>
+            <td class="text-center">
                 <label class="checkbox-container">
-                    <input type="checkbox" ${role.can_edit ? 'checked' : ''} ${isDisabled} onchange="adminUpdatePrivilege(${role.id}, 'can_edit', this.checked)">
+                    <input type="checkbox" ${p.can_delete ? 'checked' : ''} ${disabledAttr} onchange="updateLocalRolePrivilege(${idx}, 'can_delete', this.checked)">
                     <span class="checkmark"></span>
                 </label>
             </td>
-            <td>
+            <td class="text-center">
                 <label class="checkbox-container">
-                    <input type="checkbox" ${role.can_delete ? 'checked' : ''} ${isDisabled} onchange="adminUpdatePrivilege(${role.id}, 'can_delete', this.checked)">
+                    <input type="checkbox" ${p.can_view ? 'checked' : ''} ${disabledAttr} onchange="updateLocalRolePrivilege(${idx}, 'can_view', this.checked)">
                     <span class="checkmark"></span>
                 </label>
             </td>
-            <td class="text-center">${actionBtnHtml}</td>
+            <td class="text-center">
+                <label class="checkbox-container">
+                    <input type="checkbox" ${p.is_mandatory ? 'checked' : ''} ${disabledAttr} onchange="updateLocalRolePrivilege(${idx}, 'is_mandatory', this.checked)">
+                    <span class="checkmark"></span>
+                </label>
+            </td>
+            <td class="text-center">
+                <label class="checkbox-container">
+                    <input type="checkbox" ${p.is_active ? 'checked' : ''} ${disabledAttr} onchange="updateLocalRolePrivilege(${idx}, 'is_active', this.checked)">
+                    <span class="checkmark"></span>
+                </label>
+            </td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-async function adminRenameRole(roleId, newName) {
-    newName = newName.trim();
-    if (!newName) {
-        showAppAlert('Role name cannot be empty.');
-        await adminFetchRoles();
+function updateLocalRolePrivilege(index, field, value) {
+    if (currentSelectedRolePrivileges[index]) {
+        currentSelectedRolePrivileges[index][field] = value ? 1 : 0;
+    }
+}
+
+async function adminSaveRolePrivileges() {
+    const roleSelect = document.getElementById('admin-role-select');
+    if (!roleSelect) return;
+    const roleId = parseInt(roleSelect.value);
+    
+    if (roleId === 1) {
+        showAppAlert('Administrator role privileges cannot be modified.');
         return;
     }
+    
+    try {
+        const response = await fetch('/api/admin/roles/privileges/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                role_id: roleId,
+                privileges: currentSelectedRolePrivileges
+            })
+        });
+        
+        if (response.ok) {
+            showAppAlert('Role privileges saved successfully!', 'success');
+            await fetchUserPrivileges();
+        } else {
+            const data = await response.json();
+            showAppAlert(data.error || 'Failed to save role privileges.');
+        }
+    } catch (err) {
+        console.error('Error saving role privileges:', err);
+        showAppAlert('Error saving role privileges.');
+    }
+}
 
+async function adminRenameSelectedRole() {
+    const roleSelect = document.getElementById('admin-role-select');
+    const renameInput = document.getElementById('admin-rename-role-input');
+    if (!roleSelect || !renameInput) return;
+    const roleId = parseInt(roleSelect.value);
+    const newName = renameInput.value.trim();
+    if (!newName) {
+        showAppAlert('Role name cannot be empty.');
+        return;
+    }
+    
     try {
         const response = await fetch('/api/admin/roles/edit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ role_id: roleId, name: newName })
         });
-        const result = await response.json();
         if (response.ok) {
-            showAppAlert('Role name updated successfully!', true);
+            showAppAlert('Role renamed successfully!', 'success');
             await adminFetchRoles();
-            await adminFetchUsers();
         } else {
-            showAppAlert(result.error || 'Failed to update role name.');
-            await adminFetchRoles();
+            const data = await response.json();
+            showAppAlert(data.error || 'Failed to rename role.');
         }
     } catch (err) {
-        showAppAlert('Network error updating role name.');
-        await adminFetchRoles();
+        console.error('Error renaming role:', err);
     }
 }
 
-async function adminDeleteRole(roleId, name) {
-    if (!confirm(`Are you sure you want to delete role "${name}"? Users assigned to this role will default to the standard "User" role.`)) return;
-
+async function adminDeleteSelectedRole() {
+    const roleSelect = document.getElementById('admin-role-select');
+    if (!roleSelect) return;
+    const roleId = parseInt(roleSelect.value);
+    const selectedRole = systemRoles.find(r => r.id === roleId);
+    if (!selectedRole) return;
+    
+    if (!confirm(`Are you sure you want to delete the role "${selectedRole.name}"?`)) return;
+    
     try {
-        const response = await fetch(`/api/admin/roles/delete/${roleId}`, {
-            method: 'DELETE'
-        });
-        const result = await response.json();
-        if (response.ok && result.success) {
-            showAppAlert('Role deleted successfully.', true);
+        const response = await fetch(`/api/admin/roles/delete/${roleId}`, { method: 'POST' });
+        if (response.ok) {
+            showAppAlert('Role deleted successfully!', 'success');
+            roleSelect.value = "1";
             await adminFetchRoles();
-            await adminFetchUsers();
         } else {
-            showAppAlert(result.error || 'Failed to delete role.');
+            const data = await response.json();
+            showAppAlert(data.error || 'Failed to delete role.');
         }
     } catch (err) {
-        showAppAlert('Network error deleting role.');
-    }
-}
-
-async function adminUpdatePrivilege(roleId, privilegeField, isChecked) {
-    const roleObj = systemRoles.find(r => r.id === roleId);
-    if (!roleObj) return;
-
-    const updatePayload = {
-        role_id: roleId,
-        can_view: roleObj.can_view,
-        can_add: roleObj.can_add,
-        can_edit: roleObj.can_edit,
-        can_delete: roleObj.can_delete
-    };
-    updatePayload[privilegeField] = isChecked ? 1 : 0;
-
-    try {
-        const response = await fetch('/api/admin/privileges/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatePayload)
-        });
-        const result = await response.json();
-        if (response.ok && result.success) {
-            showAppAlert('Privileges updated successfully!', true);
-            roleObj[privilegeField] = isChecked ? 1 : 0;
-            await fetchUserPrivileges();
-        } else {
-            showAppAlert(result.error || 'Failed to update privileges.');
-            renderPrivilegesMatrix();
-        }
-    } catch (err) {
-        showAppAlert('Network error updating privileges.');
-        renderPrivilegesMatrix();
+        console.error('Error deleting role:', err);
     }
 }
 
@@ -543,20 +606,55 @@ function renderAdminCategoriesTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    const canAdd = checkFinePrivilege('Create Category', 'add');
+    const canEdit = checkFinePrivilege('Expense Categories', 'edit');
+    const canDelete = checkFinePrivilege('Expense Categories', 'delete');
+    const canView = checkFinePrivilege('Expense Categories', 'view');
+
+    const listCard = document.getElementById('admin-categories-list')?.closest('.content-card');
+    if (listCard) {
+        if (canView) listCard.classList.remove('hidden');
+        else listCard.classList.add('hidden');
+    }
+
+    const createCard = document.getElementById('admin-create-category-form')?.closest('.content-card');
+    const gridContainer = document.querySelector('#sub-expense-control-categories .admin-grid');
+    if (createCard) {
+        if (canAdd) {
+            createCard.classList.remove('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '2fr 1fr';
+        } else {
+            createCard.classList.add('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '1fr';
+        }
+    }
+
+    const saveBtn = document.getElementById('btn-save-categories-order');
+    if (saveBtn) {
+        if (canEdit) saveBtn.classList.remove('hidden');
+        else saveBtn.classList.add('hidden');
+    }
+
     adminCategoriesLocal.forEach((cat, index) => {
         const tr = document.createElement('tr');
+        const nameInputHtml = canEdit
+            ? `<input type="text" class="table-input" value="${escapeHTML(cat.name)}" onchange="updateLocalCategoryName(${index}, this.value)">`
+            : `<span>${escapeHTML(cat.name)}</span>`;
+        const orderInputHtml = canEdit
+            ? `<input type="number" class="table-input table-input-order" value="${cat.display_order}" onchange="updateLocalCategoryOrder(${index}, this.value)">`
+            : `<span>${cat.display_order}</span>`;
+        const deleteHtml = canDelete
+            ? `<button class="btn-icon btn-icon-delete" onclick="adminDeleteCategory(${cat.id}, '${escapeHTML(cat.name)}')" title="Delete Category" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
+            : '';
+        const updateHtml = canEdit
+            ? `<button class="btn-icon btn-icon-update" onclick="adminUpdateSingleCategory(this, ${cat.id}, ${index})" title="Update Category" style="color: var(--color-primary); margin: 0;"><i class="fa-solid fa-floppy-disk"></i></button>`
+            : '';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
+
         tr.innerHTML = `
-            <td>
-                <input type="text" class="table-input" value="${escapeHTML(cat.name)}" onchange="updateLocalCategoryName(${index}, this.value)">
-            </td>
-            <td class="text-center">
-                <input type="number" class="table-input table-input-order" value="${cat.display_order}" onchange="updateLocalCategoryOrder(${index}, this.value)">
-            </td>
-            <td class="text-center">
-                <button class="btn-icon btn-icon-delete" onclick="adminDeleteCategory(${cat.id}, '${escapeHTML(cat.name)}')" title="Delete Category">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </td>
+            <td>${nameInputHtml}</td>
+            <td class="text-center">${orderInputHtml}</td>
+            <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -669,20 +767,55 @@ function renderAdminBankModesTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    const canAdd = checkFinePrivilege('Create Category', 'add');
+    const canEdit = checkFinePrivilege('Expense Categories', 'edit');
+    const canDelete = checkFinePrivilege('Expense Categories', 'delete');
+    const canView = checkFinePrivilege('Expense Categories', 'view');
+
+    const listCard = document.getElementById('admin-bank-modes-list')?.closest('.content-card');
+    if (listCard) {
+        if (canView) listCard.classList.remove('hidden');
+        else listCard.classList.add('hidden');
+    }
+
+    const createCard = document.getElementById('admin-create-bank-mode-form')?.closest('.content-card');
+    const gridContainer = document.querySelector('#sub-expense-control-bank-modes .admin-grid');
+    if (createCard) {
+        if (canAdd) {
+            createCard.classList.remove('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '2fr 1fr';
+        } else {
+            createCard.classList.add('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '1fr';
+        }
+    }
+
+    const saveBtn = document.getElementById('btn-save-bank-modes');
+    if (saveBtn) {
+        if (canEdit) saveBtn.classList.remove('hidden');
+        else saveBtn.classList.add('hidden');
+    }
+
     adminBankModesLocal.forEach((bm, index) => {
         const tr = document.createElement('tr');
+        const nameInputHtml = canEdit
+            ? `<input type="text" class="table-input" value="${escapeHTML(bm.name)}" onchange="updateLocalBankModeName(${index}, this.value)">`
+            : `<span>${escapeHTML(bm.name)}</span>`;
+        const orderInputHtml = canEdit
+            ? `<input type="number" class="table-input table-input-order" value="${bm.display_order}" onchange="updateLocalBankModeOrder(${index}, this.value)">`
+            : `<span>${bm.display_order}</span>`;
+        const deleteHtml = canDelete
+            ? `<button class="btn-icon btn-icon-delete" onclick="adminDeleteBankMode(${bm.id}, '${escapeHTML(bm.name)}')" title="Delete Bank Mode" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
+            : '';
+        const updateHtml = canEdit
+            ? `<button class="btn-icon btn-icon-update" onclick="adminUpdateSingleBankMode(this, ${bm.id}, ${index})" title="Update Bank Mode" style="color: var(--color-primary); margin: 0;"><i class="fa-solid fa-floppy-disk"></i></button>`
+            : '';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
+
         tr.innerHTML = `
-            <td>
-                <input type="text" class="table-input" value="${escapeHTML(bm.name)}" onchange="updateLocalBankModeName(${index}, this.value)">
-            </td>
-            <td class="text-center">
-                <input type="number" class="table-input table-input-order" value="${bm.display_order}" onchange="updateLocalBankModeOrder(${index}, this.value)">
-            </td>
-            <td class="text-center">
-                <button class="btn-icon btn-icon-delete" onclick="adminDeleteBankMode(${bm.id}, '${escapeHTML(bm.name)}')" title="Delete Bank Mode">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </td>
+            <td>${nameInputHtml}</td>
+            <td class="text-center">${orderInputHtml}</td>
+            <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -795,20 +928,55 @@ function renderAdminPaymentTypesTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    const canAdd = checkFinePrivilege('Create Category', 'add');
+    const canEdit = checkFinePrivilege('Expense Categories', 'edit');
+    const canDelete = checkFinePrivilege('Expense Categories', 'delete');
+    const canView = checkFinePrivilege('Expense Categories', 'view');
+
+    const listCard = document.getElementById('admin-payment-types-list')?.closest('.content-card');
+    if (listCard) {
+        if (canView) listCard.classList.remove('hidden');
+        else listCard.classList.add('hidden');
+    }
+
+    const createCard = document.getElementById('admin-create-payment-type-form')?.closest('.content-card');
+    const gridContainer = document.querySelector('#sub-expense-control-payment-types .admin-grid');
+    if (createCard) {
+        if (canAdd) {
+            createCard.classList.remove('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '2fr 1fr';
+        } else {
+            createCard.classList.add('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '1fr';
+        }
+    }
+
+    const saveBtn = document.getElementById('btn-save-payment-types');
+    if (saveBtn) {
+        if (canEdit) saveBtn.classList.remove('hidden');
+        else saveBtn.classList.add('hidden');
+    }
+
     adminPaymentTypesLocal.forEach((pt, index) => {
         const tr = document.createElement('tr');
+        const nameInputHtml = canEdit
+            ? `<input type="text" class="table-input" value="${escapeHTML(pt.name)}" onchange="updateLocalPaymentTypeName(${index}, this.value)">`
+            : `<span>${escapeHTML(pt.name)}</span>`;
+        const orderInputHtml = canEdit
+            ? `<input type="number" class="table-input table-input-order" value="${pt.display_order}" onchange="updateLocalPaymentTypeOrder(${index}, this.value)">`
+            : `<span>${pt.display_order}</span>`;
+        const deleteHtml = canDelete
+            ? `<button class="btn-icon btn-icon-delete" onclick="adminDeletePaymentType(${pt.id}, '${escapeHTML(pt.name)}')" title="Delete Payment Type" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
+            : '';
+        const updateHtml = canEdit
+            ? `<button class="btn-icon btn-icon-update" onclick="adminUpdateSinglePaymentType(this, ${pt.id}, ${index})" title="Update Payment Type" style="color: var(--color-primary); margin: 0;"><i class="fa-solid fa-floppy-disk"></i></button>`
+            : '';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
+
         tr.innerHTML = `
-            <td>
-                <input type="text" class="table-input" value="${escapeHTML(pt.name)}" onchange="updateLocalPaymentTypeName(${index}, this.value)">
-            </td>
-            <td class="text-center">
-                <input type="number" class="table-input table-input-order" value="${pt.display_order}" onchange="updateLocalPaymentTypeOrder(${index}, this.value)">
-            </td>
-            <td class="text-center">
-                <button class="btn-icon btn-icon-delete" onclick="adminDeletePaymentType(${pt.id}, '${escapeHTML(pt.name)}')" title="Delete Payment Type">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </td>
+            <td>${nameInputHtml}</td>
+            <td class="text-center">${orderInputHtml}</td>
+            <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -921,20 +1089,55 @@ function renderAdminPaymentCategoriesTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    const canAdd = checkFinePrivilege('Create Category', 'add');
+    const canEdit = checkFinePrivilege('Expense Categories', 'edit');
+    const canDelete = checkFinePrivilege('Expense Categories', 'delete');
+    const canView = checkFinePrivilege('Expense Categories', 'view');
+
+    const listCard = document.getElementById('admin-payment-categories-list')?.closest('.content-card');
+    if (listCard) {
+        if (canView) listCard.classList.remove('hidden');
+        else listCard.classList.add('hidden');
+    }
+
+    const createCard = document.getElementById('admin-create-payment-category-form')?.closest('.content-card');
+    const gridContainer = document.querySelector('#sub-expense-control-payment-categories .admin-grid');
+    if (createCard) {
+        if (canAdd) {
+            createCard.classList.remove('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '2fr 1fr';
+        } else {
+            createCard.classList.add('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '1fr';
+        }
+    }
+
+    const saveBtn = document.getElementById('btn-save-payment-categories');
+    if (saveBtn) {
+        if (canEdit) saveBtn.classList.remove('hidden');
+        else saveBtn.classList.add('hidden');
+    }
+
     adminPaymentCategoriesLocal.forEach((pc, index) => {
         const tr = document.createElement('tr');
+        const nameInputHtml = canEdit
+            ? `<input type="text" class="table-input" value="${escapeHTML(pc.name)}" onchange="updateLocalPaymentCategoryName(${index}, this.value)">`
+            : `<span>${escapeHTML(pc.name)}</span>`;
+        const orderInputHtml = canEdit
+            ? `<input type="number" class="table-input table-input-order" value="${pc.display_order}" onchange="updateLocalPaymentCategoryOrder(${index}, this.value)">`
+            : `<span>${pc.display_order}</span>`;
+        const deleteHtml = canDelete
+            ? `<button class="btn-icon btn-icon-delete" onclick="adminDeletePaymentCategory(${pc.id}, '${escapeHTML(pc.name)}')" title="Delete Payment Category" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
+            : '';
+        const updateHtml = canEdit
+            ? `<button class="btn-icon btn-icon-update" onclick="adminUpdateSinglePaymentCategory(this, ${pc.id}, ${index})" title="Update Payment Source" style="color: var(--color-primary); margin: 0;"><i class="fa-solid fa-floppy-disk"></i></button>`
+            : '';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
+
         tr.innerHTML = `
-            <td>
-                <input type="text" class="table-input" value="${escapeHTML(pc.name)}" onchange="updateLocalPaymentCategoryName(${index}, this.value)">
-            </td>
-            <td class="text-center">
-                <input type="number" class="table-input table-input-order" value="${pc.display_order}" onchange="updateLocalPaymentCategoryOrder(${index}, this.value)">
-            </td>
-            <td class="text-center">
-                <button class="btn-icon btn-icon-delete" onclick="adminDeletePaymentCategory(${pc.id}, '${escapeHTML(pc.name)}')" title="Delete Payment Category">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </td>
+            <td>${nameInputHtml}</td>
+            <td class="text-center">${orderInputHtml}</td>
+            <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -1053,13 +1256,45 @@ function renderAdminExcelColumnsTable(columns) {
     const filterType = filterSelect ? filterSelect.value : 'import';
     const targetSelect = document.getElementById('admin-excel-columns-target');
     const targetType = targetSelect ? targetSelect.value : 'expense';
-    const isAdmin = currentUserPrivileges && currentUserPrivileges.is_admin;
-    const isDisabled = isAdmin ? '' : 'disabled';
+    const canAdd = checkFinePrivilege('Add Custom Column', 'add');
+    const canEdit = checkFinePrivilege('Excel Import & Export Columns', 'edit');
+    const canDelete = checkFinePrivilege('Excel Import & Export Columns', 'delete');
+    const canView = checkFinePrivilege('Excel Import & Export Columns', 'view');
+    const isDisabled = canEdit ? '' : 'disabled';
+
+    const listCard = document.getElementById('admin-excel-columns-list')?.closest('.content-card');
+    if (listCard) {
+        if (canView) listCard.classList.remove('hidden');
+        else listCard.classList.add('hidden');
+    }
 
     const systemKeys = {
         expense: ['amount', 'category', 'date', 'description', 'bank_mode', 'payment_type', 'payment_category', 'interest', 'payment_method', 'status'],
         emi: ['name', 'principal_amount', 'interest_rate', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank']
     };
+
+    // Hide or show the form card and adjust grid layout
+    const colFormCard = document.getElementById('admin-create-column-form')?.closest('.content-card');
+    const gridContainer = document.querySelector('#tab-admin-excel-columns .admin-grid');
+    if (colFormCard) {
+        if (canAdd) {
+            colFormCard.classList.remove('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '2fr 1fr';
+        } else {
+            colFormCard.classList.add('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '1fr';
+        }
+    }
+
+    // Hide or show Save Changes button
+    const saveBtn = document.getElementById('btn-save-excel-columns');
+    if (saveBtn) {
+        if (canEdit) {
+            saveBtn.parentElement.classList.remove('hidden');
+        } else {
+            saveBtn.parentElement.classList.add('hidden');
+        }
+    }
 
     // Populate Parent dropdown choices
     populateParentDropdowns(targetType, columns);
@@ -1074,17 +1309,27 @@ function renderAdminExcelColumnsTable(columns) {
             
         const isChecked = (filterType === 'import' ? col.is_enabled_import : col.is_enabled_export) === 1 ? 'checked' : '';
         const isDeletable = !systemKeys[targetType].includes(col.column_key);
-        const actionHtml = isDeletable && isAdmin
-            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteExcelColumn('${col.column_key}', '${targetType}')" title="Delete Column"><i class="fa-solid fa-trash"></i></button>`
+        const deleteHtml = isDeletable && canDelete
+            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteExcelColumn('${col.column_key}', '${targetType}')" title="Delete Column" style="color: var(--color-danger); margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
             : '';
+        const updateHtml = canEdit
+            ? `<button type="button" class="btn-icon btn-icon-update" onclick="adminUpdateSingleColumn(this, '${col.column_key}', '${targetType}')" title="Update Column" style="color: var(--color-primary); margin: 0;">
+                 <i class="fa-solid fa-floppy-disk"></i>
+               </button>`
+            : '';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
 
         // Order input field
-        const orderInputHtml = isAdmin
+        const orderInputHtml = canEdit
             ? `<input type="number" class="table-input text-center" style="width: 70px; margin: 0 auto; display: block; padding: 4px;" value="${col.display_order || 0}" min="0">`
             : `<span class="text-center" style="display: block;">${col.display_order || 0}</span>`;
         
+        const labelHtml = canEdit
+            ? `<input type="text" class="table-input column-label-input" value="${escapeHTML(col.column_label)}" style="width: 140px; font-weight: 500; display: inline-block; padding: 4px 8px;">`
+            : `<span style="font-weight: 500;">${escapeHTML(col.column_label)}</span>`;
+
         tr.innerHTML = `
-            <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
+            <td>${labelHtml}</td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
             <td class="text-center">${orderInputHtml}</td>
@@ -1094,7 +1339,7 @@ function renderAdminExcelColumnsTable(columns) {
                     <span class="checkmark"></span>
                 </label>
             </td>
-            <td class="text-center">${actionHtml}</td>
+            <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -1189,10 +1434,42 @@ function renderAdminEmiColumnsTable(columns) {
 
     const filterSelect = document.getElementById('admin-emi-columns-filter');
     const filterType = filterSelect ? filterSelect.value : 'import';
-    const isAdmin = currentUserPrivileges && currentUserPrivileges.is_admin;
-    const isDisabled = isAdmin ? '' : 'disabled';
+    const canAdd = checkFinePrivilege('Add Custom Column for EMIs', 'add');
+    const canEdit = checkFinePrivilege('EMI Columns List', 'edit');
+    const canDelete = checkFinePrivilege('EMI Columns List', 'delete');
+    const canView = checkFinePrivilege('EMI Columns List', 'view');
+    const isDisabled = canEdit ? '' : 'disabled';
+
+    const listCard = document.getElementById('admin-emi-columns-list')?.closest('.content-card');
+    if (listCard) {
+        if (canView) listCard.classList.remove('hidden');
+        else listCard.classList.add('hidden');
+    }
 
     const systemKeys = ['name', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'];
+
+    // Hide or show the form card and adjust grid layout
+    const colFormCard = document.getElementById('admin-create-emi-column-form')?.closest('.content-card');
+    const gridContainer = document.querySelector('#tab-admin-emis .admin-grid');
+    if (colFormCard) {
+        if (canAdd) {
+            colFormCard.classList.remove('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '2fr 1fr';
+        } else {
+            colFormCard.classList.add('hidden');
+            if (gridContainer) gridContainer.style.gridTemplateColumns = '1fr';
+        }
+    }
+
+    // Hide or show Save Changes button
+    const btnSave = document.getElementById('btn-save-emi-columns');
+    if (btnSave) {
+        if (canEdit) {
+            btnSave.parentElement.classList.remove('hidden');
+        } else {
+            btnSave.parentElement.classList.add('hidden');
+        }
+    }
 
     // Populate Parent dropdown choices for EMIs
     populateParentDropdowns('emi', columns);
@@ -1207,19 +1484,29 @@ function renderAdminEmiColumnsTable(columns) {
 
         const isChecked = (filterType === 'import' ? col.is_enabled_import : col.is_enabled_export) === 1 ? 'checked' : '';
         const isDeletable = !systemKeys.includes(col.column_key);
-        const actionHtml = isDeletable && isAdmin
-            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteEmiColumn('${col.column_key}')" title="Delete Custom Column" style="color: var(--color-danger);">
+        const deleteHtml = isDeletable && canDelete
+            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteEmiColumn('${col.column_key}')" title="Delete Custom Column" style="color: var(--color-danger); margin: 0;">
                  <i class="fa-solid fa-trash-can"></i>
                </button>`
             : '';
+        const updateHtml = canEdit
+            ? `<button type="button" class="btn-icon btn-icon-update" onclick="adminUpdateSingleColumn(this, '${col.column_key}', 'emi')" title="Update Column" style="color: var(--color-primary); margin: 0;">
+                 <i class="fa-solid fa-floppy-disk"></i>
+               </button>`
+            : '';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
 
         // Order input field
-        const orderInputHtml = isAdmin
+        const orderInputHtml = canEdit
             ? `<input type="number" class="table-input text-center" style="width: 70px; margin: 0 auto; display: block; padding: 4px;" value="${col.display_order || 0}" min="0">`
             : `<span class="text-center" style="display: block;">${col.display_order || 0}</span>`;
 
+        const labelHtml = canEdit
+            ? `<input type="text" class="table-input column-label-input" value="${escapeHTML(col.column_label)}" style="width: 140px; font-weight: 500; display: inline-block; padding: 4px 8px;">`
+            : `<span style="font-weight: 500;">${escapeHTML(col.column_label)}</span>`;
+
         tr.innerHTML = `
-            <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
+            <td>${labelHtml}</td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
             <td class="text-center">${orderInputHtml}</td>
@@ -1229,7 +1516,7 @@ function renderAdminEmiColumnsTable(columns) {
                     <span class="checkmark"></span>
                 </label>
             </td>
-            <td class="text-center">${actionHtml}</td>
+            <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -1416,4 +1703,318 @@ function applyConditionalFields(formType) {
             }
         }
     });
+}
+
+let adminLabelsLocal = [];
+
+async function adminFetchLabels() {
+    try {
+        const response = await fetch('/api/admin/labels');
+        if (response.ok) {
+            adminLabelsLocal = await response.json();
+            renderAdminLabelsList();
+        }
+    } catch (err) {
+        console.error('Error fetching admin labels:', err);
+    }
+}
+
+function renderAdminLabelsList() {
+    const container = document.getElementById('admin-labels-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    const grouped = {};
+    adminLabelsLocal.forEach(lbl => {
+        if (!grouped[lbl.label_category]) {
+            grouped[lbl.label_category] = [];
+        }
+        grouped[lbl.label_category].push(lbl);
+    });
+    
+    Object.keys(grouped).forEach(cat => {
+        const groupDiv = document.createElement('div');
+        groupDiv.style.background = 'var(--bg-secondary)';
+        groupDiv.style.padding = '15px';
+        groupDiv.style.borderRadius = '8px';
+        groupDiv.style.border = '1px solid var(--border-color)';
+        groupDiv.style.marginBottom = '15px';
+        
+        let titleHtml = `<h3 style="margin-bottom: 15px; color: var(--accent-color); font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">${escapeHTML(cat)}</h3>`;
+        let fieldsHtml = '';
+        
+        grouped[cat].forEach(lbl => {
+            const cleanName = lbl.label_key.split('_').slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            
+            fieldsHtml += `
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px; align-items: center; margin-bottom: 12px;">
+                    <span style="font-weight: 500; color: var(--text-muted); font-size: 0.95rem;">${escapeHTML(cleanName)}</span>
+                    <input type="text" class="form-control label-input" data-key="${escapeHTML(lbl.label_key)}" value="${escapeHTML(lbl.custom_value !== null ? lbl.custom_value : lbl.default_value)}" style="background: white; color: black; border-radius: 4px; border: 1px solid var(--border-color); padding: 8px 12px; font-size: 0.95rem; width: 100%;">
+                </div>
+            `;
+        });
+        
+        groupDiv.innerHTML = titleHtml + fieldsHtml;
+        container.appendChild(groupDiv);
+    });
+}
+
+async function adminSaveLabels() {
+    const container = document.getElementById('admin-labels-container');
+    if (!container) return;
+    
+    const inputs = container.querySelectorAll('input.label-input');
+    const labelsData = {};
+    inputs.forEach(input => {
+        const key = input.getAttribute('data-key');
+        const val = input.value;
+        labelsData[key] = val;
+    });
+    
+    try {
+        const response = await fetch('/api/admin/labels/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ labels: labelsData })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Labels updated successfully!', 'success');
+            await fetchPublicLabels();
+            await adminFetchExcelColumns();
+            await adminFetchEmiColumns();
+        } else {
+            showAppAlert(result.error || 'Failed to save labels.');
+        }
+    } catch (err) {
+        showAppAlert('Network error saving labels.');
+    }
+}
+
+async function adminUpdateSingleColumn(btn, columnKey, targetType) {
+    const tr = btn.closest('tr');
+    if (!tr) return;
+    
+    // Find inputs in this row
+    const labelInput = tr.querySelector('.column-label-input');
+    const orderInput = tr.querySelector('input[type="number"]');
+    const statusCheckbox = tr.querySelector('input[type="checkbox"]');
+    
+    const labelVal = labelInput ? labelInput.value.trim() : null;
+    const orderVal = orderInput ? parseInt(orderInput.value) || 0 : 0;
+    const isChecked = statusCheckbox ? (statusCheckbox.checked ? 1 : 0) : null;
+    
+    // Determine filterType (import vs export) from the tab's switcher dropdown
+    let filterType = 'import';
+    if (targetType === 'emi') {
+        const filterSelect = document.getElementById('admin-emi-columns-filter');
+        filterType = filterSelect ? filterSelect.value : 'import';
+    } else if (targetType === 'expense') {
+        // Wait, depending on which tab: Expense Columns or Excel Columns.
+        // Excel Columns tab has two targets (expense/emi) and two filters (import/export).
+        // Let's check which tab we are inside.
+        const excelTab = tr.closest('#tab-admin-excel-columns');
+        if (excelTab) {
+            const filterSelect = document.getElementById('admin-excel-columns-filter');
+            filterType = filterSelect ? filterSelect.value : 'import';
+        } else {
+            const filterSelect = document.getElementById('admin-expense-columns-filter');
+            filterType = filterSelect ? filterSelect.value : 'import';
+        }
+    }
+    
+    const payload = {
+        column_key: columnKey,
+        target_type: targetType, // 'expense' or 'emi'
+        display_order: orderVal
+    };
+    if (labelVal !== null) {
+        payload.column_label = labelVal;
+    }
+    if (isChecked !== null) {
+        if (filterType === 'import') {
+            payload.is_enabled_import = isChecked;
+        } else {
+            payload.is_enabled_export = isChecked;
+        }
+    }
+    
+    try {
+        const response = await fetch('/api/admin/excel-columns/update-single', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Column updated successfully!', true);
+            // Refresh list
+            if (targetType === 'emi') {
+                await adminFetchEmiColumns();
+            } else if (targetType === 'expense') {
+                const excelTab = tr.closest('#tab-admin-excel-columns');
+                if (excelTab) {
+                    await adminFetchExcelColumns();
+                } else {
+                    if (typeof adminFetchExpenseColumnsTab === 'function') {
+                        await adminFetchExpenseColumnsTab();
+                    } else if (typeof fetchExpenseColumns === 'function') {
+                        await fetchExpenseColumns();
+                    }
+                }
+            }
+        } else {
+            showAppAlert(result.error || 'Failed to update column.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating column.');
+    }
+}
+
+async function adminUpdateSingleCategory(btn, catId, index) {
+    const tr = btn.closest('tr');
+    if (!tr) return;
+    const nameInput = tr.querySelector('input[type="text"]');
+    const orderInput = tr.querySelector('input[type="number"]');
+    if (!nameInput || !orderInput) return;
+    const name = nameInput.value.trim();
+    const order = parseInt(orderInput.value) || 0;
+    
+    if (!name) {
+        showAppAlert('Category name is required.');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/categories/edit/${catId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, display_order: order })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            showAppAlert('Category updated successfully!', true);
+            if (adminCategoriesLocal[index]) {
+                adminCategoriesLocal[index].name = name;
+                adminCategoriesLocal[index].display_order = order;
+            }
+            await fetchCategories();
+            await adminFetchCategories();
+        } else {
+            showAppAlert(result.error || 'Failed to update category.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating category.');
+    }
+}
+
+async function adminUpdateSingleBankMode(btn, bmId, index) {
+    const tr = btn.closest('tr');
+    if (!tr) return;
+    const nameInput = tr.querySelector('input[type="text"]');
+    const orderInput = tr.querySelector('input[type="number"]');
+    if (!nameInput || !orderInput) return;
+    const name = nameInput.value.trim();
+    const order = parseInt(orderInput.value) || 0;
+    
+    if (!name) {
+        showAppAlert('Bank mode name is required.');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/bank_modes/edit/${bmId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, display_order: order })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            showAppAlert('Bank mode updated successfully!', true);
+            if (adminBankModesLocal[index]) {
+                adminBankModesLocal[index].name = name;
+                adminBankModesLocal[index].display_order = order;
+            }
+            await fetchBankModes();
+            await adminFetchBankModes();
+        } else {
+            showAppAlert(result.error || 'Failed to update bank mode.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating bank mode.');
+    }
+}
+
+async function adminUpdateSinglePaymentType(btn, ptId, index) {
+    const tr = btn.closest('tr');
+    if (!tr) return;
+    const nameInput = tr.querySelector('input[type="text"]');
+    const orderInput = tr.querySelector('input[type="number"]');
+    if (!nameInput || !orderInput) return;
+    const name = nameInput.value.trim();
+    const order = parseInt(orderInput.value) || 0;
+    
+    if (!name) {
+        showAppAlert('Payment Gateway name is required.');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/payment_types/edit/${ptId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, display_order: order })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            showAppAlert('Payment Gateway updated successfully!', true);
+            if (adminPaymentTypesLocal[index]) {
+                adminPaymentTypesLocal[index].name = name;
+                adminPaymentTypesLocal[index].display_order = order;
+            }
+            await fetchPaymentTypes();
+            await adminFetchPaymentTypes();
+        } else {
+            showAppAlert(result.error || 'Failed to update payment type.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating payment type.');
+    }
+}
+
+async function adminUpdateSinglePaymentCategory(btn, pcId, index) {
+    const tr = btn.closest('tr');
+    if (!tr) return;
+    const nameInput = tr.querySelector('input[type="text"]');
+    const orderInput = tr.querySelector('input[type="number"]');
+    if (!nameInput || !orderInput) return;
+    const name = nameInput.value.trim();
+    const order = parseInt(orderInput.value) || 0;
+    
+    if (!name) {
+        showAppAlert('Payment Source name is required.');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/payment_categories/edit/${pcId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, display_order: order })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            showAppAlert('Payment Source updated successfully!', true);
+            if (adminPaymentCategoriesLocal[index]) {
+                adminPaymentCategoriesLocal[index].name = name;
+                adminPaymentCategoriesLocal[index].display_order = order;
+            }
+            await fetchPaymentCategories();
+            await adminFetchPaymentCategories();
+        } else {
+            showAppAlert(result.error || 'Failed to update payment source.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating payment source.');
+    }
 }

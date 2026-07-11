@@ -1,15 +1,15 @@
 <!-- DASHBOARD SECTION -->
 <section id="section-dashboard" class="content-section">
     <header class="section-header">
-        <h1>Dashboard</h1>
-        <p>Track your daily spendings and keep your finances healthy.</p>
+        <h1 data-label="home_dashboard">Dashboard</h1>
+        <p data-label="home_slogan">Track your daily spendings and keep your finances healthy.</p>
     </header>
 
     <!-- Key Metrics Cards -->
     <div class="metrics-grid">
         <div class="metric-card card-month" onclick="filterDashboardCard('month')" style="cursor: pointer;">
             <div class="metric-info">
-                <h3>This Month</h3>
+                <h3 data-label="home_this_month">This Month</h3>
                 <span class="metric-value" id="month-total">₹0.00</span>
             </div>
             <div class="metric-icon">
@@ -18,7 +18,7 @@
         </div>
         <div class="metric-card card-all" onclick="filterDashboardCard('all')" style="cursor: pointer;">
             <div class="metric-info">
-                <h3>Total Spent</h3>
+                <h3 data-label="home_total_spent">Total Spent</h3>
                 <span class="metric-value" id="all-total">₹0.00</span>
             </div>
             <div class="metric-icon">
@@ -27,7 +27,7 @@
         </div>
         <div class="metric-card card-count" onclick="filterDashboardCard('transactions')" style="cursor: pointer;">
             <div class="metric-info">
-                <h3>Transactions</h3>
+                <h3 data-label="home_transactions">Transactions</h3>
                 <span class="metric-value" id="transaction-count">0</span>
             </div>
             <div class="metric-icon">
@@ -45,13 +45,13 @@
                     <i class="fa-solid fa-trash-can"></i> <span>Delete Selected</span>
                 </button>
                 <button class="btn-secondary" onclick="toggleFilters()">
-                    <i class="fa-solid fa-filter"></i> <span>Filter</span>
+                    <i class="fa-solid fa-filter"></i> <span data-label="recent_expenses_filter_btn">Filter</span>
                 </button>
                 <button class="btn-secondary" onclick="openImportModal()">
-                    <i class="fa-solid fa-file-import"></i> <span>Import</span>
+                    <i class="fa-solid fa-file-import"></i> <span data-label="recent_expenses_import_btn">Import</span>
                 </button>
                 <button class="btn-secondary" onclick="openExportModal()">
-                    <i class="fa-solid fa-file-export"></i> <span>Export</span>
+                    <i class="fa-solid fa-file-export"></i> <span data-label="recent_expenses_export_btn">Export</span>
                 </button>
             </div>
         </div>
@@ -157,11 +157,11 @@
         <!-- Dashboard Credit/Debit Totals & Year Totals summary bar -->
         <div class="dashboard-summary-bar">
             <div class="summary-item" onclick="filterDashboardCard('filtered_debit')" style="cursor: pointer;">
-                <span class="summary-label">Filtered Debits:</span>
+                <span class="summary-label" data-label="recent_expenses_filtered_debits_lbl">Filtered Debits</span>:
                 <span class="summary-value debit-text" id="dashboard-filtered-debit">₹0.00</span>
             </div>
             <div class="summary-item" onclick="filterDashboardCard('filtered_credit')" style="cursor: pointer;">
-                <span class="summary-label">Filtered Credits:</span>
+                <span class="summary-label" data-label="recent_expenses_filtered_credits_lbl">Filtered Credits</span>:
                 <span class="summary-value credit-text" id="dashboard-filtered-credit">₹0.00</span>
             </div>
             <div class="summary-item year-total-item hidden" id="dashboard-year-total-wrapper">
@@ -177,16 +177,16 @@
                 <thead>
                     <tr>
                         <th style="width: 40px; text-align: center;"><input type="checkbox" id="expense-select-all" style="cursor: pointer; width: 16px; height: 16px;"></th>
-                        <th>Date</th>
-                        <th>Category</th>
-                        <th>Description</th>
-                        <th>Gateway</th>
-                        <th>Source</th>
-                        <th class="text-center">Method</th>
-                        <th class="text-right">Amount</th>
-                        <th class="text-right">Interest</th>
-                        <th class="text-center">Status</th>
-                        <th class="text-center">Actions</th>
+                        <th data-label="recent_expenses_date">Date</th>
+                        <th data-label="recent_expenses_category">Category</th>
+                        <th data-label="recent_expenses_description">Description</th>
+                        <th data-label="recent_expenses_gateway">Gateway</th>
+                        <th data-label="recent_expenses_source">Source</th>
+                        <th class="text-center" data-label="recent_expenses_method">Method</th>
+                        <th class="text-right" data-label="recent_expenses_amount">Amount</th>
+                        <th class="text-right" data-label="recent_expenses_interest">Interest</th>
+                        <th class="text-center" data-label="recent_expenses_status">Status</th>
+                        <th class="text-center" data-label="recent_expenses_actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="expense-list-body">
@@ -211,11 +211,11 @@
                 <table class="expense-table">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Category</th>
-                            <th>Description</th>
-                            <th class="text-right">Amount</th>
-                            <th class="text-center">Method</th>
+                            <th id="modal-th-date">Date</th>
+                            <th id="modal-th-category">Category</th>
+                            <th id="modal-th-description">Description</th>
+                            <th id="modal-th-amount" class="text-right">Amount</th>
+                            <th id="modal-th-method" class="text-center">Method</th>
                         </tr>
                     </thead>
                     <tbody id="consolidated-modal-body">

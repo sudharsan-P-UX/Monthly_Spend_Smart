@@ -45,6 +45,8 @@ async function fetchUserPrivileges() {
         if (response.ok) {
             const data = await response.json();
             currentUserPrivileges = data.privileges;
+            currentUserRoleId = data.role_id;
+            currentUserFinePrivileges = data.fine_privileges || {};
             applyUserPrivileges();
         }
     } catch (err) {
@@ -63,7 +65,7 @@ async function applyUserPrivileges() {
     const adminTabs = document.querySelectorAll('.admin-tab');
     adminTabs.forEach(tab => {
         const targetTab = tab.getAttribute('data-tab');
-        if (targetTab === 'admin-expense-control' || targetTab === 'admin-currencies') {
+        if (targetTab === 'admin-expense-control' || targetTab === 'admin-currencies' || targetTab === 'admin-expense-columns' || targetTab === 'admin-emis') {
             tab.classList.remove('hidden');
         } else {
             if (currentUserPrivileges.is_admin) {
