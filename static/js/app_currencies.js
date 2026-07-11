@@ -1,3 +1,5 @@
+let adminExpenseColumnsLocal = [];
+
 // CURRENCIES MANAGEMENT FUNCTIONS
 
 async function fetchActiveCurrency() {
@@ -451,6 +453,7 @@ async function adminFetchExpenseColumnsTab() {
         const response = await fetch('/api/admin/excel-columns?target_type=expense');
         if (response.ok) {
             const cols = await response.json();
+            adminExpenseColumnsLocal = cols;
             renderAdminExpenseColumnsTabTable(cols);
         }
     } catch (err) {
@@ -518,31 +521,21 @@ function renderAdminExpenseColumnsTabTable(columns) {
             ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteExpenseColumnTab('${col.column_key}')" title="Delete Custom Column" style="color: var(--color-danger); margin: 0;">
                  <i class="fa-solid fa-trash-can"></i>
                </button>`
-            : '';
-        const updateHtml = canEdit
-            ? `<button type="button" class="btn-icon btn-icon-update" onclick="adminUpdateSingleColumn(this, '${col.column_key}', 'expense')" title="Update Column" style="color: var(--color-primary); margin: 0;">
-                 <i class="fa-solid fa-floppy-disk"></i>
-               </button>`
-            : '';
-        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
-
-        const orderInputHtml = canEdit
-            ? `<input type="number" class="table-input text-center" style="width: 70px; margin: 0 auto; display: block; padding: 4px;" value="${col.display_order || 0}" min="0">`
-            : `<span class="text-center" style="display: block;">${col.display_order || 0}</span>`;
-
-        const labelHtml = canEdit
-            ? `<input type="text" class="table-input column-label-input" value="${escapeHTML(col.column_label)}" style="width: 140px; font-weight: 500; display: inline-block; padding: 4px 8px;">`
-            : `<span style="font-weight: 500;">${escapeHTML(col.column_label)}</span>`;
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const editHtml = canEdit
+            ? `<button type="button" class="btn-icon btn-icon-edit" onclick="openEditColumnModal('${col.column_key}', 'expense', 'expense_tab')" title="Edit Column" style="color: var(--color-warning); margin: 0;"><i class="fa-solid fa-pen-to-square"></i></button>`
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${editHtml}${deleteHtml}</div>`;
 
         tr.innerHTML = `
-            <td>${labelHtml}</td>
+            <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
-            <td class="text-center">${orderInputHtml}</td>
+            <td class="text-center"><span>${col.display_order || 0}</span></td>
             <td class="text-center">
                 <label class="checkbox-container" style="display: inline-block;">
-                    <input type="checkbox" ${isChecked} ${isDisabled}>
-                    <span class="checkmark"></span>
+                    <input type="checkbox" ${isChecked} disabled>
+                    <span class="checkmark" style="cursor: not-allowed; background-color: var(--background-card-hover);"></span>
                 </label>
             </td>
             <td class="text-center">${finalActionHtml}</td>

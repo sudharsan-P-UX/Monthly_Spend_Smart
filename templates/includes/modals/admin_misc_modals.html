@@ -112,3 +112,91 @@
         </form>
     </div>
 </div>
+
+<!-- EDIT DROPDOWN ITEM MODAL -->
+<div id="admin-edit-dropdown-modal" class="modal-overlay hidden" style="z-index: 1050;">
+    <div class="modal-card" style="max-width: 400px;">
+        <div class="modal-header">
+            <h2 id="admin-edit-dropdown-title">Edit Dropdown Item</h2>
+            <button type="button" class="btn-close" onclick="closeModal('admin-edit-dropdown-modal')">&times;</button>
+        </div>
+        <form id="admin-edit-dropdown-form" class="modal-form">
+            <input type="hidden" id="admin-edit-dropdown-id">
+            <input type="hidden" id="admin-edit-dropdown-type">
+            <input type="hidden" id="admin-edit-dropdown-index">
+            <div class="input-group">
+                <label for="admin-edit-dropdown-name">Name <span class="required">*</span></label>
+                <input type="text" id="admin-edit-dropdown-name" required placeholder="Enter name">
+            </div>
+            <div class="input-group">
+                <label for="admin-edit-dropdown-order">Display Order</label>
+                <input type="number" id="admin-edit-dropdown-order" placeholder="0">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal('admin-edit-dropdown-modal')">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT COLUMN DETAILS MODAL -->
+<div id="admin-edit-column-modal" class="modal-overlay hidden" style="z-index: 1050;">
+    <div class="modal-card" style="max-width: 450px;">
+        <div class="modal-header">
+            <h2 id="admin-edit-column-title">Edit Column Details</h2>
+            <button type="button" class="btn-close" onclick="closeModal('admin-edit-column-modal')">&times;</button>
+        </div>
+        <form id="admin-edit-column-form" class="modal-form" style="padding: 20px;">
+            <input type="hidden" id="admin-edit-column-key">
+            <input type="hidden" id="admin-edit-column-target">
+            <input type="hidden" id="admin-edit-column-context">
+            
+            <div class="input-group">
+                <label for="admin-edit-column-label">Column Label / Header <span class="required">*</span></label>
+                <input type="text" id="admin-edit-column-label" required placeholder="Enter column header label">
+            </div>
+            
+            <div class="input-group">
+                <label>Database Field Key</label>
+                <input type="text" id="admin-edit-column-display-key" disabled style="background-color: var(--background-card-hover); cursor: not-allowed; color: var(--text-secondary);">
+            </div>
+            
+            <div class="input-group">
+                <label for="admin-edit-column-order">Display Order</label>
+                <input type="number" id="admin-edit-column-order" placeholder="0">
+            </div>
+            
+            <div class="input-group">
+                <label for="admin-edit-column-parent">Parent Column (Optional)</label>
+                <select id="admin-edit-column-parent" class="modal-select">
+                    <option value="">None</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="admin-edit-column-trigger">Parent Trigger Value</label>
+                <input type="text" id="admin-edit-column-trigger" placeholder="e.g. Yes">
+            </div>
+            
+            <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <label class="checkbox-container" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="admin-edit-column-import">
+                    <span class="checkmark"></span>
+                    <span>Enable Import</span>
+                </label>
+                <label class="checkbox-container" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="admin-edit-column-export">
+                    <span class="checkmark"></span>
+                    <span>Enable Export</span>
+                </label>
+            </div>
+            
+            <div class="modal-footer" style="margin-top: 20px;">
+                <button type="button" class="btn-secondary" onclick="closeModal('admin-edit-column-modal')">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+

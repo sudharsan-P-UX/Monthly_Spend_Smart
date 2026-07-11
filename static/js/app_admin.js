@@ -1,3 +1,6 @@
+let adminExcelColumnsLocal = [];
+let adminEmiColumnsLocal = [];
+
 // ADMIN TABS INITIALIZATION
 function initAdminTabs() {
     const adminTabs = document.querySelectorAll('.admin-tab');
@@ -637,23 +640,17 @@ function renderAdminCategoriesTable() {
 
     adminCategoriesLocal.forEach((cat, index) => {
         const tr = document.createElement('tr');
-        const nameInputHtml = canEdit
-            ? `<input type="text" class="table-input" value="${escapeHTML(cat.name)}" onchange="updateLocalCategoryName(${index}, this.value)">`
-            : `<span>${escapeHTML(cat.name)}</span>`;
-        const orderInputHtml = canEdit
-            ? `<input type="number" class="table-input table-input-order" value="${cat.display_order}" onchange="updateLocalCategoryOrder(${index}, this.value)">`
-            : `<span>${cat.display_order}</span>`;
         const deleteHtml = canDelete
             ? `<button class="btn-icon btn-icon-delete" onclick="adminDeleteCategory(${cat.id}, '${escapeHTML(cat.name)}')" title="Delete Category" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
-            : '';
-        const updateHtml = canEdit
-            ? `<button class="btn-icon btn-icon-update" onclick="adminUpdateSingleCategory(this, ${cat.id}, ${index})" title="Update Category" style="color: var(--color-primary); margin: 0;"><i class="fa-solid fa-floppy-disk"></i></button>`
-            : '';
-        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const editHtml = canEdit
+            ? `<button class="btn-icon btn-icon-edit" onclick="openEditDropdownModal(${cat.id}, '${escapeHTML(cat.name)}', ${cat.display_order}, 'category', ${index})" title="Edit Category" style="color: var(--color-warning); margin: 0;"><i class="fa-solid fa-pen-to-square"></i></button>`
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${editHtml}${deleteHtml}</div>`;
 
         tr.innerHTML = `
-            <td>${nameInputHtml}</td>
-            <td class="text-center">${orderInputHtml}</td>
+            <td><span style="font-weight: 500;">${escapeHTML(cat.name)}</span></td>
+            <td class="text-center"><span>${cat.display_order}</span></td>
             <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -798,23 +795,17 @@ function renderAdminBankModesTable() {
 
     adminBankModesLocal.forEach((bm, index) => {
         const tr = document.createElement('tr');
-        const nameInputHtml = canEdit
-            ? `<input type="text" class="table-input" value="${escapeHTML(bm.name)}" onchange="updateLocalBankModeName(${index}, this.value)">`
-            : `<span>${escapeHTML(bm.name)}</span>`;
-        const orderInputHtml = canEdit
-            ? `<input type="number" class="table-input table-input-order" value="${bm.display_order}" onchange="updateLocalBankModeOrder(${index}, this.value)">`
-            : `<span>${bm.display_order}</span>`;
         const deleteHtml = canDelete
             ? `<button class="btn-icon btn-icon-delete" onclick="adminDeleteBankMode(${bm.id}, '${escapeHTML(bm.name)}')" title="Delete Bank Mode" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
-            : '';
-        const updateHtml = canEdit
-            ? `<button class="btn-icon btn-icon-update" onclick="adminUpdateSingleBankMode(this, ${bm.id}, ${index})" title="Update Bank Mode" style="color: var(--color-primary); margin: 0;"><i class="fa-solid fa-floppy-disk"></i></button>`
-            : '';
-        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const editHtml = canEdit
+            ? `<button class="btn-icon btn-icon-edit" onclick="openEditDropdownModal(${bm.id}, '${escapeHTML(bm.name)}', ${bm.display_order}, 'bank_mode', ${index})" title="Edit Bank Mode" style="color: var(--color-warning); margin: 0;"><i class="fa-solid fa-pen-to-square"></i></button>`
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${editHtml}${deleteHtml}</div>`;
 
         tr.innerHTML = `
-            <td>${nameInputHtml}</td>
-            <td class="text-center">${orderInputHtml}</td>
+            <td><span style="font-weight: 500;">${escapeHTML(bm.name)}</span></td>
+            <td class="text-center"><span>${bm.display_order}</span></td>
             <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -959,23 +950,17 @@ function renderAdminPaymentTypesTable() {
 
     adminPaymentTypesLocal.forEach((pt, index) => {
         const tr = document.createElement('tr');
-        const nameInputHtml = canEdit
-            ? `<input type="text" class="table-input" value="${escapeHTML(pt.name)}" onchange="updateLocalPaymentTypeName(${index}, this.value)">`
-            : `<span>${escapeHTML(pt.name)}</span>`;
-        const orderInputHtml = canEdit
-            ? `<input type="number" class="table-input table-input-order" value="${pt.display_order}" onchange="updateLocalPaymentTypeOrder(${index}, this.value)">`
-            : `<span>${pt.display_order}</span>`;
         const deleteHtml = canDelete
             ? `<button class="btn-icon btn-icon-delete" onclick="adminDeletePaymentType(${pt.id}, '${escapeHTML(pt.name)}')" title="Delete Payment Type" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
-            : '';
-        const updateHtml = canEdit
-            ? `<button class="btn-icon btn-icon-update" onclick="adminUpdateSinglePaymentType(this, ${pt.id}, ${index})" title="Update Payment Type" style="color: var(--color-primary); margin: 0;"><i class="fa-solid fa-floppy-disk"></i></button>`
-            : '';
-        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const editHtml = canEdit
+            ? `<button class="btn-icon btn-icon-edit" onclick="openEditDropdownModal(${pt.id}, '${escapeHTML(pt.name)}', ${pt.display_order}, 'payment_type', ${index})" title="Edit Payment Type" style="color: var(--color-warning); margin: 0;"><i class="fa-solid fa-pen-to-square"></i></button>`
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${editHtml}${deleteHtml}</div>`;
 
         tr.innerHTML = `
-            <td>${nameInputHtml}</td>
-            <td class="text-center">${orderInputHtml}</td>
+            <td><span style="font-weight: 500;">${escapeHTML(pt.name)}</span></td>
+            <td class="text-center"><span>${pt.display_order}</span></td>
             <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -1120,23 +1105,17 @@ function renderAdminPaymentCategoriesTable() {
 
     adminPaymentCategoriesLocal.forEach((pc, index) => {
         const tr = document.createElement('tr');
-        const nameInputHtml = canEdit
-            ? `<input type="text" class="table-input" value="${escapeHTML(pc.name)}" onchange="updateLocalPaymentCategoryName(${index}, this.value)">`
-            : `<span>${escapeHTML(pc.name)}</span>`;
-        const orderInputHtml = canEdit
-            ? `<input type="number" class="table-input table-input-order" value="${pc.display_order}" onchange="updateLocalPaymentCategoryOrder(${index}, this.value)">`
-            : `<span>${pc.display_order}</span>`;
         const deleteHtml = canDelete
             ? `<button class="btn-icon btn-icon-delete" onclick="adminDeletePaymentCategory(${pc.id}, '${escapeHTML(pc.name)}')" title="Delete Payment Category" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
-            : '';
-        const updateHtml = canEdit
-            ? `<button class="btn-icon btn-icon-update" onclick="adminUpdateSinglePaymentCategory(this, ${pc.id}, ${index})" title="Update Payment Source" style="color: var(--color-primary); margin: 0;"><i class="fa-solid fa-floppy-disk"></i></button>`
-            : '';
-        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const editHtml = canEdit
+            ? `<button class="btn-icon btn-icon-edit" onclick="openEditDropdownModal(${pc.id}, '${escapeHTML(pc.name)}', ${pc.display_order}, 'payment_category', ${index})" title="Edit Payment Source" style="color: var(--color-warning); margin: 0;"><i class="fa-solid fa-pen-to-square"></i></button>`
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${editHtml}${deleteHtml}</div>`;
 
         tr.innerHTML = `
-            <td>${nameInputHtml}</td>
-            <td class="text-center">${orderInputHtml}</td>
+            <td><span style="font-weight: 500;">${escapeHTML(pc.name)}</span></td>
+            <td class="text-center"><span>${pc.display_order}</span></td>
             <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -1240,6 +1219,7 @@ async function adminFetchExcelColumns() {
         const response = await fetch(`/api/admin/excel-columns?target_type=${targetType}`);
         if (response.ok) {
             const cols = await response.json();
+            adminExcelColumnsLocal = cols;
             renderAdminExcelColumnsTable(cols);
         }
     } catch (err) {
@@ -1311,32 +1291,21 @@ function renderAdminExcelColumnsTable(columns) {
         const isDeletable = !systemKeys[targetType].includes(col.column_key);
         const deleteHtml = isDeletable && canDelete
             ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteExcelColumn('${col.column_key}', '${targetType}')" title="Delete Column" style="color: var(--color-danger); margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
-            : '';
-        const updateHtml = canEdit
-            ? `<button type="button" class="btn-icon btn-icon-update" onclick="adminUpdateSingleColumn(this, '${col.column_key}', '${targetType}')" title="Update Column" style="color: var(--color-primary); margin: 0;">
-                 <i class="fa-solid fa-floppy-disk"></i>
-               </button>`
-            : '';
-        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
-
-        // Order input field
-        const orderInputHtml = canEdit
-            ? `<input type="number" class="table-input text-center" style="width: 70px; margin: 0 auto; display: block; padding: 4px;" value="${col.display_order || 0}" min="0">`
-            : `<span class="text-center" style="display: block;">${col.display_order || 0}</span>`;
-        
-        const labelHtml = canEdit
-            ? `<input type="text" class="table-input column-label-input" value="${escapeHTML(col.column_label)}" style="width: 140px; font-weight: 500; display: inline-block; padding: 4px 8px;">`
-            : `<span style="font-weight: 500;">${escapeHTML(col.column_label)}</span>`;
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const editHtml = canEdit
+            ? `<button type="button" class="btn-icon btn-icon-edit" onclick="openEditColumnModal('${col.column_key}', '${targetType}', 'excel')" title="Edit Column" style="color: var(--color-warning); margin: 0;"><i class="fa-solid fa-pen-to-square"></i></button>`
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${editHtml}${deleteHtml}</div>`;
 
         tr.innerHTML = `
-            <td>${labelHtml}</td>
+            <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
-            <td class="text-center">${orderInputHtml}</td>
+            <td class="text-center"><span>${col.display_order || 0}</span></td>
             <td class="text-center">
                 <label class="checkbox-container" style="display: inline-block;">
-                    <input type="checkbox" ${isChecked} ${isDisabled}>
-                    <span class="checkmark"></span>
+                    <input type="checkbox" ${isChecked} disabled>
+                    <span class="checkmark" style="cursor: not-allowed; background-color: var(--background-card-hover);"></span>
                 </label>
             </td>
             <td class="text-center">${finalActionHtml}</td>
@@ -1420,6 +1389,7 @@ async function adminFetchEmiColumns() {
         const response = await fetch('/api/admin/excel-columns?target_type=emi');
         if (response.ok) {
             const cols = await response.json();
+            adminEmiColumnsLocal = cols;
             renderAdminEmiColumnsTable(cols);
         }
     } catch (err) {
@@ -1488,32 +1458,21 @@ function renderAdminEmiColumnsTable(columns) {
             ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteEmiColumn('${col.column_key}')" title="Delete Custom Column" style="color: var(--color-danger); margin: 0;">
                  <i class="fa-solid fa-trash-can"></i>
                </button>`
-            : '';
-        const updateHtml = canEdit
-            ? `<button type="button" class="btn-icon btn-icon-update" onclick="adminUpdateSingleColumn(this, '${col.column_key}', 'emi')" title="Update Column" style="color: var(--color-primary); margin: 0;">
-                 <i class="fa-solid fa-floppy-disk"></i>
-               </button>`
-            : '';
-        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${updateHtml}${deleteHtml}</div>`;
-
-        // Order input field
-        const orderInputHtml = canEdit
-            ? `<input type="number" class="table-input text-center" style="width: 70px; margin: 0 auto; display: block; padding: 4px;" value="${col.display_order || 0}" min="0">`
-            : `<span class="text-center" style="display: block;">${col.display_order || 0}</span>`;
-
-        const labelHtml = canEdit
-            ? `<input type="text" class="table-input column-label-input" value="${escapeHTML(col.column_label)}" style="width: 140px; font-weight: 500; display: inline-block; padding: 4px 8px;">`
-            : `<span style="font-weight: 500;">${escapeHTML(col.column_label)}</span>`;
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const editHtml = canEdit
+            ? `<button type="button" class="btn-icon btn-icon-edit" onclick="openEditColumnModal('${col.column_key}', 'emi', 'emi')" title="Edit Column" style="color: var(--color-warning); margin: 0;"><i class="fa-solid fa-pen-to-square"></i></button>`
+            : '<div style="width: 32px; height: 32px;"></div>';
+        const finalActionHtml = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${editHtml}${deleteHtml}</div>`;
 
         tr.innerHTML = `
-            <td>${labelHtml}</td>
+            <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
-            <td class="text-center">${orderInputHtml}</td>
+            <td class="text-center"><span>${col.display_order || 0}</span></td>
             <td class="text-center">
                 <label class="checkbox-container" style="display: inline-block;">
-                    <input type="checkbox" ${isChecked} ${isDisabled}>
-                    <span class="checkmark"></span>
+                    <input type="checkbox" ${isChecked} disabled>
+                    <span class="checkmark" style="cursor: not-allowed; background-color: var(--background-card-hover);"></span>
                 </label>
             </td>
             <td class="text-center">${finalActionHtml}</td>
@@ -2018,3 +1977,287 @@ async function adminUpdateSinglePaymentCategory(btn, pcId, index) {
         showAppAlert('Network error updating payment source.');
     }
 }
+
+// OPEN EDIT DROPDOWN ITEM MODAL
+function openEditDropdownModal(id, name, order, type, index) {
+    document.getElementById('admin-edit-dropdown-id').value = id;
+    document.getElementById('admin-edit-dropdown-type').value = type;
+    document.getElementById('admin-edit-dropdown-index').value = index;
+    document.getElementById('admin-edit-dropdown-name').value = name;
+    document.getElementById('admin-edit-dropdown-order').value = order || 0;
+    
+    let typeLabel = 'Item';
+    if (type === 'category') typeLabel = 'Category';
+    else if (type === 'bank_mode') typeLabel = 'Bank Mode';
+    else if (type === 'payment_type') typeLabel = 'Payment Gateway';
+    else if (type === 'payment_category') typeLabel = 'Payment Source';
+    
+    document.getElementById('admin-edit-dropdown-title').textContent = `Edit ${typeLabel}`;
+    openModal('admin-edit-dropdown-modal');
+}
+
+// SAVE EDITED DROPDOWN ITEM
+async function handleSaveEditedDropdownItem(e) {
+    e.preventDefault();
+    const id = document.getElementById('admin-edit-dropdown-id').value;
+    const type = document.getElementById('admin-edit-dropdown-type').value;
+    const index = parseInt(document.getElementById('admin-edit-dropdown-index').value);
+    const name = document.getElementById('admin-edit-dropdown-name').value.trim();
+    const order = parseInt(document.getElementById('admin-edit-dropdown-order').value) || 0;
+    
+    if (!name) {
+        showAppAlert('Name is required.');
+        return;
+    }
+    
+    let url = '';
+    let typeLabel = '';
+    if (type === 'category') {
+        url = `/api/admin/categories/edit/${id}`;
+        typeLabel = 'Category';
+    } else if (type === 'bank_mode') {
+        url = `/api/admin/bank_modes/edit/${id}`;
+        typeLabel = 'Bank Mode';
+    } else if (type === 'payment_type') {
+        url = `/api/admin/payment_types/edit/${id}`;
+        typeLabel = 'Payment Gateway';
+    } else if (type === 'payment_category') {
+        url = `/api/admin/payment_categories/edit/${id}`;
+        typeLabel = 'Payment Source';
+    }
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, display_order: order })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            showAppAlert(`${typeLabel} updated successfully!`, true);
+            closeModal('admin-edit-dropdown-modal');
+            
+            if (type === 'category') {
+                if (adminCategoriesLocal[index]) {
+                    adminCategoriesLocal[index].name = name;
+                    adminCategoriesLocal[index].display_order = order;
+                }
+                await fetchCategories();
+                await adminFetchCategories();
+            } else if (type === 'bank_mode') {
+                if (adminBankModesLocal[index]) {
+                    adminBankModesLocal[index].name = name;
+                    adminBankModesLocal[index].display_order = order;
+                }
+                await fetchBankModes();
+                await adminFetchBankModes();
+            } else if (type === 'payment_type') {
+                if (adminPaymentTypesLocal[index]) {
+                    adminPaymentTypesLocal[index].name = name;
+                    adminPaymentTypesLocal[index].display_order = order;
+                }
+                await fetchPaymentTypes();
+                await adminFetchPaymentTypes();
+            } else if (type === 'payment_category') {
+                if (adminPaymentCategoriesLocal[index]) {
+                    adminPaymentCategoriesLocal[index].name = name;
+                    adminPaymentCategoriesLocal[index].display_order = order;
+                }
+                await fetchPaymentCategories();
+                await adminFetchPaymentCategories();
+            }
+        } else {
+            showAppAlert(result.error || `Failed to update ${typeLabel.toLowerCase()}.`);
+        }
+    } catch (err) {
+        showAppAlert(`Network error updating ${typeLabel.toLowerCase()}.`);
+    }
+}
+
+// POPULATE EDIT PARENT COLUMN DROPDOWN
+function populateEditParentDropdown(targetType, currentKey, parentValue) {
+    const standardKeys = {
+        expense: [
+            { key: 'amount', label: 'Amount' },
+            { key: 'category', label: 'Category' },
+            { key: 'date', label: 'Date' },
+            { key: 'description', label: 'Description' },
+            { key: 'bank_mode', label: 'Bank Mode' },
+            { key: 'payment_type', label: 'Payment Gateway' },
+            { key: 'payment_category', label: 'Payment Source' },
+            { key: 'interest', label: 'Interest' },
+            { key: 'payment_method', label: 'Payment Method' },
+            { key: 'status', label: 'Status' }
+        ],
+        emi: [
+            { key: 'name', label: 'EMI Name' },
+            { key: 'principal_amount', label: 'Principal Amount' },
+            { key: 'interest_rate', label: 'Interest Rate' },
+            { key: 'tenure_months', label: 'Tenure (Months)' },
+            { key: 'emi_amount', label: 'Monthly EMI Amount' },
+            { key: 'start_date', label: 'Start Date' },
+            { key: 'end_date', label: 'End Date' },
+            { key: 'due_date', label: 'Due Date' },
+            { key: 'payment_type', label: 'Payment Type' },
+            { key: 'payment_gateway', label: 'Payment Gateway' },
+            { key: 'payment_bank', label: 'Payment Bank' }
+        ]
+    };
+    
+    const select = document.getElementById('admin-edit-column-parent');
+    if (!select) return;
+    
+    let options = '<option value="">None (Always Show)</option>';
+    standardKeys[targetType].forEach(col => {
+        if (col.key !== currentKey) {
+            options += `<option value="${col.key}">${escapeHTML(col.label)} (${col.key})</option>`;
+        }
+    });
+    
+    const sourceCols = targetType === 'emi' ? adminEmiColumnsLocal : (typeof adminExpenseColumnsLocal !== 'undefined' ? adminExpenseColumnsLocal : []);
+    const standardStrKeys = standardKeys[targetType].map(k => k.key);
+    sourceCols.forEach(col => {
+        if (col.column_key !== currentKey && !standardStrKeys.includes(col.column_key)) {
+            options += `<option value="${col.column_key}">${escapeHTML(col.column_label)} (${col.column_key})</option>`;
+        }
+    });
+    
+    if (typeof adminExcelColumnsLocal !== 'undefined' && adminExcelColumnsLocal.length > 0) {
+        adminExcelColumnsLocal.forEach(col => {
+            if (col.column_key !== currentKey && !standardStrKeys.includes(col.column_key)) {
+                const exists = options.includes(`value="${col.column_key}"`);
+                if (!exists) {
+                    options += `<option value="${col.column_key}">${escapeHTML(col.column_label)} (${col.column_key})</option>`;
+                }
+            }
+        });
+    }
+    
+    select.innerHTML = options;
+    select.value = parentValue || '';
+}
+
+// OPEN EDIT COLUMN MODAL
+function openEditColumnModal(columnKey, targetType, context) {
+    let col = null;
+    if (context === 'emi') {
+        col = adminEmiColumnsLocal.find(c => c.column_key === columnKey);
+    } else if (context === 'expense_tab') {
+        col = adminExpenseColumnsLocal.find(c => c.column_key === columnKey);
+    } else if (context === 'excel') {
+        col = adminExcelColumnsLocal.find(c => c.column_key === columnKey);
+    }
+    
+    if (!col) {
+        console.error('Column not found in local lists:', columnKey, targetType, context);
+        return;
+    }
+    
+    document.getElementById('admin-edit-column-key').value = col.column_key;
+    document.getElementById('admin-edit-column-target').value = targetType;
+    document.getElementById('admin-edit-column-context').value = context;
+    
+    document.getElementById('admin-edit-column-label').value = col.column_label;
+    document.getElementById('admin-edit-column-display-key').value = col.column_key;
+    document.getElementById('admin-edit-column-order').value = col.display_order || 0;
+    
+    populateEditParentDropdown(targetType, col.column_key, col.parent_column_key);
+    
+    document.getElementById('admin-edit-column-trigger').value = col.parent_trigger_value || '';
+    
+    document.getElementById('admin-edit-column-import').checked = col.is_enabled_import === 1;
+    document.getElementById('admin-edit-column-export').checked = col.is_enabled_export === 1;
+    
+    const isRequired = col.is_required === 1;
+    const importCb = document.getElementById('admin-edit-column-import');
+    const exportCb = document.getElementById('admin-edit-column-export');
+    if (isRequired) {
+        importCb.disabled = true;
+        exportCb.disabled = true;
+    } else {
+        importCb.disabled = false;
+        exportCb.disabled = false;
+    }
+    
+    document.getElementById('admin-edit-column-title').textContent = `Edit Column Details - ${col.column_key}`;
+    openModal('admin-edit-column-modal');
+}
+
+// SAVE EDITED COLUMN
+async function handleSaveEditedColumn(e) {
+    e.preventDefault();
+    const key = document.getElementById('admin-edit-column-key').value;
+    const targetType = document.getElementById('admin-edit-column-target').value;
+    const context = document.getElementById('admin-edit-column-context').value;
+    
+    const label = document.getElementById('admin-edit-column-label').value.trim();
+    const order = parseInt(document.getElementById('admin-edit-column-order').value) || 0;
+    const parentKey = document.getElementById('admin-edit-column-parent').value.trim() || null;
+    const parentTrigger = document.getElementById('admin-edit-column-trigger').value.trim() || null;
+    
+    const imp = document.getElementById('admin-edit-column-import').checked ? 1 : 0;
+    const exp = document.getElementById('admin-edit-column-export').checked ? 1 : 0;
+    
+    if (!label) {
+        showAppAlert('Column Label is required.');
+        return;
+    }
+    
+    const payload = {
+        column_key: key,
+        column_label: label,
+        target_type: targetType,
+        display_order: order,
+        is_enabled_import: imp,
+        is_enabled_export: exp,
+        parent_column_key: parentKey,
+        parent_trigger_value: parentTrigger
+    };
+    
+    try {
+        const response = await fetch('/api/admin/excel-columns/update-single', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Column details updated successfully!', true);
+            closeModal('admin-edit-column-modal');
+            
+            if (context === 'emi') {
+                await adminFetchEmiColumns();
+            } else if (context === 'excel') {
+                await adminFetchExcelColumns();
+            } else if (context === 'expense_tab') {
+                if (typeof adminFetchExpenseColumnsTab === 'function') {
+                    await adminFetchExpenseColumnsTab();
+                } else if (typeof fetchExpenseColumns === 'function') {
+                    await fetchExpenseColumns();
+                }
+            }
+            
+            if (typeof applyConditionalFields === 'function') {
+                applyConditionalFields('edit-expense');
+                applyConditionalFields('user-emi');
+                applyConditionalFields('admin-emi');
+            }
+        } else {
+            showAppAlert(result.error || 'Failed to update column.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating column details.');
+    }
+}
+
+// Init event listeners for edit modals when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    const editDropdownForm = document.getElementById('admin-edit-dropdown-form');
+    if (editDropdownForm) {
+        editDropdownForm.addEventListener('submit', handleSaveEditedDropdownItem);
+    }
+    const editColumnForm = document.getElementById('admin-edit-column-form');
+    if (editColumnForm) {
+        editColumnForm.addEventListener('submit', handleSaveEditedColumn);
+    }
+});
