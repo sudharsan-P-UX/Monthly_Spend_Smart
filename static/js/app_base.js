@@ -6,16 +6,16 @@ let trendMonthsState = [];
 let currentUserPrivileges = { can_view: 1, can_add: 1, can_edit: 1, can_delete: 1, is_admin: false };
 let currentUserRoleId = 2;
 let currentUserFinePrivileges = {};
-let appLabels = {};
+window.appLabels = {};
 
 function applyDynamicLabels(labels) {
     if (labels) {
-        appLabels = labels;
+        window.appLabels = labels;
     }
     document.querySelectorAll('[data-label]').forEach(el => {
         const key = el.getAttribute('data-label');
-        if (appLabels && appLabels[key]) {
-            const val = appLabels[key];
+        if (window.appLabels && window.appLabels[key]) {
+            const val = window.appLabels[key];
             const hasRequired = el.querySelector('.required') !== null;
             if (hasRequired) {
                 const cleanVal = val.replace(/\s*\*$/, '').trim();
