@@ -1100,11 +1100,9 @@ function calculateEndDate(startDateStr, months) {
 
 // EMI Actions and Calendars
 function toggleEmiOverview() {
-    if (typeof switchView === 'function') {
-        switchView('overview');
-    }
-    if (typeof switchOverviewType === 'function') {
-        switchOverviewType('emi');
+    const grid = document.getElementById('emi-metrics-grid');
+    if (grid) {
+        grid.classList.toggle('hidden');
     }
 }
 
