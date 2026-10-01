@@ -29,10 +29,14 @@
         </div>
         <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
             <!-- Summary Cards -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                 <div class="metric-card" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 10px; padding: 15px;">
                     <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Total Monthly EMI</h4>
                     <span id="selected-emi-total-amount" style="font-size: 1.4rem; font-weight: 700; color: var(--color-primary);">₹0.00</span>
+                </div>
+                <div class="metric-card" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 15px;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Total Principal Amount</h4>
+                    <span id="selected-emi-total-principal" style="font-size: 1.4rem; font-weight: 700; color: var(--color-success);">₹0.00</span>
                 </div>
                 <div class="metric-card" style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 10px; padding: 15px;">
                     <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Remaining Principal</h4>
@@ -46,8 +50,8 @@
                     <thead>
                         <tr>
                             <th>EMI Name</th>
-                            <th class="text-right">Loan Amount</th>
-                            <th class="text-right">Monthly EMI</th>
+                            <th class="text-right">Each EMI Amount</th>
+                            <th class="text-right">Total Principal</th>
                             <th class="text-right">Remaining Principal</th>
                             <th class="text-center">Pending Tenure</th>
                             <th class="text-center">Due Day</th>

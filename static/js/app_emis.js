@@ -135,6 +135,7 @@ function openSelectedEmiOverviewModal() {
     }
 
     let totalMonthlyEmi = 0;
+    let totalPrincipalAmount = 0;
     let totalRemainingPrincipal = 0;
 
     const tbody = document.getElementById('selected-emi-overview-list');
@@ -150,13 +151,14 @@ function openSelectedEmiOverviewModal() {
         const principalAmt = parseFloat(emi.principal_amount || 0);
 
         totalMonthlyEmi += emiAmt;
+        totalPrincipalAmount += principalAmt;
         totalRemainingPrincipal += pending.pendingPrincipal;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><span style="font-weight: 500;">${escapeHTML(emi.name)}</span></td>
-            <td class="text-right">${activeCurrencySymbol}${principalAmt.toFixed(2)}</td>
             <td class="text-right" style="font-weight: 600; color: var(--color-primary);">${activeCurrencySymbol}${emiAmt.toFixed(2)}</td>
+            <td class="text-right">${activeCurrencySymbol}${principalAmt.toFixed(2)}</td>
             <td class="text-right" style="font-weight: 600; color: var(--color-secondary);">${activeCurrencySymbol}${pending.pendingPrincipal.toFixed(2)}</td>
             <td class="text-center" style="font-weight: 500; color: var(--color-accent);">${pending.pendingMonths} / ${emi.tenure_months} months</td>
             <td class="text-center">${escapeHTML(emi.due_date)}</td>
@@ -166,9 +168,11 @@ function openSelectedEmiOverviewModal() {
     });
 
     const totalEmiEl = document.getElementById('selected-emi-total-amount');
+    const totalPrincipalEl = document.getElementById('selected-emi-total-principal');
     const remainingPrincipalEl = document.getElementById('selected-emi-remaining-principal');
 
     if (totalEmiEl) totalEmiEl.textContent = `${activeCurrencySymbol}${totalMonthlyEmi.toFixed(2)}`;
+    if (totalPrincipalEl) totalPrincipalEl.textContent = `${activeCurrencySymbol}${totalPrincipalAmount.toFixed(2)}`;
     if (remainingPrincipalEl) remainingPrincipalEl.textContent = `${activeCurrencySymbol}${totalRemainingPrincipal.toFixed(2)}`;
 
     const modal = document.getElementById('selected-emi-overview-modal');
@@ -468,19 +472,114 @@ function updateEmiSummaryCards(emis) {
         });
     });
 
-    const totalLoanEl = document.getElementById('emi-total-loan-amount');
-    const pendingPrincipalEl = document.getElementById('emi-pending-principal');
-    const principalPaidEl = document.getElementById('emi-total-principal-paid');
-    const totalInterestEl = document.getElementById('emi-total-interest');
-    const paidInterestEl = document.getElementById('emi-paid-interest');
-    const monthlyTotalEl = document.getElementById('emi-monthly-total');
+    function setEmiText(id1, id2, val) {
+        const el1 = document.getElementById(id1);
+        if (el1) el1.textContent = val;
+        const el2 = document.getElementById(id2);
+        if (el2) el2.textContent = val;
+    }
 
-    if (totalLoanEl) totalLoanEl.textContent = `${activeCurrencySymbol}${totalLoanAmount.toFixed(2)}`;
-    if (pendingPrincipalEl) pendingPrincipalEl.textContent = `${activeCurrencySymbol}${totalPendingPrincipal.toFixed(2)}`;
-    if (principalPaidEl) principalPaidEl.textContent = `${activeCurrencySymbol}${totalPrincipalPaid.toFixed(2)}`;
-    if (totalInterestEl) totalInterestEl.textContent = `${activeCurrencySymbol}${totalInterest.toFixed(2)}`;
-    if (paidInterestEl) paidInterestEl.textContent = `${activeCurrencySymbol}${totalPaidInterest.toFixed(2)}`;
-    if (monthlyTotalEl) monthlyTotalEl.textContent = `${activeCurrencySymbol}${totalMonthlyEmi.toFixed(2)}`;
+    const fmtLoan = `${activeCurrencySymbol}${totalLoanAmount.toFixed(2)}`;
+    const fmtPendingPr = `${activeCurrencySymbol}${totalPendingPrincipal.toFixed(2)}`;
+    const fmtPrPaid = `${activeCurrencySymbol}${totalPrincipalPaid.toFixed(2)}`;
+    const fmtTotInt = `${activeCurrencySymbol}${totalInterest.toFixed(2)}`;
+    const fmtPaidInt = `${activeCurrencySymbol}${totalPaidInterest.toFixed(2)}`;
+    const fmtMonthly = `${activeCurrencySymbol}${totalMonthlyEmi.toFixed(2)}`;
+
+    setEmiText('emi-total-loan-amount', 'overview-emi-total-loan-amount', fmtLoan);
+    setEmiText('emi-pending-principal', 'overview-emi-pending-principal', fmtPendingPr);
+    setEmiText('emi-total-principal-paid', 'overview-emi-total-principal-paid', fmtPrPaid);
+    setEmiText('emi-total-interest', 'overview-emi-total-interest', fmtTotInt);
+    setEmiText('emi-paid-interest', 'overview-emi-paid-interest', fmtPaidInt);
+    setEmiText('emi-monthly-total', 'overview-emi-monthly-total', fmtMonthly);
+}
+
+// Render EMI Overview Charts in Overview Menu
+let emiDistributionChartInstance = null;
+let emiShareChartInstance = null;
+
+function renderEmiOverviewCharts() {
+    if (!userEMIs || userEMIs.length === 0) return;
+
+    let totalPendingPr = 0;
+    let totalPrPaid = 0;
+
+    userEMIs.forEach(emi => {
+        const pending = calculateEmiPendingDetails(emi);
+        const principal = parseFloat(emi.principal_amount || 0);
+        totalPendingPr += pending.pendingPrincipal;
+        totalPrPaid += (principal - pending.pendingPrincipal);
+    });
+
+    const distCanvas = document.getElementById('emiDistributionChart');
+    if (distCanvas) {
+        if (emiDistributionChartInstance) {
+            emiDistributionChartInstance.destroy();
+        }
+        const distCtx = distCanvas.getContext('2d');
+        emiDistributionChartInstance = new Chart(distCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pending Principal', 'Principal Paid'],
+                datasets: [{
+                    data: [totalPendingPr, totalPrPaid],
+                    backgroundColor: [
+                        'rgba(244, 63, 94, 0.75)',
+                        'rgba(16, 185, 129, 0.75)'
+                    ],
+                    borderColor: '#0f172a',
+                    borderWidth: 2,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+
+    const loanLabels = userEMIs.map(e => e.name);
+    const loanEmis = userEMIs.map(e => parseFloat(e.emi_amount || 0));
+
+    const shareCanvas = document.getElementById('emiShareChart');
+    if (shareCanvas) {
+        if (emiShareChartInstance) {
+            emiShareChartInstance.destroy();
+        }
+        const shareCtx = shareCanvas.getContext('2d');
+        emiShareChartInstance = new Chart(shareCtx, {
+            type: 'bar',
+            data: {
+                labels: loanLabels,
+                datasets: [{
+                    label: 'Monthly EMI Amount',
+                    data: loanEmis,
+                    backgroundColor: 'rgba(99, 102, 241, 0.75)',
+                    borderColor: '#6366f1',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                    y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
 }
 
 // Show specific EMI Details popup matching the clicked Overview category
@@ -1001,9 +1100,11 @@ function calculateEndDate(startDateStr, months) {
 
 // EMI Actions and Calendars
 function toggleEmiOverview() {
-    const grid = document.getElementById('emi-metrics-grid');
-    if (grid) {
-        grid.classList.toggle('hidden');
+    if (typeof switchView === 'function') {
+        switchView('overview');
+    }
+    if (typeof switchOverviewType === 'function') {
+        switchOverviewType('emi');
     }
 }
 

@@ -19,7 +19,9 @@ function switchView(target) {
     }
 
     if (target === 'overview') {
-        loadCharts();
+        const select = document.getElementById('overview-type-select');
+        const mode = select ? select.value : 'expense';
+        switchOverviewType(mode);
     } else if (target === 'emi') {
         fetchUserEMIs();
     } else if (target === 'admin') {
@@ -35,6 +37,33 @@ function switchView(target) {
         fetchBankModes();
         fetchPaymentTypes();
         fetchPaymentCategories();
+    }
+}
+
+// OVERVIEW MODE SWITCHER
+function switchOverviewType(type) {
+    const expenseSub = document.getElementById('sub-overview-expense');
+    const emiSub = document.getElementById('sub-overview-emi');
+    const select = document.getElementById('overview-type-select');
+
+    if (select) select.value = type;
+
+    if (type === 'emi') {
+        if (expenseSub) expenseSub.classList.add('hidden');
+        if (emiSub) emiSub.classList.remove('hidden');
+        if (typeof fetchUserEMIs === 'function') {
+            fetchUserEMIs().then(() => {
+                if (typeof renderEmiOverviewCharts === 'function') {
+                    renderEmiOverviewCharts();
+                }
+            });
+        }
+    } else {
+        if (emiSub) emiSub.classList.add('hidden');
+        if (expenseSub) expenseSub.classList.remove('hidden');
+        if (typeof loadCharts === 'function') {
+            loadCharts();
+        }
     }
 }
 
