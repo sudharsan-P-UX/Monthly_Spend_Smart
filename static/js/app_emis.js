@@ -97,6 +97,8 @@ function updateUserEmiSelection() {
     if (overviewBtn) {
         if (count > 0) {
             overviewBtn.classList.remove('hidden');
+            const span = overviewBtn.querySelector('span');
+            if (span) span.textContent = `Overview (${count})`;
         } else {
             overviewBtn.classList.add('hidden');
         }
@@ -106,6 +108,8 @@ function updateUserEmiSelection() {
     if (bulkDeleteBtn) {
         if (count > 0 && (currentUserPrivileges && currentUserPrivileges.can_delete)) {
             bulkDeleteBtn.classList.remove('hidden');
+            const span = bulkDeleteBtn.querySelector('span');
+            if (span) span.textContent = `Delete Selected (${count})`;
         } else {
             bulkDeleteBtn.classList.add('hidden');
         }
@@ -126,8 +130,8 @@ function openSelectedEmiOverviewModal() {
         return;
     }
 
-    const selectedIds = Array.from(checkedBoxes).map(cb => parseInt(cb.getAttribute('data-id')));
-    const selectedEMIs = userEMIs.filter(e => selectedIds.includes(e.id));
+    const selectedIds = Array.from(checkedBoxes).map(cb => String(cb.getAttribute('data-id')));
+    const selectedEMIs = userEMIs.filter(e => selectedIds.includes(String(e.id)));
 
     if (selectedEMIs.length === 0) {
         showAppAlert('Selected EMI data not found.');
@@ -1100,9 +1104,14 @@ function calculateEndDate(startDateStr, months) {
 
 // EMI Actions and Calendars
 function toggleEmiOverview() {
-    const grid = document.getElementById('emi-metrics-grid');
-    if (grid) {
-        grid.classList.toggle('hidden');
+    const checkedBoxes = document.querySelectorAll('.user-emi-row-checkbox:checked');
+    if (checkedBoxes.length > 0) {
+        openSelectedEmiOverviewModal();
+    } else {
+        const grid = document.getElementById('emi-metrics-grid');
+        if (grid) {
+            grid.classList.toggle('hidden');
+        }
     }
 }
 
