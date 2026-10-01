@@ -640,6 +640,7 @@ function renderAdminCategoriesTable() {
 
     adminCategoriesLocal.forEach((cat, index) => {
         const tr = document.createElement('tr');
+        tr.setAttribute('data-id', cat.id);
         const deleteHtml = canDelete
             ? `<button class="btn-icon btn-icon-delete" onclick="adminDeleteCategory(${cat.id}, '${escapeHTML(cat.name)}')" title="Delete Category" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
             : '<div style="width: 32px; height: 32px;"></div>';
@@ -650,7 +651,9 @@ function renderAdminCategoriesTable() {
 
         tr.innerHTML = `
             <td><span style="font-weight: 500;">${escapeHTML(cat.name)}</span></td>
-            <td class="text-center"><span>${cat.display_order}</span></td>
+            <td class="text-center">
+                <input type="number" class="table-input" value="${cat.display_order || 0}" min="0" style="width: 70px; text-align: center; margin: 0 auto; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 4px; border-radius: 4px;">
+            </td>
             <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -671,6 +674,19 @@ function updateLocalCategoryOrder(index, order) {
 }
 
 async function saveAllCategories() {
+    const tbody = document.getElementById('admin-categories-list');
+    if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(tr => {
+            const catId = tr.getAttribute('data-id');
+            const input = tr.querySelector('input[type="number"]');
+            const cat = adminCategoriesLocal.find(c => c.id == catId);
+            if (cat && input) {
+                cat.display_order = parseInt(input.value) || 0;
+            }
+        });
+    }
+
     let successCount = 0;
     let failCount = 0;
     
@@ -795,6 +811,7 @@ function renderAdminBankModesTable() {
 
     adminBankModesLocal.forEach((bm, index) => {
         const tr = document.createElement('tr');
+        tr.setAttribute('data-id', bm.id);
         const deleteHtml = canDelete
             ? `<button class="btn-icon btn-icon-delete" onclick="adminDeleteBankMode(${bm.id}, '${escapeHTML(bm.name)}')" title="Delete Bank Mode" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
             : '<div style="width: 32px; height: 32px;"></div>';
@@ -805,7 +822,9 @@ function renderAdminBankModesTable() {
 
         tr.innerHTML = `
             <td><span style="font-weight: 500;">${escapeHTML(bm.name)}</span></td>
-            <td class="text-center"><span>${bm.display_order}</span></td>
+            <td class="text-center">
+                <input type="number" class="table-input" value="${bm.display_order || 0}" min="0" style="width: 70px; text-align: center; margin: 0 auto; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 4px; border-radius: 4px;">
+            </td>
             <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -826,6 +845,19 @@ function updateLocalBankModeOrder(index, order) {
 }
 
 async function saveAllBankModes() {
+    const tbody = document.getElementById('admin-bank-modes-list');
+    if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(tr => {
+            const bmId = tr.getAttribute('data-id');
+            const input = tr.querySelector('input[type="number"]');
+            const bm = adminBankModesLocal.find(b => b.id == bmId);
+            if (bm && input) {
+                bm.display_order = parseInt(input.value) || 0;
+            }
+        });
+    }
+
     let successCount = 0;
     let failCount = 0;
     
@@ -950,6 +982,7 @@ function renderAdminPaymentTypesTable() {
 
     adminPaymentTypesLocal.forEach((pt, index) => {
         const tr = document.createElement('tr');
+        tr.setAttribute('data-id', pt.id);
         const deleteHtml = canDelete
             ? `<button class="btn-icon btn-icon-delete" onclick="adminDeletePaymentType(${pt.id}, '${escapeHTML(pt.name)}')" title="Delete Payment Type" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
             : '<div style="width: 32px; height: 32px;"></div>';
@@ -960,7 +993,9 @@ function renderAdminPaymentTypesTable() {
 
         tr.innerHTML = `
             <td><span style="font-weight: 500;">${escapeHTML(pt.name)}</span></td>
-            <td class="text-center"><span>${pt.display_order}</span></td>
+            <td class="text-center">
+                <input type="number" class="table-input" value="${pt.display_order || 0}" min="0" style="width: 70px; text-align: center; margin: 0 auto; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 4px; border-radius: 4px;">
+            </td>
             <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -981,6 +1016,19 @@ function updateLocalPaymentTypeOrder(index, order) {
 }
 
 async function saveAllPaymentTypes() {
+    const tbody = document.getElementById('admin-payment-types-list');
+    if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(tr => {
+            const ptId = tr.getAttribute('data-id');
+            const input = tr.querySelector('input[type="number"]');
+            const pt = adminPaymentTypesLocal.find(p => p.id == ptId);
+            if (pt && input) {
+                pt.display_order = parseInt(input.value) || 0;
+            }
+        });
+    }
+
     let successCount = 0;
     let failCount = 0;
     
@@ -1105,6 +1153,7 @@ function renderAdminPaymentCategoriesTable() {
 
     adminPaymentCategoriesLocal.forEach((pc, index) => {
         const tr = document.createElement('tr');
+        tr.setAttribute('data-id', pc.id);
         const deleteHtml = canDelete
             ? `<button class="btn-icon btn-icon-delete" onclick="adminDeletePaymentCategory(${pc.id}, '${escapeHTML(pc.name)}')" title="Delete Payment Category" style="margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
             : '<div style="width: 32px; height: 32px;"></div>';
@@ -1115,7 +1164,9 @@ function renderAdminPaymentCategoriesTable() {
 
         tr.innerHTML = `
             <td><span style="font-weight: 500;">${escapeHTML(pc.name)}</span></td>
-            <td class="text-center"><span>${pc.display_order}</span></td>
+            <td class="text-center">
+                <input type="number" class="table-input" value="${pc.display_order || 0}" min="0" style="width: 70px; text-align: center; margin: 0 auto; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 4px; border-radius: 4px;">
+            </td>
             <td class="text-center">${finalActionHtml}</td>
         `;
         tbody.appendChild(tr);
@@ -1136,6 +1187,19 @@ function updateLocalPaymentCategoryOrder(index, order) {
 }
 
 async function saveAllPaymentCategories() {
+    const tbody = document.getElementById('admin-payment-categories-list');
+    if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(tr => {
+            const pcId = tr.getAttribute('data-id');
+            const input = tr.querySelector('input[type="number"]');
+            const pc = adminPaymentCategoriesLocal.find(p => p.id == pcId);
+            if (pc && input) {
+                pc.display_order = parseInt(input.value) || 0;
+            }
+        });
+    }
+
     let successCount = 0;
     let failCount = 0;
     
@@ -1279,6 +1343,8 @@ function renderAdminExcelColumnsTable(columns) {
     // Populate Parent dropdown choices
     populateParentDropdowns(targetType, columns);
 
+    columns.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
     columns.forEach(col => {
         const tr = document.createElement('tr');
         
@@ -1301,11 +1367,13 @@ function renderAdminExcelColumnsTable(columns) {
             <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
-            <td class="text-center"><span>${col.display_order || 0}</span></td>
+            <td class="text-center">
+                <input type="number" class="table-input" value="${col.display_order || 0}" ${isDisabled} min="0" style="width: 70px; text-align: center; margin: 0 auto; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 4px; border-radius: 4px;">
+            </td>
             <td class="text-center">
                 <label class="checkbox-container" style="display: inline-block;">
-                    <input type="checkbox" ${isChecked} disabled>
-                    <span class="checkmark" style="cursor: not-allowed; background-color: var(--background-card-hover);"></span>
+                    <input type="checkbox" ${isChecked} ${isReq ? 'disabled' : isDisabled}>
+                    <span class="checkmark" style="${(isReq || !canEdit) ? 'cursor: not-allowed;' : ''}"></span>
                 </label>
             </td>
             <td class="text-center">${finalActionHtml}</td>
@@ -1444,6 +1512,8 @@ function renderAdminEmiColumnsTable(columns) {
     // Populate Parent dropdown choices for EMIs
     populateParentDropdowns('emi', columns);
 
+    columns.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
     columns.forEach(col => {
         const tr = document.createElement('tr');
 
@@ -1468,11 +1538,13 @@ function renderAdminEmiColumnsTable(columns) {
             <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
-            <td class="text-center"><span>${col.display_order || 0}</span></td>
+            <td class="text-center">
+                <input type="number" class="table-input" value="${col.display_order || 0}" ${isDisabled} min="0" style="width: 70px; text-align: center; margin: 0 auto; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 4px; border-radius: 4px;">
+            </td>
             <td class="text-center">
                 <label class="checkbox-container" style="display: inline-block;">
-                    <input type="checkbox" ${isChecked} disabled>
-                    <span class="checkmark" style="cursor: not-allowed; background-color: var(--background-card-hover);"></span>
+                    <input type="checkbox" ${isChecked} ${isReq ? 'disabled' : isDisabled}>
+                    <span class="checkmark" style="${(isReq || !canEdit) ? 'cursor: not-allowed;' : ''}"></span>
                 </label>
             </td>
             <td class="text-center">${finalActionHtml}</td>
@@ -2259,5 +2331,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const editColumnForm = document.getElementById('admin-edit-column-form');
     if (editColumnForm) {
         editColumnForm.addEventListener('submit', handleSaveEditedColumn);
+    }
+});
+
+// AUTO REORDER TABLE ROWS ON DISPLAY ORDER INPUT CHANGE
+function handleTableAutoReorder(changedInput) {
+    const tbody = changedInput.closest('tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    if (rows.length <= 1) return;
+
+    const changedRow = changedInput.closest('tr');
+    if (!changedRow) return;
+
+    let targetOrder = parseInt(changedInput.value, 10);
+    if (isNaN(targetOrder)) return;
+
+    const totalRows = rows.length;
+    if (targetOrder < 1) targetOrder = 1;
+    if (targetOrder > totalRows) targetOrder = totalRows;
+
+    const filteredRows = rows.filter(r => r !== changedRow);
+    const targetIndex = targetOrder - 1;
+    filteredRows.splice(targetIndex, 0, changedRow);
+
+    filteredRows.forEach((row, idx) => {
+        const input = row.querySelector('input[type="number"]');
+        if (input) {
+            input.value = idx + 1;
+        }
+        tbody.appendChild(row);
+    });
+}
+
+document.addEventListener('change', (e) => {
+    if (e.target && e.target.matches('.expense-table tbody input[type="number"]')) {
+        handleTableAutoReorder(e.target);
     }
 });

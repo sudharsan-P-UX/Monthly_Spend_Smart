@@ -531,7 +531,9 @@ function renderAdminExpenseColumnsTabTable(columns) {
             <td><span style="font-weight: 500;">${escapeHTML(col.column_label)}</span></td>
             <td><code>${escapeHTML(col.column_key)}</code></td>
             <td class="text-center">${requiredHtml}</td>
-            <td class="text-center"><span>${col.display_order || 0}</span></td>
+            <td class="text-center">
+                <input type="number" class="table-input" value="${col.display_order || 0}" ${isDisabled} min="0" style="width: 70px; text-align: center; margin: 0 auto; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 4px; border-radius: 4px;">
+            </td>
             <td class="text-center">
                 <label class="checkbox-container" style="display: inline-block;">
                     <input type="checkbox" ${isChecked} disabled>

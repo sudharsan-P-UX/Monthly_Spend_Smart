@@ -81,6 +81,134 @@ function calculateEmiPendingDetails(emi) {
     };
 }
 
+// Extract numeric day from due_date string (e.g. "5th" -> 5)
+function parseDueDay(dueDate) {
+    if (!dueDate) return 999;
+    const match = String(dueDate).match(/\d+/);
+    return match ? parseInt(match[0], 10) : 999;
+}
+
+// Update UI buttons based on EMI checkbox selection
+function updateUserEmiSelection() {
+    const checkedBoxes = document.querySelectorAll('.user-emi-row-checkbox:checked');
+    const count = checkedBoxes.length;
+
+    const overviewBtn = document.getElementById('btn-selected-emi-overview');
+    if (overviewBtn) {
+        if (count > 0) {
+            overviewBtn.classList.remove('hidden');
+        } else {
+            overviewBtn.classList.add('hidden');
+        }
+    }
+
+    const bulkDeleteBtn = document.getElementById('btn-bulk-delete-emis');
+    if (bulkDeleteBtn) {
+        if (count > 0 && (currentUserPrivileges && currentUserPrivileges.can_delete)) {
+            bulkDeleteBtn.classList.remove('hidden');
+        } else {
+            bulkDeleteBtn.classList.add('hidden');
+        }
+    }
+
+    const selectAllCb = document.getElementById('user-emi-select-all');
+    const allCbs = document.querySelectorAll('.user-emi-row-checkbox');
+    if (selectAllCb && allCbs.length > 0) {
+        selectAllCb.checked = (checkedBoxes.length === allCbs.length);
+    }
+}
+
+// Open Selected EMI Overview Modal
+function openSelectedEmiOverviewModal() {
+    const checkedBoxes = document.querySelectorAll('.user-emi-row-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        showAppAlert('Please select at least one EMI.');
+        return;
+    }
+
+    const selectedIds = Array.from(checkedBoxes).map(cb => parseInt(cb.getAttribute('data-id')));
+    const selectedEMIs = userEMIs.filter(e => selectedIds.includes(e.id));
+
+    if (selectedEMIs.length === 0) {
+        showAppAlert('Selected EMI data not found.');
+        return;
+    }
+
+    let totalMonthlyEmi = 0;
+    let totalRemainingPrincipal = 0;
+
+    const tbody = document.getElementById('selected-emi-overview-list');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    // Sort selected EMIs by due day ascending
+    selectedEMIs.sort((a, b) => parseDueDay(a.due_date) - parseDueDay(b.due_date));
+
+    selectedEMIs.forEach(emi => {
+        const pending = calculateEmiPendingDetails(emi);
+        const emiAmt = parseFloat(emi.emi_amount || 0);
+        const principalAmt = parseFloat(emi.principal_amount || 0);
+
+        totalMonthlyEmi += emiAmt;
+        totalRemainingPrincipal += pending.pendingPrincipal;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><span style="font-weight: 500;">${escapeHTML(emi.name)}</span></td>
+            <td class="text-right">${activeCurrencySymbol}${principalAmt.toFixed(2)}</td>
+            <td class="text-right" style="font-weight: 600; color: var(--color-primary);">${activeCurrencySymbol}${emiAmt.toFixed(2)}</td>
+            <td class="text-right" style="font-weight: 600; color: var(--color-secondary);">${activeCurrencySymbol}${pending.pendingPrincipal.toFixed(2)}</td>
+            <td class="text-center" style="font-weight: 500; color: var(--color-accent);">${pending.pendingMonths} / ${emi.tenure_months} months</td>
+            <td class="text-center">${escapeHTML(emi.due_date)}</td>
+            <td class="text-center"><span class="role-badge ${emi.payment_type === 'Auto' ? 'badge-admin' : 'badge-user'}">${escapeHTML(emi.payment_type)}</span></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    const totalEmiEl = document.getElementById('selected-emi-total-amount');
+    const remainingPrincipalEl = document.getElementById('selected-emi-remaining-principal');
+
+    if (totalEmiEl) totalEmiEl.textContent = `${activeCurrencySymbol}${totalMonthlyEmi.toFixed(2)}`;
+    if (remainingPrincipalEl) remainingPrincipalEl.textContent = `${activeCurrencySymbol}${totalRemainingPrincipal.toFixed(2)}`;
+
+    const modal = document.getElementById('selected-emi-overview-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeSelectedEmiOverviewModal() {
+    const modal = document.getElementById('selected-emi-overview-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function bulkDeleteUserEmis() {
+    const checkedBoxes = document.querySelectorAll('.user-emi-row-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        showAppAlert('No EMIs selected for deletion.');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${checkedBoxes.length} selected EMI(s)?`)) return;
+
+    const emi_ids = Array.from(checkedBoxes).map(cb => parseInt(cb.getAttribute('data-id')));
+
+    try {
+        const response = await fetch('/api/emis/delete-bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emi_ids: emi_ids })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert(result.message || 'Selected EMIs deleted successfully.', true);
+            await fetchUserEMIs();
+        } else {
+            showAppAlert(result.error || 'Failed to delete selected EMIs.');
+        }
+    } catch (err) {
+        showAppAlert('Network error deleting EMIs.');
+    }
+}
+
 // Render user EMIs table
 function renderUserEMIsTable(emis) {
     const tbody = document.getElementById('user-emi-list');
@@ -88,10 +216,25 @@ function renderUserEMIsTable(emis) {
     if (!tbody) return;
     
     tbody.innerHTML = '';
+
+    // Order ascending based on Due day
+    emis.sort((a, b) => parseDueDay(a.due_date) - parseDueDay(b.due_date));
+
     const selectAllCheckbox = document.getElementById('user-emi-select-all');
-    if (selectAllCheckbox) selectAllCheckbox.checked = false;
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.onclick = function() {
+            const rowCbs = tbody.querySelectorAll('.user-emi-row-checkbox');
+            rowCbs.forEach(cb => cb.checked = selectAllCheckbox.checked);
+            updateUserEmiSelection();
+        };
+    }
+
     const bulkDeleteBtn = document.getElementById('btn-bulk-delete-emis');
     if (bulkDeleteBtn) bulkDeleteBtn.classList.add('hidden');
+    const overviewBtn = document.getElementById('btn-selected-emi-overview');
+    if (overviewBtn) overviewBtn.classList.add('hidden');
+
     if (emis.length === 0) {
         if (noEmisMsg) noEmisMsg.classList.remove('hidden');
         return;
@@ -589,6 +732,9 @@ function renderAdminEMIsTable(emis) {
     const tbody = document.getElementById('admin-emis-list');
     if (!tbody) return;
     tbody.innerHTML = '';
+
+    // Order ascending based on Due day
+    emis.sort((a, b) => parseDueDay(a.due_date) - parseDueDay(b.due_date));
 
     emis.forEach(emi => {
         const tr = document.createElement('tr');

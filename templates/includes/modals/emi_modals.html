@@ -20,6 +20,49 @@
     </div>
 </div>
 
+<!-- Selected EMI Overview Modal -->
+<div id="selected-emi-overview-modal" class="modal-overlay hidden" style="z-index: 1100;">
+    <div class="modal-card" style="max-width: 850px; width: 92%;">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-chart-pie" style="color: var(--color-primary); margin-right: 8px;"></i> Selected EMI Overview</h2>
+            <button class="btn-close" onclick="closeSelectedEmiOverviewModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+            <!-- Summary Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div class="metric-card" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 10px; padding: 15px;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Total Monthly EMI</h4>
+                    <span id="selected-emi-total-amount" style="font-size: 1.4rem; font-weight: 700; color: var(--color-primary);">₹0.00</span>
+                </div>
+                <div class="metric-card" style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 10px; padding: 15px;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Remaining Principal</h4>
+                    <span id="selected-emi-remaining-principal" style="font-size: 1.4rem; font-weight: 700; color: var(--color-secondary);">₹0.00</span>
+                </div>
+            </div>
+
+            <!-- Detailed Table -->
+            <div class="table-container">
+                <table class="expense-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th>EMI Name</th>
+                            <th class="text-right">Loan Amount</th>
+                            <th class="text-right">Monthly EMI</th>
+                            <th class="text-right">Remaining Principal</th>
+                            <th class="text-center">Pending Tenure</th>
+                            <th class="text-center">Due Day</th>
+                            <th class="text-center">Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="selected-emi-overview-list">
+                        <!-- Dynamic rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ADD EMI MODAL -->
 <div id="emi-modal" class="modal-overlay hidden">
     <div class="modal-card" style="max-width: 500px;">

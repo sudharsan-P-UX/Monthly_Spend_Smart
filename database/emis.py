@@ -39,23 +39,34 @@ def add_emi(user_id, name, principal_amount, emi_amount, start_date, end_date, t
     conn.close()
     return emi_id
 
+import re
+
+def parse_due_day(due_date):
+    if not due_date:
+        return 999
+    match = re.search(r'\d+', str(due_date))
+    return int(match.group(0)) if match else 999
+
 def get_emis(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    emis = cursor.execute('SELECT * FROM emis WHERE user_id = ? ORDER BY start_date DESC', (user_id,)).fetchall()
+    emis = cursor.execute('SELECT * FROM emis WHERE user_id = ?', (user_id,)).fetchall()
     conn.close()
-    return [dict(row) for row in emis]
+    result = [dict(row) for row in emis]
+    result.sort(key=lambda x: parse_due_day(x.get('due_date')))
+    return result
 
 def get_all_emis():
     conn = get_db_connection()
     cursor = conn.cursor()
     emis = cursor.execute(
         '''SELECT emis.*, Refusers.Username as username 
-           FROM emis JOIN Refusers ON emis.user_id = Refusers.LoginId 
-           ORDER BY emis.start_date DESC'''
+           FROM emis JOIN Refusers ON emis.user_id = Refusers.LoginId'''
     ).fetchall()
     conn.close()
-    return [dict(row) for row in emis]
+    result = [dict(row) for row in emis]
+    result.sort(key=lambda x: parse_due_day(x.get('due_date')))
+    return result
 
 def get_emi_by_id(emi_id):
     conn = get_db_connection()
