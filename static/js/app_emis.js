@@ -209,8 +209,75 @@ async function bulkDeleteUserEmis() {
     }
 }
 
+function renderUserEMIHeaders() {
+    const table = document.querySelector('#section-emi table.expense-table');
+    if (!table) return;
+    let thead = table.querySelector('thead');
+    if (!thead) {
+        thead = document.createElement('thead');
+        table.insertBefore(thead, table.firstChild);
+    }
+
+    let cols = window.currentEmiColumns;
+    if (!cols || cols.length === 0) {
+        cols = [
+            { column_key: 'name', column_label: 'EMI Name' },
+            { column_key: 'principal_amount', column_label: 'Loan Amount' },
+            { column_key: 'emi_amount', column_label: 'Monthly EMI' },
+            { column_key: 'start_date', column_label: 'Start Date' },
+            { column_key: 'end_date', column_label: 'End Date' },
+            { column_key: 'tenure_months', column_label: 'Tenure' },
+            { column_key: 'interest_rate', column_label: 'Interest' },
+            { column_key: 'due_date', column_label: 'Due Day' },
+            { column_key: 'payment_type', column_label: 'Type' },
+            { column_key: 'payment_gateway', column_label: 'Payment Gateway' },
+            { column_key: 'payment_bank', column_label: 'Payment Bank' }
+        ];
+    } else {
+        cols = [...cols].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    }
+
+    let headerRowHtml = `<th style="width: 40px; text-align: center;"><input type="checkbox" id="user-emi-select-all" style="cursor: pointer; width: 16px; height: 16px;"></th>`;
+
+    cols.forEach(col => {
+        const key = col.column_key;
+        const label = escapeHTML(col.column_label || key);
+
+        if (key === 'principal_amount') {
+            headerRowHtml += `<th class="text-right">${label}</th>`;
+            headerRowHtml += `<th class="text-right">Pending Balance</th>`;
+        } else if (key === 'emi_amount') {
+            headerRowHtml += `<th class="text-right">${label}</th>`;
+        } else if (key === 'tenure_months') {
+            headerRowHtml += `<th class="text-center">${label}</th>`;
+            headerRowHtml += `<th class="text-center">Pending Months</th>`;
+        } else if (key === 'interest_rate' || key === 'due_date' || key === 'start_date' || key === 'end_date' || key === 'payment_type') {
+            headerRowHtml += `<th class="text-center">${label}</th>`;
+        } else {
+            headerRowHtml += `<th>${label}</th>`;
+        }
+    });
+
+    headerRowHtml += `<th class="text-center">Actions</th>`;
+
+    thead.innerHTML = `<tr>${headerRowHtml}</tr>`;
+
+    const selectAllCheckbox = document.getElementById('user-emi-select-all');
+    const tbody = document.getElementById('user-emi-list');
+    if (selectAllCheckbox && tbody) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.onclick = function() {
+            const rowCbs = tbody.querySelectorAll('.user-emi-row-checkbox');
+            rowCbs.forEach(cb => cb.checked = selectAllCheckbox.checked);
+            updateUserEmiSelection();
+        };
+    }
+}
+
 // Render user EMIs table
 function renderUserEMIsTable(emis) {
+    renderUserEMIHeaders();
+
     const tbody = document.getElementById('user-emi-list');
     const noEmisMsg = document.getElementById('no-emis-msg');
     if (!tbody) return;
@@ -219,16 +286,6 @@ function renderUserEMIsTable(emis) {
 
     // Order ascending based on Due day
     emis.sort((a, b) => parseDueDay(a.due_date) - parseDueDay(b.due_date));
-
-    const selectAllCheckbox = document.getElementById('user-emi-select-all');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.onclick = function() {
-            const rowCbs = tbody.querySelectorAll('.user-emi-row-checkbox');
-            rowCbs.forEach(cb => cb.checked = selectAllCheckbox.checked);
-            updateUserEmiSelection();
-        };
-    }
 
     const bulkDeleteBtn = document.getElementById('btn-bulk-delete-emis');
     if (bulkDeleteBtn) bulkDeleteBtn.classList.add('hidden');
@@ -241,8 +298,27 @@ function renderUserEMIsTable(emis) {
     }
     if (noEmisMsg) noEmisMsg.classList.add('hidden');
 
-    const canEdit = currentUserPrivileges.can_edit;
-    const canDelete = currentUserPrivileges.can_delete;
+    const canEdit = currentUserPrivileges ? currentUserPrivileges.can_edit : true;
+    const canDelete = currentUserPrivileges ? currentUserPrivileges.can_delete : true;
+
+    let cols = window.currentEmiColumns;
+    if (!cols || cols.length === 0) {
+        cols = [
+            { column_key: 'name', column_label: 'EMI Name' },
+            { column_key: 'principal_amount', column_label: 'Loan Amount' },
+            { column_key: 'emi_amount', column_label: 'Monthly EMI' },
+            { column_key: 'start_date', column_label: 'Start Date' },
+            { column_key: 'end_date', column_label: 'End Date' },
+            { column_key: 'tenure_months', column_label: 'Tenure' },
+            { column_key: 'interest_rate', column_label: 'Interest' },
+            { column_key: 'due_date', column_label: 'Due Day' },
+            { column_key: 'payment_type', column_label: 'Type' },
+            { column_key: 'payment_gateway', column_label: 'Payment Gateway' },
+            { column_key: 'payment_bank', column_label: 'Payment Bank' }
+        ];
+    } else {
+        cols = [...cols].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    }
 
     emis.forEach(emi => {
         const tr = document.createElement('tr');
@@ -265,25 +341,44 @@ function renderUserEMIsTable(emis) {
                 </button>`;
         }
 
-        const gatewayBank = [emi.payment_gateway, emi.payment_bank].filter(Boolean).join(' / ') || 'None';
         const pending = calculateEmiPendingDetails(emi);
 
-        tr.innerHTML = `
-            <td style="text-align: center;"><input type="checkbox" class="user-emi-row-checkbox" data-id="${emi.id}" style="cursor: pointer; width: 16px; height: 16px;"></td>
-            <td><span style="font-weight: 500;">${escapeHTML(emi.name)}</span></td>
-            <td class="text-right">${activeCurrencySymbol}${parseFloat(emi.principal_amount || 0).toFixed(2)}</td>
-            <td class="text-right" style="font-weight: 600; color: var(--color-secondary);">${activeCurrencySymbol}${parseFloat(emi.emi_amount).toFixed(2)}</td>
-            <td class="text-center">${escapeHTML(emi.start_date)}</td>
-            <td class="text-center">${escapeHTML(emi.end_date)}</td>
-            <td class="text-center">${emi.tenure_months} months</td>
-            <td class="text-center" style="font-weight: 500; color: var(--color-accent);">${pending.pendingMonths} months</td>
-            <td class="text-right" style="font-weight: 500; color: var(--color-secondary);">${activeCurrencySymbol}${pending.pendingPrincipal.toFixed(2)}</td>
-            <td class="text-center">${parseFloat(emi.interest_rate || 0).toFixed(2)}%</td>
-            <td class="text-center">${escapeHTML(emi.due_date)}</td>
-            <td class="text-center"><span class="role-badge ${emi.payment_type === 'Auto' ? 'badge-admin' : 'badge-user'}">${escapeHTML(emi.payment_type)}</span></td>
-            <td>${escapeHTML(gatewayBank)}</td>
-            <td class="actions-cell">${actionsHtml}</td>
-        `;
+        let rowHtml = `<td style="text-align: center;"><input type="checkbox" class="user-emi-row-checkbox" data-id="${emi.id}" style="cursor: pointer; width: 16px; height: 16px;"></td>`;
+
+        cols.forEach(col => {
+            const key = col.column_key;
+            if (key === 'name') {
+                rowHtml += `<td><span style="font-weight: 500;">${escapeHTML(emi.name || '')}</span></td>`;
+            } else if (key === 'principal_amount') {
+                rowHtml += `<td class="text-right">${activeCurrencySymbol}${parseFloat(emi.principal_amount || 0).toFixed(2)}</td>`;
+                rowHtml += `<td class="text-right" style="font-weight: 500; color: var(--color-secondary);">${activeCurrencySymbol}${pending.pendingPrincipal.toFixed(2)}</td>`;
+            } else if (key === 'emi_amount') {
+                rowHtml += `<td class="text-right" style="font-weight: 600; color: var(--color-secondary);">${activeCurrencySymbol}${parseFloat(emi.emi_amount || 0).toFixed(2)}</td>`;
+            } else if (key === 'start_date') {
+                rowHtml += `<td class="text-center">${escapeHTML(emi.start_date || '-')}</td>`;
+            } else if (key === 'end_date') {
+                rowHtml += `<td class="text-center">${escapeHTML(emi.end_date || '-')}</td>`;
+            } else if (key === 'tenure_months') {
+                rowHtml += `<td class="text-center">${emi.tenure_months || 0} months</td>`;
+                rowHtml += `<td class="text-center" style="font-weight: 500; color: var(--color-accent);">${pending.pendingMonths} months</td>`;
+            } else if (key === 'interest_rate') {
+                rowHtml += `<td class="text-center">${parseFloat(emi.interest_rate || 0).toFixed(2)}%</td>`;
+            } else if (key === 'due_date') {
+                rowHtml += `<td class="text-center">${escapeHTML(emi.due_date || '-')}</td>`;
+            } else if (key === 'payment_type') {
+                rowHtml += `<td class="text-center"><span class="role-badge ${emi.payment_type === 'Auto' ? 'badge-admin' : 'badge-user'}">${escapeHTML(emi.payment_type || 'Manual')}</span></td>`;
+            } else if (key === 'payment_gateway') {
+                rowHtml += `<td>${escapeHTML(emi.payment_gateway || '-')}</td>`;
+            } else if (key === 'payment_bank') {
+                rowHtml += `<td>${escapeHTML(emi.payment_bank || '-')}</td>`;
+            } else {
+                const customVal = (emi.custom_fields && emi.custom_fields[key]) !== undefined ? emi.custom_fields[key] : (emi[key] || '-');
+                rowHtml += `<td>${escapeHTML(String(customVal))}</td>`;
+            }
+        });
+
+        rowHtml += `<td class="actions-cell">${actionsHtml}</td>`;
+        tr.innerHTML = rowHtml;
         tbody.appendChild(tr);
     });
 

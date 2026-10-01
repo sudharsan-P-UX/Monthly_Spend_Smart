@@ -404,12 +404,17 @@ async function loadDynamicCustomFields() {
         }
         
         const respEmi = await fetch('/api/admin/excel-columns?target_type=emi');
-        if (respEmi.ok) {
-            const cols = await respEmi.json();
+            cols.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+            window.currentEmiColumns = cols;
+            
             const standardKeys = ['name', 'principal_amount', 'interest_rate', 'tenure_months', 'emi_amount', 'start_date', 'end_date', 'due_date', 'payment_type', 'payment_gateway', 'payment_bank'];
             const customCols = cols.filter(c => !standardKeys.includes(c.column_key));
             
             populateParentDropdowns('emi', cols);
+            
+            if (typeof renderUserEMIsTable === 'function' && typeof userEMIs !== 'undefined' && userEMIs.length > 0) {
+                renderUserEMIsTable(userEMIs);
+            }
             
             const userEmiContainer = document.getElementById('emi-custom-fields');
             if (userEmiContainer) {
