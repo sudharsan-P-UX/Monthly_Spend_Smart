@@ -404,6 +404,8 @@ async function loadDynamicCustomFields() {
         }
         
         const respEmi = await fetch('/api/admin/excel-columns?target_type=emi');
+        if (respEmi.ok) {
+            const cols = await respEmi.json();
             cols.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
             window.currentEmiColumns = cols;
             
