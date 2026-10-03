@@ -34,34 +34,59 @@ async function fetchUserEMIs() {
     }
 }
 
-function calculateEmiPendingDetails(emi) {
-    const principal = parseFloat(emi.principal_amount || 0);
-    const rate = parseFloat(emi.interest_rate || 0);
+// Extract numeric day from due_date string (e.g. "5th" -> 5)
+function parseDueDay(dueDate, startDate) {
+    if (dueDate) {
+        const match = String(dueDate).match(/\d+/);
+        if (match) return parseInt(match[0], 10);
+    }
+    if (startDate) {
+        const d = new Date(startDate);
+        if (!isNaN(d.getTime())) return d.getDate();
+    }
+    return 1;
+}
+
+// Calculate elapsed EMI months where Start Date is 1st EMI
+function getEmiMonthsElapsed(emi) {
     const tenure = parseInt(emi.tenure_months) || 12;
-    const emiAmount = parseFloat(emi.emi_amount);
-    const r = rate / 12 / 100;
-    
     let startDate = new Date(emi.start_date);
     if (isNaN(startDate.getTime())) {
         startDate = new Date();
     }
     
+    const startCopy = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
     const today = new Date();
-    const todayYear = today.getFullYear();
-    const todayMonth = today.getMonth();
-    const startYear = startDate.getFullYear();
-    const startMonth = startDate.getMonth();
+    const todayCopy = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     
-    let monthsElapsed = (todayYear - startYear) * 12 + (todayMonth - startMonth);
-    if (today < startDate) {
-        monthsElapsed = 0;
-    } else {
-        const dueDay = parseInt(emi.due_date) || 1;
-        if (today.getDate() < dueDay) {
-            monthsElapsed = Math.max(0, monthsElapsed - 1);
-        }
+    if (todayCopy < startCopy) {
+        return 0;
     }
-    monthsElapsed = Math.min(Math.max(0, monthsElapsed), tenure);
+    
+    const todayYear = todayCopy.getFullYear();
+    const todayMonth = todayCopy.getMonth();
+    const startYear = startCopy.getFullYear();
+    const startMonth = startCopy.getMonth();
+    
+    // Start date month counts as 1st EMI (Month 1)
+    let monthsElapsed = (todayYear - startYear) * 12 + (todayMonth - startMonth) + 1;
+    
+    const dueDay = parseDueDay(emi.due_date, emi.start_date);
+    if (todayCopy.getDate() < dueDay) {
+        monthsElapsed = Math.max(0, monthsElapsed - 1);
+    }
+    
+    return Math.min(Math.max(0, monthsElapsed), tenure);
+}
+
+function calculateEmiPendingDetails(emi) {
+    const principal = parseFloat(emi.principal_amount || 0);
+    const rate = parseFloat(emi.interest_rate || 0);
+    const tenure = parseInt(emi.tenure_months) || 12;
+    const emiAmount = parseFloat(emi.emi_amount || 0);
+    const r = rate / 12 / 100;
+    
+    const monthsElapsed = getEmiMonthsElapsed(emi);
     
     let currentBalance = principal;
     for (let i = 1; i <= monthsElapsed; i++) {
@@ -76,16 +101,10 @@ function calculateEmiPendingDetails(emi) {
     
     const pendingMonths = tenure - monthsElapsed;
     return {
+        monthsElapsed: monthsElapsed,
         pendingMonths: pendingMonths,
         pendingPrincipal: currentBalance
     };
-}
-
-// Extract numeric day from due_date string (e.g. "5th" -> 5)
-function parseDueDay(dueDate) {
-    if (!dueDate) return 999;
-    const match = String(dueDate).match(/\d+/);
-    return match ? parseInt(match[0], 10) : 999;
 }
 
 // Update UI buttons based on EMI checkbox selection
@@ -413,27 +432,7 @@ function updateEmiSummaryCards(emis) {
         const emiAmount = parseFloat(emi.emi_amount || 0);
         const r = rate / 12 / 100;
 
-        let startDate = new Date(emi.start_date);
-        if (isNaN(startDate.getTime())) {
-            startDate = new Date();
-        }
-
-        const today = new Date();
-        const todayYear = today.getFullYear();
-        const todayMonth = today.getMonth();
-        const startYear = startDate.getFullYear();
-        const startMonth = startDate.getMonth();
-
-        let monthsElapsed = (todayYear - startYear) * 12 + (todayMonth - startMonth);
-        if (today < startDate) {
-            monthsElapsed = 0;
-        } else {
-            const dueDay = parseInt(emi.due_date) || 1;
-            if (today.getDate() < dueDay) {
-                monthsElapsed = Math.max(0, monthsElapsed - 1);
-            }
-        }
-        monthsElapsed = Math.min(Math.max(0, monthsElapsed), tenure);
+        const monthsElapsed = getEmiMonthsElapsed(emi);
 
         let currentBalance = principal;
         let interestPaidSoFar = 0;
