@@ -9,9 +9,50 @@ import time
 import sqlite3
 import psycopg2
 import psycopg2.extras
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from dotenv import load_dotenv
 
 load_dotenv()
+
+def clean_database_url(raw_url):
+    if not raw_url:
+        return raw_url
+    url = str(raw_url).strip()
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    
+    # Remove -pooler. for direct connection
+    url = url.replace("-pooler.", ".")
+    
+    # Fix malformed query string where & was used instead of ? (e.g. /neondb&sslmode=require)
+    if '?' not in url and '&' in url:
+        parts = url.split('&', 1)
+        url = parts[0] + '?' + parts[1]
+    elif '/neondb&' in url:
+        url = url.replace('/neondb&', '/neondb?')
+    
+    try:
+        parsed = urlparse(url)
+        query_params = parse_qs(parsed.query)
+        
+        # Remove unsupported parameters
+        query_params.pop('channel_binding', None)
+        
+        # Enforce sslmode=require if not present and not localhost
+        if 'sslmode' not in query_params and 'localhost' not in parsed.netloc and '127.0.0.1' not in parsed.netloc:
+            query_params['sslmode'] = ['require']
+            
+        new_query = urlencode(query_params, doseq=True)
+        return urlunparse((
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            new_query,
+            parsed.fragment
+        ))
+    except Exception:
+        return url
 
 DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'localhost')
@@ -194,12 +235,9 @@ def get_vercel_db_connection():
     max_retries = 3
     retry_delay = 3
 
-    if DATABASE_URL:
-        url = DATABASE_URL
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        url = url.replace("&channel_binding=require", "").replace("?channel_binding=require", "")
-        url = url.replace("-pooler.", ".")
+    db_url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
+    if db_url:
+        url = clean_database_url(db_url)
         
         last_exception = None
         for attempt in range(1, max_retries + 1):
