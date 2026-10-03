@@ -5,33 +5,40 @@
         <p>Manage system users, roles, permissions, and category configurations.</p>
     </header>
 
-    <!-- Admin sub-tabs -->
-    <div class="admin-tabs">
-        <button class="admin-tab active" data-tab="admin-users">
-            <i class="fa-solid fa-users"></i> <span data-label="admin_tab_users">Users</span>
-        </button>
-        <button class="admin-tab" data-tab="admin-emis">
-            <i class="fa-solid fa-receipt"></i> <span data-label="admin_tab_emis">EMIs</span>
-        </button>
-        <button class="admin-tab" data-tab="admin-roles">
-            <i class="fa-solid fa-shield-halved"></i> <span data-label="admin_tab_roles">Roles</span>
-        </button>
-        <button class="admin-tab" data-tab="admin-expense-control">
-            <i class="fa-solid fa-sliders"></i> <span data-label="admin_tab_expense_control">Expense Control List</span>
-        </button>
-        <button class="admin-tab" data-tab="admin-expense-columns">
-            <i class="fa-solid fa-file-invoice-dollar"></i> <span data-label="admin_tab_expense_columns">Expense Columns</span>
-        </button>
-        <button class="admin-tab" data-tab="admin-excel-columns">
-            <i class="fa-solid fa-table-list"></i> <span data-label="admin_tab_excel_columns">Excel Columns</span>
-        </button>
-        <button class="admin-tab" data-tab="admin-currencies">
-            <i class="fa-solid fa-coins"></i> <span data-label="admin_tab_currencies">Currencies</span>
-        </button>
-        <button class="admin-tab" data-tab="admin-labels">
-            <i class="fa-solid fa-tags"></i> <span data-label="admin_tab_labels">Label List</span>
-        </button>
-    </div>
+    <!-- Administration Layout Wrapper -->
+    <div class="admin-layout-wrapper">
+        <!-- Frozen Left Sidebar Admin Menu -->
+        <aside class="admin-sidebar-menu">
+            <div class="admin-tabs">
+                <button class="admin-tab active" data-tab="admin-users">
+                    <i class="fa-solid fa-users"></i> <span data-label="admin_tab_users">Users</span>
+                </button>
+                <button class="admin-tab" data-tab="admin-emis">
+                    <i class="fa-solid fa-receipt"></i> <span data-label="admin_tab_emis">EMIs</span>
+                </button>
+                <button class="admin-tab" data-tab="admin-roles">
+                    <i class="fa-solid fa-shield-halved"></i> <span data-label="admin_tab_roles">Roles</span>
+                </button>
+                <button class="admin-tab" data-tab="admin-expense-control">
+                    <i class="fa-solid fa-sliders"></i> <span data-label="admin_tab_expense_control">Expense Control List</span>
+                </button>
+                <button class="admin-tab" data-tab="admin-expense-columns">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> <span data-label="admin_tab_expense_columns">Expense Columns</span>
+                </button>
+                <button class="admin-tab" data-tab="admin-excel-columns">
+                    <i class="fa-solid fa-table-list"></i> <span data-label="admin_tab_excel_columns">Excel Columns</span>
+                </button>
+                <button class="admin-tab" data-tab="admin-currencies">
+                    <i class="fa-solid fa-coins"></i> <span data-label="admin_tab_currencies">Currencies</span>
+                </button>
+                <button class="admin-tab" data-tab="admin-labels">
+                    <i class="fa-solid fa-tags"></i> <span data-label="admin_tab_labels">Label List</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Right Side Admin Content Area -->
+        <div class="admin-content-area">
 
     <!-- Tab 1: Users Management -->
     <div id="tab-admin-users" class="admin-sub-section">
@@ -700,5 +707,8 @@
                 <button class="btn-primary" onclick="adminSaveLabels()">Save Labels</button>
             </div>
         </div>
+    </div>
+    <!-- End Right Side Admin Content Area & Layout Wrapper -->
+    </div>
     </div>
 </section>

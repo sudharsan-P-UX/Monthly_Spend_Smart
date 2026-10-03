@@ -191,47 +191,76 @@ background: rgba(244, 63, 94, 0.15);
     margin-top: 10px;
 }
 
-/* Administration Panel Styles */
+/* Administration Panel Layout */
+.admin-layout-wrapper {
+    display: flex;
+    gap: 25px;
+    align-items: flex-start;
+    width: 100%;
+    position: relative;
+    margin-top: 15px;
+}
+
+.admin-sidebar-menu {
+    width: 230px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 15px;
+    z-index: 50;
+}
+
 .admin-tabs {
     display: flex;
-    gap: 10px;
-    border-bottom: 1px solid var(--border-glass);
-    padding-bottom: 10px;
-    margin-bottom: 25px;
-    flex-wrap: wrap;
-    position: sticky;
-    top: -30px;
-    z-index: 100;
-    background: rgba(15, 23, 42, 0.85);
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    padding: 12px;
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
-    margin-top: -10px;
-    padding-top: 10px;
+    margin-top: 0;
+    position: relative;
+    top: 0;
 }
 
 .admin-tab {
     background: none;
-    border: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    padding: 12px 20px;
-    font-size: 0.95rem;
+    padding: 10px 14px;
+    font-size: 0.88rem;
     font-weight: 500;
     font-family: var(--font-family);
     cursor: pointer;
     transition: var(--transition-smooth);
-    border-bottom: 2px solid transparent;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    text-align: left;
+    width: 100%;
 }
 
 .admin-tab:hover {
     color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .admin-tab.active {
+    color: #ffffff;
+    background: rgba(99, 102, 241, 0.22);
+    border-color: rgba(99, 102, 241, 0.45);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.admin-tab.active i {
     color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
+}
+
+.admin-content-area {
+    flex-grow: 1;
+    min-width: 0;
 }
 
 .admin-grid {
