@@ -2450,8 +2450,8 @@ function renderAdminManageListMasterTable() {
                             <thead>
                                 <tr>
                                     <th>Sub-Item Name</th>
-                                    <th class="text-center" style="width: 120px;">Display Order</th>
-                                    <th class="text-center" style="width: 140px;">Actions</th>
+                                    <th class="text-center" style="width: 90px;">Display Order</th>
+                                    <th class="text-center" style="width: 80px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="sublist-tbody-${item.list_key}">

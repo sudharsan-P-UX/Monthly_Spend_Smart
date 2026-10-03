@@ -371,19 +371,19 @@
 }
 
 .expense-table th {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
     font-weight: 500;
-    padding: 14px 16px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--border-glass);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .expense-table td {
-    padding: 16px;
+    padding: 9px 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--text-primary);
 }
 

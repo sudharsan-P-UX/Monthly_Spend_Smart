@@ -202,7 +202,7 @@ background: rgba(244, 63, 94, 0.15);
 }
 
 .admin-sidebar-menu {
-    width: 160px;
+    width: 190px;
     flex-shrink: 0;
     position: sticky;
     top: 15px;
@@ -229,8 +229,8 @@ background: rgba(244, 63, 94, 0.15);
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    padding: 7px 10px;
-    font-size: 0.81rem;
+    padding: 8px 12px;
+    font-size: 0.83rem;
     font-weight: 500;
     font-family: var(--font-family);
     cursor: pointer;
@@ -262,7 +262,7 @@ background: rgba(244, 63, 94, 0.15);
 .admin-content-area {
     flex: 1;
     min-width: 0;
-    width: calc(100% - 175px);
+    width: calc(100% - 210px);
 }
 
 /* ViewSubList Hover Tooltip with ! Symbol */

@@ -1,5 +1,7 @@
-from flask import Flask
+import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from flask import Flask
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -45,4 +47,5 @@ register_admin_labels_routes(app)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    print(f"Starting Flask server on http://127.0.0.1:{port}...", flush=True)
+    app.run(debug=False, host='127.0.0.1', port=port)

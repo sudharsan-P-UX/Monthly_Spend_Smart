@@ -198,6 +198,8 @@ def get_vercel_db_connection():
         url = DATABASE_URL
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
+        url = url.replace("&channel_binding=require", "").replace("?channel_binding=require", "")
+        url = url.replace("-pooler.", ".")
         
         last_exception = None
         for attempt in range(1, max_retries + 1):
@@ -282,6 +284,15 @@ def init_vercel_db():
     """Initializes the database schema from VercelDb.sql if deployed on Postgres/Vercel."""
     conn = get_vercel_db_connection()
     cursor = conn.cursor()
+    
+    # Quick check if database schema is already initialized
+    try:
+        cursor.execute("SELECT 1 FROM RefRole LIMIT 1")
+        if cursor.fetchone():
+            conn.close()
+            return
+    except Exception:
+        pass
     
     # Read and execute schema
     schema_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VercelDb.sql')

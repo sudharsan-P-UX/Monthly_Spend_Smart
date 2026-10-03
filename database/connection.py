@@ -76,17 +76,17 @@ def init_db():
             "Add Currency"
         ]
         
-        for r_id in [1, 2, 3]:
-            for idx, priv in enumerate(default_privileges):
-                exists = cursor.execute('SELECT 1 FROM role_privileges WHERE role_id = ? AND privilege_name = ?', (r_id, priv)).fetchone()
-                if not exists:
+        has_privs = cursor.execute('SELECT 1 FROM role_privileges LIMIT 1').fetchone()
+        if not has_privs:
+            for r_id in [1, 2, 3]:
+                for idx, priv in enumerate(default_privileges):
                     val = 1 if r_id == 1 else 0
                     view_val = 1 if r_id == 1 else 0
                     cursor.execute(
                         'INSERT INTO role_privileges (role_id, privilege_name, display_order, can_add, can_edit, can_delete, can_view, is_mandatory, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1)',
                         (r_id, priv, idx + 1, val, val, val, view_val)
                     )
-        conn.commit()
+            conn.commit()
     except Exception as e:
         print(f"Error migrating role_privileges: {e}")
     finally:
@@ -114,14 +114,14 @@ def init_db():
             ('payment-types', 'Payment Gateways', 1, 1, 3),
             ('payment-categories', 'Payment Source', 1, 1, 4)
         ]
-        for key, name, active, default_val, order in default_manage_lists:
-            exists = cursor.execute('SELECT 1 FROM manage_lists WHERE list_key = ?', (key,)).fetchone()
-            if not exists:
+        has_manage_lists = cursor.execute('SELECT 1 FROM manage_lists LIMIT 1').fetchone()
+        if not has_manage_lists:
+            for key, name, active, default_val, order in default_manage_lists:
                 cursor.execute(
                     'INSERT INTO manage_lists (list_key, list_name, is_active, is_default, display_order) VALUES (?, ?, ?, ?, ?)',
                     (key, name, active, default_val, order)
                 )
-        conn.commit()
+            conn.commit()
     except Exception as e:
         print(f"Error migrating manage_lists: {e}")
     finally:
@@ -345,14 +345,14 @@ def init_db():
             ("add_currency_btn", "Add Currency", "Add Currency")
         ]
         
-        for k, cat, def_val in default_labels:
-            exists = cursor.execute('SELECT 1 FROM custom_labels WHERE label_key = ?', (k,)).fetchone()
-            if not exists:
+        has_labels = cursor.execute('SELECT 1 FROM custom_labels LIMIT 1').fetchone()
+        if not has_labels:
+            for k, cat, def_val in default_labels:
                 cursor.execute(
                     'INSERT INTO custom_labels (label_key, label_category, default_value, custom_value) VALUES (?, ?, ?, NULL)',
                     (k, cat, def_val)
                 )
-        conn.commit()
+            conn.commit()
     except Exception as e:
         print(f"Error migrating custom_labels: {e}")
     finally:
