@@ -230,6 +230,8 @@ function openSelectedEmiOverviewModal() {
     if (totalInterestEl) totalInterestEl.textContent = `${activeCurrencySymbol}${totalInterest.toFixed(2)}`;
     if (paidInterestEl) paidInterestEl.textContent = `${activeCurrencySymbol}${totalPaidInterest.toFixed(2)}`;
 
+    renderEmiBreakdownLists(selectedEMIs, ['selected-emi-bank-breakdown-list'], ['selected-emi-dueday-breakdown-list'], false);
+
     const modal = document.getElementById('selected-emi-overview-modal');
     if (modal) modal.classList.remove('hidden');
 }
@@ -527,6 +529,101 @@ function updateEmiSummaryCards(emis) {
     setEmiText('emi-total-interest', 'overview-emi-total-interest', fmtTotInt);
     setEmiText('emi-paid-interest', 'overview-emi-paid-interest', fmtPaidInt);
     setEmiText('emi-monthly-total', 'overview-emi-monthly-total', fmtMonthly);
+
+    renderEmiBreakdownLists(emis, ['emi-bank-breakdown-list', 'overview-emi-bank-breakdown-list'], ['emi-dueday-breakdown-list', 'overview-emi-dueday-breakdown-list'], true);
+}
+
+// Helper: Get ordinal suffix for day numbers (1st, 2nd, 3rd, 4th, etc.)
+function getOrdinalSuffix(day) {
+    const j = day % 10, k = day % 100;
+    if (j === 1 && k !== 11) return "st";
+    if (j === 2 && k !== 12) return "nd";
+    if (j === 3 && k !== 13) return "rd";
+    return "th";
+}
+
+// Helper: Render Bank-wise and Due Day-wise EMI breakdown lists
+function renderEmiBreakdownLists(emisList, bankContainerIds, dueDayContainerIds, activeOnly = false) {
+    const bankMap = {};
+    const dueDayMap = {};
+
+    (emisList || []).forEach(emi => {
+        const tenure = parseInt(emi.tenure_months) || 12;
+        const monthsElapsed = getEmiMonthsElapsed(emi);
+        const isCurrentActive = monthsElapsed < tenure;
+        
+        if (activeOnly && !isCurrentActive) return;
+
+        const emiAmt = parseFloat(emi.emi_amount || 0);
+        const bank = (emi.payment_bank && emi.payment_bank.trim()) ? emi.payment_bank.trim() : 'Unassigned / N/A';
+        const dueDayNum = parseDueDay(emi.due_date, emi.start_date);
+
+        // Bank Map
+        if (!bankMap[bank]) {
+            bankMap[bank] = { bank: bank, count: 0, total: 0 };
+        }
+        bankMap[bank].count += 1;
+        bankMap[bank].total += emiAmt;
+
+        // Due Day Map
+        const dueKey = dueDayNum;
+        if (!dueDayMap[dueKey]) {
+            dueDayMap[dueKey] = { dayNum: dueDayNum, count: 0, total: 0 };
+        }
+        dueDayMap[dueKey].count += 1;
+        dueDayMap[dueKey].total += emiAmt;
+    });
+
+    // Sort Bank Map descending by total
+    const sortedBanks = Object.values(bankMap).sort((a, b) => b.total - a.total);
+
+    // Sort Due Day Map ascending by dayNum
+    const sortedDueDays = Object.values(dueDayMap).sort((a, b) => a.dayNum - b.dayNum);
+
+    // Build Bank HTML
+    let bankHtml = '';
+    if (sortedBanks.length === 0) {
+        bankHtml = `<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 12px;">No bank breakdown data available</div>`;
+    } else {
+        sortedBanks.forEach(b => {
+            bankHtml += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div>
+                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.88rem;">${escapeHTML(b.bank)}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 6px;">(${b.count} ${b.count === 1 ? 'EMI' : 'EMIs'})</span>
+                    </div>
+                    <span style="font-weight: 700; color: var(--color-primary); font-size: 0.92rem;">${activeCurrencySymbol}${b.total.toFixed(2)}</span>
+                </div>`;
+        });
+    }
+
+    // Build Due Day HTML
+    let dueDayHtml = '';
+    if (sortedDueDays.length === 0) {
+        dueDayHtml = `<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 12px;">No due day breakdown data available</div>`;
+    } else {
+        sortedDueDays.forEach(d => {
+            dueDayHtml += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div>
+                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.88rem;">Due Date: ${d.dayNum}${getOrdinalSuffix(d.dayNum)} of Month</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 6px;">(${d.count} ${d.count === 1 ? 'EMI' : 'EMIs'})</span>
+                    </div>
+                    <span style="font-weight: 700; color: var(--color-accent); font-size: 0.92rem;">${activeCurrencySymbol}${d.total.toFixed(2)}</span>
+                </div>`;
+        });
+    }
+
+    // Render to target containers
+    bankContainerIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = bankHtml;
+    });
+
+    dueDayContainerIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = dueDayHtml;
+    });
 }
 
 // Render EMI Overview Charts in Overview Menu

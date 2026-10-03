@@ -69,6 +69,29 @@
         </div>
     </div>
 
+    <!-- Bank-wise & Due Day-wise Summary Grids -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 25px;" id="emi-breakdowns-grid">
+        <!-- Bank-wise EMI Breakdown Card -->
+        <div class="content-card" style="margin-bottom: 0; padding: 18px;">
+            <h3 style="margin: 0 0 12px 0; font-size: 0.95rem; font-weight: 600; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-building-columns"></i> Bank-wise EMI Amount
+            </h3>
+            <div id="emi-bank-breakdown-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                <!-- Dynamic Bank Breakdown entries -->
+            </div>
+        </div>
+
+        <!-- Due Day-wise EMI Breakdown Card -->
+        <div class="content-card" style="margin-bottom: 0; padding: 18px;">
+            <h3 style="margin: 0 0 12px 0; font-size: 0.95rem; font-weight: 600; color: var(--color-accent); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-calendar-day"></i> Due Day-wise EMI Amount
+            </h3>
+            <div id="emi-dueday-breakdown-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                <!-- Dynamic Due Day Breakdown entries -->
+            </div>
+        </div>
+    </div>
+
     <!-- EMI Actions and List Card -->
     <div class="content-card">
         <div class="card-header">
