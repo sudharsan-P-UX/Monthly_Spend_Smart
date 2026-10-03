@@ -467,3 +467,78 @@ def delete_user_expense_control(user_id, control_id):
         return False
     finally:
         conn.close()
+
+# Manage Lists CRUD
+def get_manage_lists():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        rows = cursor.execute('SELECT id, list_key, list_name, is_active, is_default, display_order FROM manage_lists ORDER BY display_order ASC, list_name ASC').fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+def create_manage_list(name):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        import re, time
+        slug_key = re.sub(r'[^a-zA-Z0-9]+', '-', name.strip().lower()).strip('-')
+        if not slug_key:
+            slug_key = f"list-{int(time.time())}"
+            
+        cursor.execute(
+            'INSERT INTO manage_lists (list_key, list_name, is_active, is_default, display_order) VALUES (?, ?, 1, 0, 99)',
+            (slug_key, name.strip())
+        )
+        conn.commit()
+        return slug_key
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating manage list: {e}")
+        return None
+    finally:
+        conn.close()
+
+def update_manage_list_name(key, name):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('UPDATE manage_lists SET list_name = ? WHERE list_key = ?', (name.strip(), key))
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Error updating manage list name: {e}")
+        return False
+    finally:
+        conn.close()
+
+def toggle_manage_list_status(key, is_active):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('UPDATE manage_lists SET is_active = ? WHERE list_key = ?', (1 if is_active else 0, key))
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Error toggling manage list status: {e}")
+        return False
+    finally:
+        conn.close()
+
+def delete_manage_list(key):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('DELETE FROM manage_lists WHERE list_key = ? AND is_default = 0', (key,))
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Error deleting manage list: {e}")
+        return False
+    finally:
+        conn.close()
+

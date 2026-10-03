@@ -23,15 +23,9 @@ function initAdminTabs() {
             if (targetTab === 'admin-expense-columns') {
                 adminFetchExpenseColumnsTab();
             }
-            if (targetTab === 'admin-expense-control') {
-                const selectVal = document.getElementById('expense-control-select').value;
-                document.querySelectorAll('.control-sub-section').forEach(sec => {
-                    sec.classList.add('hidden');
-                });
-                const targetSec = document.getElementById(`sub-expense-control-${selectVal}`);
-                if (targetSec) {
-                    targetSec.classList.remove('hidden');
-                }
+            if (targetTab === 'admin-expense-control' || targetTab === 'admin-expense-columns') {
+                adminFetchManageListsMaster();
+                adminFetchExpenseColumnsTab();
             }
         });
     });
@@ -58,18 +52,9 @@ function switchAdminTab(tabName) {
     if (tabName === 'admin-emis') {
         adminFetchEmiColumns();
     }
-    if (tabName === 'admin-expense-columns') {
+    if (tabName === 'admin-expense-control' || tabName === 'admin-expense-columns') {
+        adminFetchManageListsMaster();
         adminFetchExpenseColumnsTab();
-    }
-    if (tabName === 'admin-expense-control') {
-        const selectVal = document.getElementById('expense-control-select').value;
-        document.querySelectorAll('.control-sub-section').forEach(sec => {
-            sec.classList.add('hidden');
-        });
-        const targetSec = document.getElementById(`sub-expense-control-${selectVal}`);
-        if (targetSec) {
-            targetSec.classList.remove('hidden');
-        }
     }
     if (tabName === 'admin-labels') {
         adminFetchLabels();
@@ -91,7 +76,9 @@ async function loadAdminPanel() {
         adminFetchPaymentCategories(),
         adminFetchExcelColumns(),
         adminFetchSettings(),
-        adminFetchLabels()
+        adminFetchLabels(),
+        adminFetchManageListsMaster(),
+        adminFetchExpenseColumnsTab()
     ]);
 }
 
@@ -131,15 +118,17 @@ function renderAdminUsersTable(users) {
             <td><span style="font-weight: 500;">${escapeHTML(user.username)}</span></td>
             <td><span class="role-badge ${badgeClass}">${escapeHTML(user.role_name || 'User')}</span></td>
             <td>
-                <select class="table-input" style="max-width: 140px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 6px; border-radius: 4px;" onchange="adminChangeUserRole(${user.id}, this.value)">
-                    ${roleOptions}
-                </select>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <select class="table-input" style="max-width: 140px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 6px 8px; border-radius: 4px; font-size: 0.85rem;" onchange="adminChangeUserRole(${user.id}, this.value)">
+                        ${roleOptions}
+                    </select>
+                    <button class="btn-primary" onclick="adminChangeUserRole(${user.id}, this.previousElementSibling.value)" style="padding: 5px 12px; font-size: 0.8rem; height: 32px; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; margin: 0; cursor: pointer;" title="Save User Role">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Role
+                    </button>
+                </div>
             </td>
-            <td class="text-center" style="display: flex; justify-content: center; gap: 8px;">
-                <button class="btn-icon btn-icon-update" onclick="adminChangeUserRole(${user.id}, this.closest('tr').querySelector('select').value)" title="Update User Role" style="color: var(--color-primary); margin: 0;">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                </button>
-                <button class="btn-icon btn-icon-edit" onclick="openEditUserModal(${user.id}, '${escapeHTML(user.username)}', '${escapeHTML(user.first_name || '')}', '${escapeHTML(user.last_name || '')}', '${escapeHTML(user.email || '')}', '${escapeHTML(user.phone || '')}')" title="Edit User" style="color: var(--color-warning); margin: 0;">
+            <td class="text-center" style="display: flex; justify-content: center; gap: 8px; align-items: center;">
+                <button class="btn-icon btn-icon-edit" onclick="openEditUserModal(${user.id}, '${escapeHTML(user.username)}', '${escapeHTML(user.first_name || '')}', '${escapeHTML(user.last_name || '')}', '${escapeHTML(user.email || '')}', '${escapeHTML(user.phone || '')}')" title="Edit User Details & Password" style="color: var(--color-warning); margin: 0;">
                     <i class="fa-solid fa-key"></i>
                 </button>
                 <button class="btn-icon btn-icon-delete" onclick="adminDeleteUser(${user.id}, '${escapeHTML(user.username)}')" title="Delete User" style="margin: 0;">
@@ -370,7 +359,8 @@ function renderRolePrivilegesTable(roleId) {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    const isReadOnly = roleId === 1;
+    const isSuperAdmin = (typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin);
+    const isReadOnly = (roleId === 1 && !isSuperAdmin);
     const disabledAttr = isReadOnly ? 'disabled' : '';
 
     currentSelectedRolePrivileges.forEach((p, idx) => {
@@ -431,7 +421,8 @@ async function adminSaveRolePrivileges() {
     if (!roleSelect) return;
     const roleId = parseInt(roleSelect.value);
     
-    if (roleId === 1) {
+    const isSuperAdmin = (typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin);
+    if (roleId === 1 && !isSuperAdmin) {
         showAppAlert('Administrator role privileges cannot be modified.');
         return;
     }
@@ -1373,8 +1364,8 @@ function renderAdminExcelColumnsTable(columns) {
             </td>
             <td class="text-center">
                 <label class="checkbox-container" style="display: inline-block;">
-                    <input type="checkbox" ${isChecked} ${isReq ? 'disabled' : isDisabled}>
-                    <span class="checkmark" style="${(isReq || !canEdit) ? 'cursor: not-allowed;' : ''}"></span>
+                    <input type="checkbox" ${isChecked} ${(isReq && !((typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin))) ? 'disabled' : isDisabled}>
+                    <span class="checkmark" style="${((isReq && !((typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin))) || !canEdit) ? 'cursor: not-allowed;' : ''}"></span>
                 </label>
             </td>
             <td class="text-center">${finalActionHtml}</td>
@@ -1544,8 +1535,8 @@ function renderAdminEmiColumnsTable(columns) {
             </td>
             <td class="text-center">
                 <label class="checkbox-container" style="display: inline-block;">
-                    <input type="checkbox" ${isChecked} ${isReq ? 'disabled' : isDisabled}>
-                    <span class="checkmark" style="${(isReq || !canEdit) ? 'cursor: not-allowed;' : ''}"></span>
+                    <input type="checkbox" ${isChecked} ${(isReq && !((typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin))) ? 'disabled' : isDisabled}>
+                    <span class="checkmark" style="${((isReq && !((typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin))) || !canEdit) ? 'cursor: not-allowed;' : ''}"></span>
                 </label>
             </td>
             <td class="text-center">${finalActionHtml}</td>
@@ -2241,10 +2232,11 @@ function openEditColumnModal(columnKey, targetType, context) {
     document.getElementById('admin-edit-column-import').checked = col.is_enabled_import === 1;
     document.getElementById('admin-edit-column-export').checked = col.is_enabled_export === 1;
     
+    const isSuperAdmin = (typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin);
     const isRequired = col.is_required === 1;
     const importCb = document.getElementById('admin-edit-column-import');
     const exportCb = document.getElementById('admin-edit-column-export');
-    if (isRequired) {
+    if (isRequired && !isSuperAdmin) {
         importCb.disabled = true;
         exportCb.disabled = true;
     } else {
@@ -2371,3 +2363,353 @@ document.addEventListener('change', (e) => {
         handleTableAutoReorder(e.target);
     }
 });
+
+// MANAGE LIST MASTER TABLE LOGIC
+let adminManageListsLocal = [];
+let openSubListKeys = new Set(['categories']); // Open Categories by default
+
+async function adminFetchManageListsMaster() {
+    try {
+        const response = await fetch('/api/admin/manage_lists');
+        if (response.ok) {
+            adminManageListsLocal = await response.json();
+            renderAdminManageListMasterTable();
+        }
+    } catch (err) {
+        console.error('Error fetching manage lists:', err);
+    }
+}
+
+function renderAdminManageListMasterTable() {
+    const tbody = document.getElementById('admin-manage-list-master-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const canEdit = checkFinePrivilege('Expense Categories', 'edit');
+    const canDelete = checkFinePrivilege('Expense Categories', 'delete');
+
+    adminManageListsLocal.forEach(item => {
+        // Parent Row
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-key', item.list_key);
+
+        const editHtml = canEdit
+            ? `<button type="button" class="btn-icon btn-icon-edit" onclick="adminEditManageListName('${item.list_key}', '${escapeHTML(item.list_name)}')" title="Edit List Name" style="color: var(--color-warning); margin: 0;"><i class="fa-solid fa-pen-to-square"></i></button>`
+            : '<div style="width: 32px; height: 32px;"></div>';
+            
+        const isDefault = item.is_default === 1;
+        const deleteHtml = (canDelete && !isDefault)
+            ? `<button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteManageList('${item.list_key}', '${escapeHTML(item.list_name)}')" title="Delete List" style="color: var(--color-danger); margin: 0;"><i class="fa-solid fa-trash-can"></i></button>`
+            : '<div style="width: 32px; height: 32px;"></div>';
+
+        const finalActions = `<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">${editHtml}${deleteHtml}</div>`;
+        const isSubOpen = openSubListKeys.has(item.list_key);
+        const eyeColor = isSubOpen ? 'var(--color-warning, #f59e0b)' : 'var(--primary-color)';
+
+        tr.innerHTML = `
+            <td><span style="font-weight: 600; font-size: 0.95rem;">${escapeHTML(item.list_name)}</span></td>
+            <td class="text-center">
+                <label class="checkbox-container" style="display: inline-block;">
+                    <input type="checkbox" ${item.is_active ? 'checked' : ''} onchange="adminToggleManageListStatus('${item.list_key}', this.checked)">
+                    <span class="checkmark"></span>
+                </label>
+            </td>
+            <td class="text-center">${finalActions}</td>
+            <td class="text-center">
+                <button type="button" class="btn-icon" onclick="adminToggleSubListRow('${item.list_key}')" title="View Sub List" style="color: ${eyeColor}; margin: 0;">
+                    <i class="fa-solid ${isSubOpen ? 'fa-eye-slash' : 'fa-eye'}" id="eye-icon-${item.list_key}"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+
+        // Expandable Sub-List Row
+        const subTr = document.createElement('tr');
+        subTr.id = `sublist-row-${item.list_key}`;
+        subTr.className = `sublist-expand-row ${isSubOpen ? '' : 'hidden'}`;
+        subTr.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+
+        subTr.innerHTML = `
+            <td colspan="4" style="padding: 15px 20px; border-bottom: 2px solid var(--border-color);">
+                <div class="sublist-container" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; background: rgba(0, 0, 0, 0.15);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                        <h4 style="margin: 0; color: var(--primary-color); font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-list-ul"></i> Sub-List: ${escapeHTML(item.list_name)}
+                        </h4>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="add-subitem-name-${item.list_key}" placeholder="New Sub-Item Name" class="table-input" style="width: 170px; padding: 6px 10px; font-size: 0.85rem; background: #fff; color: #000; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <input type="number" id="add-subitem-order-${item.list_key}" placeholder="Order" value="0" min="0" class="table-input" style="width: 70px; text-align: center; padding: 6px 10px; font-size: 0.85rem; background: #fff; color: #000; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <button type="button" class="btn-primary" onclick="adminAddSubListItem('${item.list_key}')" style="padding: 6px 14px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-plus"></i> Add
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container" style="max-height: 280px; overflow-y: auto;">
+                        <table class="expense-table" style="width: 100%; margin: 0;">
+                            <thead>
+                                <tr>
+                                    <th>Sub-Item Name</th>
+                                    <th class="text-center" style="width: 120px;">Display Order</th>
+                                    <th class="text-center" style="width: 140px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sublist-tbody-${item.list_key}">
+                                <tr><td colspan="3" class="text-center" style="color: var(--text-muted);">Loading sub-list...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(subTr);
+
+        if (isSubOpen) {
+            adminFetchAndRenderSubItems(item.list_key);
+        }
+    });
+}
+
+async function adminToggleSubListRow(key) {
+    if (openSubListKeys.has(key)) {
+        openSubListKeys.delete(key);
+    } else {
+        openSubListKeys.add(key);
+    }
+    renderAdminManageListMasterTable();
+}
+
+async function adminFetchAndRenderSubItems(key) {
+    const subTbody = document.getElementById(`sublist-tbody-${key}`);
+    if (!subTbody) return;
+
+    try {
+        const response = await fetch(`/api/admin/manage_lists/subitems/${key}`);
+        if (response.ok) {
+            const subItems = await response.json();
+            subTbody.innerHTML = '';
+
+            if (subItems.length === 0) {
+                subTbody.innerHTML = '<tr><td colspan="3" class="text-center" style="color: var(--text-muted); padding: 15px;">No sub-items found. Add one above!</td></tr>';
+                return;
+            }
+
+            subItems.forEach((sub, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <input type="text" id="subitem-name-${key}-${sub.id}" value="${escapeHTML(sub.name)}" class="table-input" style="width: 100%; padding: 5px 8px; font-size: 0.85rem; background: #fff; color: #000; border: 1px solid var(--border-color); border-radius: 4px;">
+                    </td>
+                    <td class="text-center">
+                        <input type="number" id="subitem-order-${key}-${sub.id}" value="${sub.display_order || 0}" min="0" class="table-input" style="width: 70px; text-align: center; padding: 5px 8px; font-size: 0.85rem; background: #fff; color: #000; border: 1px solid var(--border-color); border-radius: 4px;">
+                    </td>
+                    <td class="text-center">
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <button type="button" class="btn-icon btn-icon-edit" onclick="adminSaveSubListItem('${key}', ${sub.id})" title="Save Changes" style="color: var(--color-warning); margin: 0;">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                            </button>
+                            <button type="button" class="btn-icon btn-icon-delete" onclick="adminDeleteSubListItem('${key}', ${sub.id}, '${escapeHTML(sub.name)}')" title="Delete Sub-Item" style="color: var(--color-danger); margin: 0;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                subTbody.appendChild(tr);
+            });
+        }
+    } catch (err) {
+        console.error(`Error fetching sub-items for ${key}:`, err);
+        subTbody.innerHTML = '<tr><td colspan="3" class="text-center" style="color: var(--color-danger);">Failed to load sub-items.</td></tr>';
+    }
+}
+
+async function adminAddSubListItem(key) {
+    const nameInput = document.getElementById(`add-subitem-name-${key}`);
+    const orderInput = document.getElementById(`add-subitem-order-${key}`);
+    if (!nameInput) return;
+
+    const name = nameInput.value.trim();
+    const display_order = parseInt(orderInput ? orderInput.value : 0) || 0;
+
+    if (!name) {
+        showAppAlert('Sub-item name is required.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/manage_lists/subitems/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, name, display_order })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Sub-item added successfully!', true);
+            nameInput.value = '';
+            if (orderInput) orderInput.value = '0';
+            await adminFetchAndRenderSubItems(key);
+            if (typeof fetchCategories === 'function') fetchCategories();
+            if (typeof fetchBankModes === 'function') fetchBankModes();
+            if (typeof fetchPaymentTypes === 'function') fetchPaymentTypes();
+            if (typeof fetchPaymentCategories === 'function') fetchPaymentCategories();
+        } else {
+            showAppAlert(result.error || 'Failed to add sub-item.');
+        }
+    } catch (err) {
+        showAppAlert('Network error adding sub-item.');
+    }
+}
+
+async function adminSaveSubListItem(key, subId) {
+    const nameInput = document.getElementById(`subitem-name-${key}-${subId}`);
+    const orderInput = document.getElementById(`subitem-order-${key}-${subId}`);
+    if (!nameInput) return;
+
+    const name = nameInput.value.trim();
+    const display_order = parseInt(orderInput ? orderInput.value : 0) || 0;
+
+    if (!name) {
+        showAppAlert('Sub-item name cannot be empty.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/manage_lists/subitems/edit/${key}/${subId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, display_order })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Sub-item updated successfully!', true);
+            await adminFetchAndRenderSubItems(key);
+            if (typeof fetchCategories === 'function') fetchCategories();
+            if (typeof fetchBankModes === 'function') fetchBankModes();
+            if (typeof fetchPaymentTypes === 'function') fetchPaymentTypes();
+            if (typeof fetchPaymentCategories === 'function') fetchPaymentCategories();
+        } else {
+            showAppAlert(result.error || 'Failed to update sub-item.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating sub-item.');
+    }
+}
+
+async function adminDeleteSubListItem(key, subId, name) {
+    if (!confirm(`Are you sure you want to delete sub-item "${name}"?`)) return;
+
+    try {
+        const response = await fetch(`/api/admin/manage_lists/subitems/delete/${key}/${subId}`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Sub-item deleted successfully!', true);
+            await adminFetchAndRenderSubItems(key);
+            if (typeof fetchCategories === 'function') fetchCategories();
+            if (typeof fetchBankModes === 'function') fetchBankModes();
+            if (typeof fetchPaymentTypes === 'function') fetchPaymentTypes();
+            if (typeof fetchPaymentCategories === 'function') fetchPaymentCategories();
+        } else {
+            showAppAlert(result.error || 'Failed to delete sub-item.');
+        }
+    } catch (err) {
+        showAppAlert('Network error deleting sub-item.');
+    }
+}
+
+async function adminToggleManageListStatus(key, isChecked) {
+    try {
+        const response = await fetch(`/api/admin/manage_lists/toggle/${key}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: isChecked ? 1 : 0 })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Manage List status updated!', true);
+            await adminFetchManageListsMaster();
+        } else {
+            showAppAlert(result.error || 'Failed to update status.');
+            await adminFetchManageListsMaster();
+        }
+    } catch (err) {
+        showAppAlert('Network error updating status.');
+        await adminFetchManageListsMaster();
+    }
+}
+
+async function adminEditManageListName(key, currentName) {
+    const newName = prompt('Enter new Manage List Name:', currentName);
+    if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+
+    try {
+        const response = await fetch(`/api/admin/manage_lists/edit/${key}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName.trim() })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Manage List name updated successfully!', true);
+            await adminFetchManageListsMaster();
+        } else {
+            showAppAlert(result.error || 'Failed to update Manage List name.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating Manage List name.');
+    }
+}
+
+async function adminDeleteManageList(key, name) {
+    if (!confirm(`Are you sure you want to delete Manage List "${name}"? This cannot be undone.`)) return;
+
+    try {
+        const response = await fetch(`/api/admin/manage_lists/delete/${key}`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Manage List deleted successfully!', true);
+            openSubListKeys.delete(key);
+            await adminFetchManageListsMaster();
+        } else {
+            showAppAlert(result.error || 'Failed to delete Manage List.');
+        }
+    } catch (err) {
+        showAppAlert('Network error deleting Manage List.');
+    }
+}
+
+async function handleAdminCreateManageList(e) {
+    e.preventDefault();
+    const nameInput = document.getElementById('admin-new-manage-list-name');
+    if (!nameInput) return;
+    const name = nameInput.value.trim();
+
+    if (!name) {
+        showAppAlert('Manage List Name is required.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/manage_lists/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert('Manage List created successfully!', true);
+            nameInput.value = '';
+            if (result.key) {
+                openSubListKeys.add(result.key);
+            }
+            await adminFetchManageListsMaster();
+        } else {
+            showAppAlert(result.error || 'Failed to create Manage List.');
+        }
+    } catch (err) {
+        showAppAlert('Network error creating Manage List.');
+    }
+}
+

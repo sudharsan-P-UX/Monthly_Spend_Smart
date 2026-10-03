@@ -85,3 +85,22 @@ In the **Advanced** or **Environment** tab on Render, add the following variable
 Click **Create Web Service**. Render will pull your repo, build the Docker container using our optimized `Dockerfile`, mount the persistent `/data` volume, and start Gunicorn. 
 
 Once the deploy is complete, your SpendSmart instance will be live, and all expense data will be securely stored in the persistent volume!
+
+---
+
+## 4. Super Admin Status Column Control across All Menus
+- **Status Column Enable/Disable**: Enabled Super Admin (`isSuperAdmin`) to toggle status column checkboxes for required fields across all administrative menus (*Expense Columns*, *EMI Columns*, *Excel Columns*, and *Column Edit Modal*) without being locked by `is_required === 1`.
+- **Role Privileges Modification**: Allowed Super Admin to edit and save privileges for all roles (including Administrator / Role 1) both on the client side (`app_admin.js`) and in the server API (`routes/admin_roles.py`).
+- Standard non-admin users continue to have required column status checkboxes restricted as appropriate.
+
+---
+
+## 5. Manage List Master Table & Expandable Sub-Lists
+- **Consolidated Sidebar Menu**: Merged `Expense Control List` and `Expense Columns` into a single, unified **Expense Control List** sidebar menu tab. Both the Manage List Master table and Expense Columns List table live inside this consolidated view for unified system administration.
+- **Master Table Columns**:
+  - `Manage List Name`: Name of the parent control list.
+  - `Status`: Checkbox toggle for active/inactive status.
+  - `Actions`: Edit name button and Delete list button.
+  - `ViewSubList`: Interactive Eye Icon (`<i class="fa-solid fa-eye"></i>`) that expands/collapses the sub-list directly below the row.
+- **Sub-List Capabilities**: Inside the expanded sub-list drawer, users can view all sub-items, add new sub-items inline, edit existing names & display orders, and delete sub-items.
+- **Dynamic New Manage List Creation**: Added a "Create Manage List" form. Creating a new Manage List automatically adds it to the Master Table with the exact same rules, status controls, actions, and Eye Icon sub-item drawer.

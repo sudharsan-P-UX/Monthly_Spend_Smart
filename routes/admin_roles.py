@@ -1,4 +1,4 @@
-from flask import request, jsonify
+from flask import request, jsonify, session
 import database
 from routes.utils import require_privilege
 
@@ -45,8 +45,16 @@ def register_admin_roles_routes(app):
         if not role_id:
             return jsonify({'error': 'Role ID is required.'}), 400
             
-        if int(role_id) == 1:
-            return jsonify({'error': 'Cannot modify Administrator role privileges.'}), 400
+        user_id = session.get('user_id')
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        try:
+            user_role_row = cursor.execute('SELECT RoleId FROM UserRole WHERE LoginId = ? LIMIT 1', (user_id,)).fetchone()
+            user_role_id = (user_role_row['roleid'] if isinstance(user_role_row, dict) or hasattr(user_role_row, 'keys') else user_role_row[0]) if user_role_row else 2
+            if int(role_id) == 1 and int(user_role_id) != 4:
+                return jsonify({'error': 'Cannot modify Administrator role privileges.'}), 400
+        finally:
+            conn.close()
             
         database.update_role_privileges(int(role_id), can_view, can_add, can_edit, can_delete)
         return jsonify({'success': True, 'message': 'Privileges updated successfully.'})
@@ -115,12 +123,14 @@ def register_admin_roles_routes(app):
         if not role_id:
             return jsonify({'error': 'Role ID is required.'}), 400
             
-        if int(role_id) == 1:
-            return jsonify({'error': 'Cannot modify Administrator role privileges.'}), 400
-            
+        user_id = session.get('user_id')
         conn = database.get_db_connection()
         cursor = conn.cursor()
         try:
+            user_role_row = cursor.execute('SELECT RoleId FROM UserRole WHERE LoginId = ? LIMIT 1', (user_id,)).fetchone()
+            user_role_id = (user_role_row['roleid'] if isinstance(user_role_row, dict) or hasattr(user_role_row, 'keys') else user_role_row[0]) if user_role_row else 2
+            if int(role_id) == 1 and int(user_role_id) != 4:
+                return jsonify({'error': 'Cannot modify Administrator role privileges.'}), 400
             for p in privileges:
                 cursor.execute(
                     '''UPDATE role_privileges SET 

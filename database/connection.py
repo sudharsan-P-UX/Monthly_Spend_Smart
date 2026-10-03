@@ -92,6 +92,41 @@ def init_db():
     finally:
         conn.close()
 
+    # Migration to create manage_lists table
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS manage_lists (
+                id SERIAL PRIMARY KEY,
+                list_key VARCHAR(100) UNIQUE NOT NULL,
+                list_name VARCHAR(255) NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                is_default INTEGER DEFAULT 0,
+                display_order INTEGER DEFAULT 0
+            )
+        """)
+        conn.commit()
+
+        default_manage_lists = [
+            ('categories', 'Categories', 1, 1, 1),
+            ('bank-modes', 'Bank Modes', 1, 1, 2),
+            ('payment-types', 'Payment Gateways', 1, 1, 3),
+            ('payment-categories', 'Payment Source', 1, 1, 4)
+        ]
+        for key, name, active, default_val, order in default_manage_lists:
+            exists = cursor.execute('SELECT 1 FROM manage_lists WHERE list_key = ?', (key,)).fetchone()
+            if not exists:
+                cursor.execute(
+                    'INSERT INTO manage_lists (list_key, list_name, is_active, is_default, display_order) VALUES (?, ?, ?, ?, ?)',
+                    (key, name, active, default_val, order)
+                )
+        conn.commit()
+    except Exception as e:
+        print(f"Error migrating manage_lists: {e}")
+    finally:
+        conn.close()
+
     # Migration to create custom_labels table
     conn = get_db_connection()
     cursor = conn.cursor()
