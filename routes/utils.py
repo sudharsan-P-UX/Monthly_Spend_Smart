@@ -14,14 +14,8 @@ def require_privilege(privilege_name, is_global_admin=False):
             privs = database.get_user_privileges(session['user_id'])
             
             if is_global_admin:
-                conn = database.get_db_connection()
-                cursor = conn.cursor()
-                role_row = cursor.execute('SELECT RoleId FROM UserRole WHERE LoginId = ? LIMIT 1', (session['user_id'],)).fetchone()
-                conn.close()
-                role_id = role_row[0] if role_row else 2
-                
-                if role_id == 1:
-                    pass # Admin always allowed
+                if privs.get('is_admin'):
+                    pass # Admin & Super Admin always allowed
                 elif role_id in (2, 3):
                     return jsonify({'error': 'Forbidden: Global admin privileges required'}), 403
                 else:

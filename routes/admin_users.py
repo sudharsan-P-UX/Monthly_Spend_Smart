@@ -4,6 +4,42 @@ import database
 from routes.utils import require_privilege
 
 def register_admin_users_routes(app):
+    @app.route('/api/user/privileges', methods=['GET'])
+    def get_user_privileges_route():
+        from flask import session
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+        user_id = session['user_id']
+        privileges = database.get_user_privileges(user_id)
+        
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        role_row = cursor.execute('SELECT RoleId FROM UserRole WHERE LoginId = ? LIMIT 1', (user_id,)).fetchone()
+        role_id = role_row[0] if role_row else 2
+        
+        fine_privs = {}
+        rows = cursor.execute('SELECT privilege_name, can_add, can_edit, can_delete, can_view FROM role_privileges WHERE role_id = ?', (role_id,)).fetchall()
+        conn.close()
+        
+        for r in rows:
+            def parse_bit(val):
+                if val is None: return 1
+                if isinstance(val, str): return 1 if '1' in val else 0
+                if isinstance(val, bytes): return 1 if b'\x01' in val or b'1' in val else 0
+                return 1 if bool(val) else 0
+            fine_privs[r['privilege_name']] = {
+                'can_add': parse_bit(r['can_add']),
+                'can_edit': parse_bit(r['can_edit']),
+                'can_delete': parse_bit(r['can_delete']),
+                'can_view': parse_bit(r['can_view'])
+            }
+            
+        return jsonify({
+            'privileges': privileges,
+            'role_id': role_id,
+            'fine_privileges': fine_privs
+        })
+
     @app.route('/api/admin/users', methods=['GET'])
     @require_privilege('can_admin')
     def admin_get_users():

@@ -323,10 +323,41 @@ def init_db():
     finally:
         conn.close()
 
-    # 2. Seed default admin users if not present
+    # 2. Seed Super Admin role and admin users
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # Seed Super Admin role in RefRole
+        super_role_row = cursor.execute("SELECT RoleId FROM RefRole WHERE LOWER(RoleName) = 'super admin' OR LOWER(RoleName) = 'superadmin'").fetchone()
+        if not super_role_row:
+            cursor.execute("INSERT INTO RefRole (RoleName, IsActive, displayOrder) VALUES ('Super Admin', 1, 0)")
+            super_role_id = cursor.lastrowid
+        else:
+            super_role_id = super_role_row[0]
+
+        # Seed RefRoleAccess for Super Admin
+        cursor.execute("SELECT COUNT(*) FROM RefRoleAccess WHERE RoleId = ?", (super_role_id,))
+        acc_cnt = cursor.fetchone()
+        if not acc_cnt or acc_cnt[0] == 0:
+            cursor.execute(
+                "INSERT INTO RefRoleAccess (RoleId, MenuId, Editaccess, DeleteAccess, Addaccess, updateaccess, isactive) VALUES (?, 1, 1, 1, 1, 1, 1)",
+                (super_role_id,)
+            )
+
+        # Seed role_privileges for Super Admin
+        default_privileges = [
+            "EMI Columns List", "Add Custom Column for EMIs", "Expense Categories", "Create Category",
+            "Expense Columns List", "Add Custom Column for Expenses", "Excel Import & Export Columns",
+            "Add Custom Column", "All Currencies", "Add Currency"
+        ]
+        for idx, priv in enumerate(default_privileges):
+            exists = cursor.execute('SELECT 1 FROM role_privileges WHERE role_id = ? AND privilege_name = ?', (super_role_id, priv)).fetchone()
+            if not exists:
+                cursor.execute(
+                    'INSERT INTO role_privileges (role_id, privilege_name, display_order, can_add, can_edit, can_delete, can_view, is_mandatory, is_active) VALUES (?, ?, ?, 1, 1, 1, 1, 1, 1)',
+                    (super_role_id, priv, idx + 1)
+                )
+
         # Check and seed generic 'admin' user
         cursor.execute("SELECT COUNT(*) FROM Refusers WHERE Username = ?", ('admin',))
         row = cursor.fetchone()
@@ -372,6 +403,42 @@ def init_db():
             cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_category', name, display_order FROM payment_categories", (login_id,))
             conn.commit()
             print("Default Admin user (adminuser@gmail.com) created successfully.")
+
+        # Seed/Update user-requested 'superadmin' user with password 'Superadmin@2018'
+        cursor.execute("SELECT LoginId FROM Refusers WHERE LOWER(Username) = 'superadmin'")
+        super_usr_row = cursor.fetchone()
+        super_salt = generate_salt()
+        super_pwd_hash = encrypt_password('Superadmin@2018', super_salt)
+
+        if not super_usr_row:
+            cursor.execute(
+                "INSERT INTO Refusers (Username, Firstname, Lastname, Email, Phone, saltkey, password, isactive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                ('superadmin', 'Super', 'Admin', 'superadmin@gmail.com', '9999999999', super_salt, super_pwd_hash, 1)
+            )
+            super_login_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO UserRole (LoginId, RoleId, isactive) VALUES (?, ?, ?)",
+                (super_login_id, super_role_id, 1)
+            )
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'category', name, display_order FROM categories", (super_login_id,))
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'bank_mode', name, display_order FROM bank_modes", (super_login_id,))
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_type', name, display_order FROM payment_types", (super_login_id,))
+            cursor.execute("INSERT OR IGNORE INTO user_expense_controls (user_id, control_type, name, display_order) SELECT ?, 'payment_category', name, display_order FROM payment_categories", (super_login_id,))
+            conn.commit()
+            print("Default Super Admin user (superadmin / Superadmin@2018) created successfully.")
+        else:
+            super_login_id = super_usr_row[0]
+            cursor.execute(
+                "UPDATE Refusers SET saltkey = ?, password = ?, isactive = 1 WHERE LoginId = ?",
+                (super_salt, super_pwd_hash, super_login_id)
+            )
+            cursor.execute("DELETE FROM UserRole WHERE LoginId = ?", (super_login_id,))
+            cursor.execute(
+                "INSERT INTO UserRole (LoginId, RoleId, isactive) VALUES (?, ?, ?)",
+                (super_login_id, super_role_id, 1)
+            )
+            conn.commit()
+            print("Super Admin user (superadmin) credentials updated successfully.")
     except Exception as e:
         print(f"Error seeding default admin users: {e}")
         conn.rollback()

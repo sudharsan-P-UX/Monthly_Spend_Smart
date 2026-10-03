@@ -303,7 +303,7 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         
         # Verify roles
         roles = cursor.execute("SELECT RoleId as id, RoleName as name FROM RefRole ORDER BY RoleId").fetchall()
-        self.assertEqual(len(roles), 3)
+        self.assertGreaterEqual(len(roles), 3)
         self.assertEqual(roles[0]['name'], 'Admin')
         self.assertEqual(roles[1]['name'], 'User')
         self.assertEqual(roles[2]['name'], 'Viewer')

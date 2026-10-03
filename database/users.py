@@ -125,7 +125,9 @@ def get_user_privileges(user_id):
             return {'can_view': 0, 'can_add': 0, 'can_edit': 0, 'can_delete': 0, 'is_admin': False}
             
         role_id = row['roleid'] if 'roleid' in row else row[0]
-        is_admin = (int(role_id) == 1)
+        role_info = cursor.execute('SELECT RoleName FROM RefRole WHERE RoleId = ?', (role_id,)).fetchone()
+        role_name = (role_info['rolename'] if 'rolename' in role_info else role_info[0]) if role_info else ''
+        is_admin = (int(role_id) == 1 or 'admin' in str(role_name).lower())
         
         # Check privileges from RefRoleAccess
         priv_row = cursor.execute(
@@ -141,6 +143,9 @@ def get_user_privileges(user_id):
             if isinstance(val, bytes):
                 return 1 if b'\x01' in val or b'1' in val else 0
             return 1 if bool(val) else 0
+
+        if is_admin:
+            return {'can_view': 1, 'can_add': 1, 'can_edit': 1, 'can_delete': 1, 'is_admin': True}
 
         if priv_row:
             # Map database keys
@@ -185,8 +190,10 @@ def check_backend_privilege(user_id, privilege_name, action):
         if not role_row:
             return False
         role_id = role_row[0]
-        if role_id == 1:
-            return True # Admin always allowed
+        role_info = cursor.execute('SELECT RoleName FROM RefRole WHERE RoleId = ?', (role_id,)).fetchone()
+        role_name = (role_info['rolename'] if 'rolename' in role_info else role_info[0]) if role_info else ''
+        if int(role_id) == 1 or 'admin' in str(role_name).lower():
+            return True # Admin & Super Admin always allowed
             
         priv_row = cursor.execute(
             'SELECT can_add, can_edit, can_delete, can_view, is_active FROM role_privileges WHERE role_id = ? AND privilege_name = ? LIMIT 1',
