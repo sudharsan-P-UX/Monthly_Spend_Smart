@@ -29,18 +29,36 @@
         </div>
         <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
             <!-- Summary Cards -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                <div class="metric-card" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 10px; padding: 15px;">
-                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Total Monthly EMI</h4>
-                    <span id="selected-emi-total-amount" style="font-size: 1.4rem; font-weight: 700; color: var(--color-primary);">₹0.00</span>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <!-- 1. Total EMI -->
+                <div class="metric-card" style="background: rgba(167, 139, 250, 0.1); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 10px; padding: 15px;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Total EMI</h4>
+                    <span id="selected-emi-total-amount" style="font-size: 1.3rem; font-weight: 700; color: #a78bfa;">₹0.00</span>
                 </div>
-                <div class="metric-card" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 15px;">
-                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Total Principal Amount</h4>
-                    <span id="selected-emi-total-principal" style="font-size: 1.4rem; font-weight: 700; color: var(--color-success);">₹0.00</span>
-                </div>
+                <!-- 2. Principal Need to pay -->
                 <div class="metric-card" style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 10px; padding: 15px;">
-                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Remaining Principal</h4>
-                    <span id="selected-emi-remaining-principal" style="font-size: 1.4rem; font-weight: 700; color: var(--color-secondary);">₹0.00</span>
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Principal Need to pay</h4>
+                    <span id="selected-emi-remaining-principal" style="font-size: 1.3rem; font-weight: 700; color: var(--color-secondary);">₹0.00</span>
+                </div>
+                <!-- 3. Total Principal -->
+                <div class="metric-card" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 10px; padding: 15px;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Total Principal</h4>
+                    <span id="selected-emi-total-principal" style="font-size: 1.3rem; font-weight: 700; color: var(--color-primary);">₹0.00</span>
+                </div>
+                <!-- 4. Paid Principal -->
+                <div class="metric-card" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 15px;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Paid Principal</h4>
+                    <span id="selected-emi-paid-principal" style="font-size: 1.3rem; font-weight: 700; color: var(--color-success);">₹0.00</span>
+                </div>
+                <!-- 5. Total Interest -->
+                <div class="metric-card" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 15px;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Total Interest</h4>
+                    <span id="selected-emi-total-interest" style="font-size: 1.3rem; font-weight: 700; color: #f59e0b;">₹0.00</span>
+                </div>
+                <!-- 6. Paid Interest -->
+                <div class="metric-card" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 15px;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: var(--text-secondary);">Paid Interest</h4>
+                    <span id="selected-emi-paid-interest" style="font-size: 1.3rem; font-weight: 700; color: #3b82f6;">₹0.00</span>
                 </div>
             </div>
 

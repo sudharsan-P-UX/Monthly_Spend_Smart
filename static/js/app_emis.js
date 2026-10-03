@@ -160,22 +160,48 @@ function openSelectedEmiOverviewModal() {
     let totalMonthlyEmi = 0;
     let totalPrincipalAmount = 0;
     let totalRemainingPrincipal = 0;
+    let totalPaidPrincipal = 0;
+    let totalInterest = 0;
+    let totalPaidInterest = 0;
 
     const tbody = document.getElementById('selected-emi-overview-list');
     if (!tbody) return;
     tbody.innerHTML = '';
 
     // Sort selected EMIs by due day ascending
-    selectedEMIs.sort((a, b) => parseDueDay(a.due_date) - parseDueDay(b.due_date));
+    selectedEMIs.sort((a, b) => parseDueDay(a.due_date, a.start_date) - parseDueDay(b.due_date, b.start_date));
 
     selectedEMIs.forEach(emi => {
         const pending = calculateEmiPendingDetails(emi);
         const emiAmt = parseFloat(emi.emi_amount || 0);
         const principalAmt = parseFloat(emi.principal_amount || 0);
+        const rate = parseFloat(emi.interest_rate || 0);
+        const tenure = parseInt(emi.tenure_months) || 12;
+        const r = rate / 12 / 100;
+
+        const monthsElapsed = pending.monthsElapsed || 0;
+        let currentBalance = principalAmt;
+        let interestPaidSoFar = 0;
+        for (let i = 1; i <= monthsElapsed; i++) {
+            let interestPaid = currentBalance * r;
+            let principalPaid = emiAmt - interestPaid;
+            if (principalPaid > currentBalance || i === tenure) {
+                principalPaid = currentBalance;
+            }
+            interestPaidSoFar += interestPaid;
+            currentBalance -= principalPaid;
+            if (currentBalance < 0) currentBalance = 0;
+        }
+
+        const calculatedTotalInterest = Math.max(0, (emiAmt * tenure) - principalAmt);
+        const calculatedPaidInterest = Math.min(interestPaidSoFar, calculatedTotalInterest);
 
         totalMonthlyEmi += emiAmt;
         totalPrincipalAmount += principalAmt;
         totalRemainingPrincipal += pending.pendingPrincipal;
+        totalPaidPrincipal += (principalAmt - pending.pendingPrincipal);
+        totalInterest += calculatedTotalInterest;
+        totalPaidInterest += calculatedPaidInterest;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -191,12 +217,18 @@ function openSelectedEmiOverviewModal() {
     });
 
     const totalEmiEl = document.getElementById('selected-emi-total-amount');
-    const totalPrincipalEl = document.getElementById('selected-emi-total-principal');
     const remainingPrincipalEl = document.getElementById('selected-emi-remaining-principal');
+    const totalPrincipalEl = document.getElementById('selected-emi-total-principal');
+    const paidPrincipalEl = document.getElementById('selected-emi-paid-principal');
+    const totalInterestEl = document.getElementById('selected-emi-total-interest');
+    const paidInterestEl = document.getElementById('selected-emi-paid-interest');
 
     if (totalEmiEl) totalEmiEl.textContent = `${activeCurrencySymbol}${totalMonthlyEmi.toFixed(2)}`;
-    if (totalPrincipalEl) totalPrincipalEl.textContent = `${activeCurrencySymbol}${totalPrincipalAmount.toFixed(2)}`;
     if (remainingPrincipalEl) remainingPrincipalEl.textContent = `${activeCurrencySymbol}${totalRemainingPrincipal.toFixed(2)}`;
+    if (totalPrincipalEl) totalPrincipalEl.textContent = `${activeCurrencySymbol}${totalPrincipalAmount.toFixed(2)}`;
+    if (paidPrincipalEl) paidPrincipalEl.textContent = `${activeCurrencySymbol}${totalPaidPrincipal.toFixed(2)}`;
+    if (totalInterestEl) totalInterestEl.textContent = `${activeCurrencySymbol}${totalInterest.toFixed(2)}`;
+    if (paidInterestEl) paidInterestEl.textContent = `${activeCurrencySymbol}${totalPaidInterest.toFixed(2)}`;
 
     const modal = document.getElementById('selected-emi-overview-modal');
     if (modal) modal.classList.remove('hidden');

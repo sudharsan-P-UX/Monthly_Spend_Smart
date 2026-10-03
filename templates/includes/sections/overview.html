@@ -135,37 +135,47 @@
     <div id="sub-overview-emi" class="hidden">
         <!-- EMI Metrics Summary Grid -->
         <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px;">
-            <!-- 1. Total Loan Amount -->
-            <div class="metric-card card-month" onclick="showEmiOverviewDetails('total-loan')" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2); cursor: pointer;" title="Click to view details list">
+            <!-- 1. Total EMI / Monthly Total EMI -->
+            <div class="metric-card card-month" onclick="showEmiOverviewDetails('monthly-total')" style="background: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.2); cursor: pointer;" title="Click to view details list">
                 <div class="metric-info">
-                    <h3>Total Loan Amount</h3>
-                    <span class="metric-value" id="overview-emi-total-loan-amount" style="color: var(--color-primary);">₹0.00</span>
+                    <h3>Total EMI</h3>
+                    <span class="metric-value" id="overview-emi-monthly-total" style="color: #a78bfa;">₹0.00</span>
                 </div>
                 <div class="metric-icon">
-                    <i class="fa-solid fa-sack-dollar" style="color: var(--color-primary);"></i>
+                    <i class="fa-solid fa-calendar-days" style="color: #a78bfa;"></i>
                 </div>
             </div>
-            <!-- 2. Pending Principal Amt -->
+            <!-- 2. Principal Need to pay -->
             <div class="metric-card card-all" onclick="showEmiOverviewDetails('pending-principal')" style="background: rgba(244, 63, 94, 0.08); border-color: rgba(244, 63, 94, 0.2); cursor: pointer;" title="Click to view details list">
                 <div class="metric-info">
-                    <h3>Pending Principal Amt</h3>
+                    <h3>Principal Need to pay</h3>
                     <span class="metric-value" id="overview-emi-pending-principal" style="color: var(--color-secondary);">₹0.00</span>
                 </div>
                 <div class="metric-icon">
                     <i class="fa-solid fa-hand-holding-dollar" style="color: var(--color-secondary);"></i>
                 </div>
             </div>
-            <!-- 3. Total Principal Paid -->
+            <!-- 3. Total Principal -->
+            <div class="metric-card card-month" onclick="showEmiOverviewDetails('total-loan')" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2); cursor: pointer;" title="Click to view details list">
+                <div class="metric-info">
+                    <h3>Total Principal</h3>
+                    <span class="metric-value" id="overview-emi-total-loan-amount" style="color: var(--color-primary);">₹0.00</span>
+                </div>
+                <div class="metric-icon">
+                    <i class="fa-solid fa-sack-dollar" style="color: var(--color-primary);"></i>
+                </div>
+            </div>
+            <!-- 4. Paid Principal -->
             <div class="metric-card card-count" onclick="showEmiOverviewDetails('principal-paid')" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); cursor: pointer;" title="Click to view details list">
                 <div class="metric-info">
-                    <h3>Total Principal Paid</h3>
+                    <h3>Paid Principal</h3>
                     <span class="metric-value" id="overview-emi-total-principal-paid" style="color: var(--color-success);">₹0.00</span>
                 </div>
                 <div class="metric-icon">
                     <i class="fa-solid fa-circle-check" style="color: var(--color-success);"></i>
                 </div>
             </div>
-            <!-- 4. Total Interest -->
+            <!-- 5. Total Interest -->
             <div class="metric-card" onclick="showEmiOverviewDetails('total-interest')" style="background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.2); cursor: pointer;" title="Click to view details list">
                 <div class="metric-info">
                     <h3>Total Interest</h3>
@@ -175,7 +185,7 @@
                     <i class="fa-solid fa-percent" style="color: #f59e0b;"></i>
                 </div>
             </div>
-            <!-- 5. Paid Interest -->
+            <!-- 6. Paid Interest -->
             <div class="metric-card" onclick="showEmiOverviewDetails('paid-interest')" style="background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.2); cursor: pointer;" title="Click to view details list">
                 <div class="metric-info">
                     <h3>Paid Interest</h3>
@@ -183,16 +193,6 @@
                 </div>
                 <div class="metric-icon">
                     <i class="fa-solid fa-coins" style="color: #3b82f6;"></i>
-                </div>
-            </div>
-            <!-- 6. Monthly Total EMI -->
-            <div class="metric-card card-month" onclick="showEmiOverviewDetails('monthly-total')" style="background: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.2); cursor: pointer;" title="Click to view details list">
-                <div class="metric-info">
-                    <h3>Monthly Total EMI</h3>
-                    <span class="metric-value" id="overview-emi-monthly-total" style="color: #a78bfa;">₹0.00</span>
-                </div>
-                <div class="metric-icon">
-                    <i class="fa-solid fa-calendar-days" style="color: #a78bfa;"></i>
                 </div>
             </div>
         </div>
