@@ -254,6 +254,11 @@ def update_user_role(user_id, role_id):
             'UPDATE UserRole SET RoleId = ?, lastchangePassword = CURRENT_TIMESTAMP WHERE LoginId = ?',
             (role_id, user_id)
         )
+        if cursor.rowcount == 0:
+            cursor.execute(
+                'INSERT INTO UserRole (LoginId, RoleId, isactive) VALUES (?, ?, 1)',
+                (user_id, role_id)
+            )
         conn.commit()
         return True
     except Exception as e:

@@ -118,19 +118,20 @@ function renderAdminUsersTable(users) {
         
         let roleOptions = '';
         systemRoles.forEach(r => {
-            const selected = r.id === user.role_id ? 'selected' : '';
+            const selected = String(r.id) === String(user.role_id) ? 'selected' : '';
             roleOptions += `<option value="${r.id}" ${selected}>${escapeHTML(r.name)}</option>`;
         });
 
         let badgeClass = 'badge-user';
-        if (user.role_id === 1) badgeClass = 'badge-admin';
-        else if (user.role_id === 3) badgeClass = 'badge-viewer';
+        const roleIdNum = parseInt(user.role_id, 10);
+        if (roleIdNum === 1 || roleIdNum === 4) badgeClass = 'badge-admin';
+        else if (roleIdNum === 3) badgeClass = 'badge-viewer';
 
         tr.innerHTML = `
             <td><span style="font-weight: 500;">${escapeHTML(user.username)}</span></td>
             <td><span class="role-badge ${badgeClass}">${escapeHTML(user.role_name || 'User')}</span></td>
             <td>
-                <select class="table-input" style="max-width: 140px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 6px; border-radius: 4px;">
+                <select class="table-input" style="max-width: 140px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color); padding: 6px; border-radius: 4px;" onchange="adminChangeUserRole(${user.id}, this.value)">
                     ${roleOptions}
                 </select>
             </td>

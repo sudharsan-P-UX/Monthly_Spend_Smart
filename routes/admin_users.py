@@ -77,22 +77,31 @@ def register_admin_users_routes(app):
     @app.route('/api/admin/users/edit_role', methods=['POST'])
     @require_privilege('can_admin')
     def admin_edit_user_role():
-        data = request.get_json()
+        data = request.get_json() or {}
         user_id = data.get('user_id')
         role_id = data.get('role_id')
         
-        if not user_id or not role_id:
+        if user_id is None or role_id is None or user_id == '' or role_id == '':
             return jsonify({'error': 'User ID and Role ID are required.'}), 400
             
-        current_privs = database.get_user_privileges(int(user_id))
-        if current_privs.get('is_admin') and int(role_id) != 1:
+        try:
+            u_id = int(user_id)
+            r_id = int(role_id)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid User ID or Role ID.'}), 400
+
+        current_privs = database.get_user_privileges(u_id)
+        if current_privs.get('is_admin') and r_id not in (1, 4):
             users = database.get_all_users()
-            admins = [u for u in users if u['role_id'] == 1]
+            admins = [u for u in users if u.get('role_id') is not None and int(u['role_id']) in (1, 4)]
             if len(admins) <= 1:
                 return jsonify({'error': 'Cannot change role of the last administrator.'}), 400
 
-        database.update_user_role(int(user_id), int(role_id))
-        return jsonify({'success': True, 'message': 'User role updated successfully.'})
+        success = database.update_user_role(u_id, r_id)
+        if success:
+            return jsonify({'success': True, 'message': 'User role updated successfully.'})
+        else:
+            return jsonify({'error': 'Failed to update user role.'}), 500
 
     @app.route('/api/admin/users/edit', methods=['POST'])
     @require_privilege('can_admin')
