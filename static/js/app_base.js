@@ -487,6 +487,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const parentVal = document.getElementById('admin-new-emi-col-trigger').value.trim() || null;
             const imp = document.getElementById('admin-new-emi-col-import').checked ? 1 : 0;
             const exp = document.getElementById('admin-new-emi-col-export').checked ? 1 : 0;
+            const reqCb = document.getElementById('admin-new-emi-col-required');
+            const req = reqCb ? (reqCb.checked ? 1 : 0) : 0;
             
             try {
                 const response = await fetch('/api/admin/excel-columns/create', {
@@ -498,7 +500,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         target_type: 'emi',
                         is_enabled_import: imp,
                         is_enabled_export: exp,
-                        is_required: 0,
+                        is_required: req,
                         display_order: orderVal,
                         parent_column_key: parentKey,
                         parent_trigger_value: parentVal
@@ -610,6 +612,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const parentVal = document.getElementById('admin-new-col-trigger').value.trim() || null;
             const imp = document.getElementById('admin-new-col-import').checked ? 1 : 0;
             const exp = document.getElementById('admin-new-col-export').checked ? 1 : 0;
+            const reqCb = document.getElementById('admin-new-col-required');
+            const req = reqCb ? (reqCb.checked ? 1 : 0) : 0;
             
             try {
                 const response = await fetch('/api/admin/excel-columns/create', {
@@ -621,7 +625,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         target_type: targetType,
                         is_enabled_import: imp,
                         is_enabled_export: exp,
-                        is_required: 0,
+                        is_required: req,
                         display_order: orderVal,
                         parent_column_key: parentKey,
                         parent_trigger_value: parentVal

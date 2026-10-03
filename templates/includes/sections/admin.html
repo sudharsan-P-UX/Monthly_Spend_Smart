@@ -157,7 +157,7 @@
                             <tr>
                                 <th data-label="emi_columns_th_label">Column Label</th>
                                 <th data-label="emi_columns_th_field">Database Field</th>
-                                <th class="text-center" data-label="emi_columns_th_required">Required</th>
+                                <th class="text-center" data-label="emi_columns_th_required">Mandatory</th>
                                 <th class="text-center" data-label="emi_columns_th_order">Order</th>
                                 <th class="text-center" data-label="emi_columns_th_status">Status</th>
                                 <th class="text-center" data-label="emi_columns_th_actions">Actions</th>
@@ -202,12 +202,15 @@
                         <label for="admin-new-emi-col-trigger" data-label="add_emi_col_trigger">Parent Trigger Value</label>
                         <input type="text" id="admin-new-emi-col-trigger" placeholder="e.g. Credit or Yes">
                     </div>
-                    <div style="display: flex; gap: 20px; margin-bottom: 15px; margin-top: 15px;">
+                    <div style="display: flex; gap: 15px; margin-bottom: 15px; margin-top: 15px; flex-wrap: wrap;">
                         <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
                             <input type="checkbox" id="admin-new-emi-col-import" checked style="width:16px; height:16px; margin:0;"> <span data-label="add_emi_col_import">Enable Import</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
                             <input type="checkbox" id="admin-new-emi-col-export" checked style="width:16px; height:16px; margin:0;"> <span data-label="add_emi_col_export">Enable Export</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
+                            <input type="checkbox" id="admin-new-emi-col-required" style="width:16px; height:16px; margin:0;"> <span data-label="add_emi_col_required">Mandatory</span>
                         </label>
                     </div>
                     <button type="submit" class="btn-primary admin-full-width">Create Column</button>
@@ -343,7 +346,7 @@
                             <tr>
                                 <th data-label="excel_cols_th_label">Column Label</th>
                                 <th data-label="excel_cols_th_field">Database Field</th>
-                                <th class="text-center" data-label="excel_cols_th_required">Required</th>
+                                <th class="text-center" data-label="excel_cols_th_required">Mandatory</th>
                                 <th class="text-center" data-label="excel_cols_th_order">Order</th>
                                 <th class="text-center" data-label="excel_cols_th_status">Status</th>
                                 <th class="text-center" data-label="excel_cols_th_actions">Actions</th>
@@ -395,12 +398,15 @@
                             <option value="emi">EMIs</option>
                         </select>
                     </div>
-                    <div style="display: flex; gap: 20px; margin-bottom: 15px; margin-top: 15px;">
+                    <div style="display: flex; gap: 15px; margin-bottom: 15px; margin-top: 15px; flex-wrap: wrap;">
                         <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
                             <input type="checkbox" id="admin-new-col-import" checked style="width:16px; height:16px; margin:0;"> <span data-label="add_excel_col_import">Enable Import</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
                             <input type="checkbox" id="admin-new-col-export" checked style="width:16px; height:16px; margin:0;"> <span data-label="add_excel_col_export">Enable Export</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
+                            <input type="checkbox" id="admin-new-col-required" style="width:16px; height:16px; margin:0;"> <span data-label="add_excel_col_required">Mandatory</span>
                         </label>
                     </div>
                     <button type="submit" class="btn-primary admin-full-width" data-label="add_excel_col_btn">Create Column</button>

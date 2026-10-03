@@ -787,14 +787,63 @@ def register_excel_routes(app):
             target_type = col.get('target_type', 'expense')
             display_order = col.get('display_order', 0)
             is_enabled = col.get('is_enabled', 1)
+            is_req = col.get('is_required')
             
-            cursor.execute(
-                f"UPDATE excel_columns SET display_order = ?, {field} = ? WHERE column_key = ? AND target_type = ?",
-                (int(display_order), int(is_enabled), col_key, target_type)
-            )
+            if is_req is not None:
+                cursor.execute(
+                    f"UPDATE excel_columns SET display_order = ?, {field} = ?, is_required = ? WHERE column_key = ? AND target_type = ?",
+                    (int(display_order), int(is_enabled), int(is_req), col_key, target_type)
+                )
+            else:
+                cursor.execute(
+                    f"UPDATE excel_columns SET display_order = ?, {field} = ? WHERE column_key = ? AND target_type = ?",
+                    (int(display_order), int(is_enabled), col_key, target_type)
+                )
         conn.commit()
         conn.close()
         return jsonify({'success': True, 'message': 'All configurations saved successfully.'})
+
+    @app.route('/api/admin/excel-columns/toggle-mandatory', methods=['POST'])
+    def admin_toggle_excel_column_mandatory():
+        if not is_logged_in():
+            return jsonify({'error': 'Unauthorized'}), 401
+        data = request.get_json() or {}
+        column_key = data.get('column_key', '').strip()
+        target_type = data.get('target_type', 'expense').strip().lower()
+        is_required = data.get('is_required')
+        
+        privilege = 'Expense Columns List'
+        if target_type == 'emi':
+            privilege = 'EMI Columns List'
+        elif target_type == 'excel':
+            privilege = 'Excel Import & Export Columns'
+            
+        if not database.check_backend_privilege(session['user_id'], privilege, 'edit'):
+            return jsonify({'error': f'Forbidden: Missing privilege {privilege}'}), 403
+            
+        if not column_key or is_required is None:
+            return jsonify({'error': 'column_key and is_required are required.'}), 400
+            
+        is_required = int(is_required)
+        
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                UPDATE excel_columns 
+                SET is_required = ?
+                WHERE column_key = ? AND target_type = ?
+                """,
+                (is_required, column_key, target_type)
+            )
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Mandatory status updated successfully.'})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'error': str(e)}), 500
+        finally:
+            conn.close()
 
     @app.route('/api/admin/excel-columns/update-order', methods=['POST'])
     def admin_update_excel_column_order():
@@ -946,6 +995,7 @@ def register_excel_routes(app):
         display_order = data.get('display_order')
         is_enabled_import = data.get('is_enabled_import')
         is_enabled_export = data.get('is_enabled_export')
+        is_required = data.get('is_required')
         
         if is_enabled_import is not None:
             is_enabled_import = int(is_enabled_import)
@@ -953,6 +1003,8 @@ def register_excel_routes(app):
             is_enabled_export = int(is_enabled_export)
         if display_order is not None:
             display_order = int(display_order)
+        if is_required is not None:
+            is_required = int(is_required)
             
         conn = database.get_db_connection()
         cursor = conn.cursor()
@@ -963,10 +1015,11 @@ def register_excel_routes(app):
                 SET column_label = COALESCE(?, column_label),
                     display_order = COALESCE(?, display_order),
                     is_enabled_import = COALESCE(?, is_enabled_import),
-                    is_enabled_export = COALESCE(?, is_enabled_export)
+                    is_enabled_export = COALESCE(?, is_enabled_export),
+                    is_required = COALESCE(?, is_required)
                 WHERE column_key = ? AND target_type = ?
                 """,
-                (column_label, display_order, is_enabled_import, is_enabled_export, column_key, target_type)
+                (column_label, display_order, is_enabled_import, is_enabled_export, is_required, column_key, target_type)
             )
             conn.commit()
             return jsonify({'success': True, 'message': 'Column updated successfully.'})
@@ -975,3 +1028,4 @@ def register_excel_routes(app):
             return jsonify({'error': str(e)}), 500
         finally:
             conn.close()
+

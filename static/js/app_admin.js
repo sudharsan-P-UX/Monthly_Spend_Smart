@@ -1341,9 +1341,19 @@ function renderAdminExcelColumnsTable(columns) {
         const tr = document.createElement('tr');
         
         const isReq = col.is_required === 1;
-        const requiredHtml = isReq 
-            ? `<span class="badge badge-admin"><i class="fa-solid fa-check"></i> Yes</span>` 
-            : `<span class="badge badge-viewer">No</span>`;
+        const canUserToggleMandatory = canEdit || ((typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin));
+        let requiredHtml = '';
+        if (canUserToggleMandatory) {
+            if (isReq) {
+                requiredHtml = `<button type="button" class="badge badge-admin" style="border: none; cursor: pointer; padding: 4px 10px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;" onclick="adminToggleColumnMandatory('${col.column_key}', '${targetType}', 0)" title="Click to set as optional (NO)"><i class="fa-solid fa-check"></i> YES</button>`;
+            } else {
+                requiredHtml = `<button type="button" class="badge badge-viewer" style="border: none; cursor: pointer; padding: 4px 10px; font-size: 0.8rem; background-color: var(--border-color, #4b5563); color: #ffffff;" onclick="adminToggleColumnMandatory('${col.column_key}', '${targetType}', 1)" title="Click to set as mandatory (YES)">NO</button>`;
+            }
+        } else {
+            requiredHtml = isReq 
+                ? `<span class="badge badge-admin"><i class="fa-solid fa-check"></i> YES</span>` 
+                : `<span class="badge badge-viewer">NO</span>`;
+        }
             
         const isChecked = (filterType === 'import' ? col.is_enabled_import : col.is_enabled_export) === 1 ? 'checked' : '';
         const isDeletable = !systemKeys[targetType].includes(col.column_key);
@@ -1417,6 +1427,36 @@ async function saveExcelColumnsChanges() {
         }
     } catch (err) {
         showAppAlert('Network error saving changes.');
+    }
+}
+
+async function adminToggleColumnMandatory(columnKey, targetType, newReqState) {
+    try {
+        const response = await fetch('/api/admin/excel-columns/toggle-mandatory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                column_key: columnKey,
+                target_type: targetType,
+                is_required: newReqState
+            })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAppAlert(`Mandatory status updated for "${columnKey}"!`, true);
+            if (targetType === 'emi') {
+                await adminFetchEmiColumns();
+            } else {
+                await adminFetchExcelColumns();
+            }
+            if (typeof loadDynamicCustomFields === 'function') {
+                await loadDynamicCustomFields();
+            }
+        } else {
+            showAppAlert(result.error || 'Failed to update mandatory status.');
+        }
+    } catch (err) {
+        showAppAlert('Network error updating mandatory status.');
     }
 }
 
@@ -1510,9 +1550,19 @@ function renderAdminEmiColumnsTable(columns) {
         const tr = document.createElement('tr');
 
         const isReq = col.is_required === 1;
-        const requiredHtml = isReq
-            ? `<span class="badge badge-admin"><i class="fa-solid fa-check"></i> Yes</span>`
-            : `<span class="badge badge-viewer">No</span>`;
+        const canUserToggleMandatory = canEdit || ((typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin));
+        let requiredHtml = '';
+        if (canUserToggleMandatory) {
+            if (isReq) {
+                requiredHtml = `<button type="button" class="badge badge-admin" style="border: none; cursor: pointer; padding: 4px 10px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;" onclick="adminToggleColumnMandatory('${col.column_key}', 'emi', 0)" title="Click to set as optional (NO)"><i class="fa-solid fa-check"></i> YES</button>`;
+            } else {
+                requiredHtml = `<button type="button" class="badge badge-viewer" style="border: none; cursor: pointer; padding: 4px 10px; font-size: 0.8rem; background-color: var(--border-color, #4b5563); color: #ffffff;" onclick="adminToggleColumnMandatory('${col.column_key}', 'emi', 1)" title="Click to set as mandatory (YES)">NO</button>`;
+            }
+        } else {
+            requiredHtml = isReq 
+                ? `<span class="badge badge-admin"><i class="fa-solid fa-check"></i> YES</span>` 
+                : `<span class="badge badge-viewer">NO</span>`;
+        }
 
         const isChecked = (filterType === 'import' ? col.is_enabled_import : col.is_enabled_export) === 1 ? 'checked' : '';
         const isDeletable = !systemKeys.includes(col.column_key);
@@ -2231,6 +2281,10 @@ function openEditColumnModal(columnKey, targetType, context) {
     
     document.getElementById('admin-edit-column-import').checked = col.is_enabled_import === 1;
     document.getElementById('admin-edit-column-export').checked = col.is_enabled_export === 1;
+    const reqCb = document.getElementById('admin-edit-column-required');
+    if (reqCb) {
+        reqCb.checked = col.is_required === 1;
+    }
     
     const isSuperAdmin = (typeof currentUserRoleId !== 'undefined' && currentUserRoleId === 4) || (typeof currentUserPrivileges !== 'undefined' && currentUserPrivileges && currentUserPrivileges.is_admin);
     const isRequired = col.is_required === 1;
@@ -2262,6 +2316,8 @@ async function handleSaveEditedColumn(e) {
     
     const imp = document.getElementById('admin-edit-column-import').checked ? 1 : 0;
     const exp = document.getElementById('admin-edit-column-export').checked ? 1 : 0;
+    const reqCb = document.getElementById('admin-edit-column-required');
+    const req = reqCb ? (reqCb.checked ? 1 : 0) : 0;
     
     if (!label) {
         showAppAlert('Column Label is required.');
@@ -2275,6 +2331,7 @@ async function handleSaveEditedColumn(e) {
         display_order: order,
         is_enabled_import: imp,
         is_enabled_export: exp,
+        is_required: req,
         parent_column_key: parentKey,
         parent_trigger_value: parentTrigger
     };
