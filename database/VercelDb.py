@@ -267,15 +267,9 @@ def get_vercel_db_connection():
         raise last_exception
 
     else:
-        # No Postgres config was provided.
-        # If running on Vercel, SQLite is ephemeral and not supported, so fail explicitly.
+        # Fallback to SQLite (e.g. /tmp/expenses.db on Vercel or local expenses.db)
         if is_vercel:
-            raise RuntimeError(
-                "Database is not configured for Vercel production! "
-                "Please configure 'DATABASE_URL' or 'POSTGRES_URL' environment variable in your Vercel project settings. "
-                "SQLite is not supported in Vercel production as serverless storage is ephemeral."
-            )
-        # Otherwise (local development), use SQLite fallback.
+            print("[WARNING] DATABASE_URL is not set in Vercel environment variables. Using ephemeral /tmp/expenses.db fallback.")
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         return conn

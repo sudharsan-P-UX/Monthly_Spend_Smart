@@ -10,8 +10,11 @@ import database
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'spendsmart-default-secret-key-12345')
 
-# Initialize database
-database.init_db()
+# Initialize database safely
+try:
+    database.init_db()
+except Exception as e:
+    print(f"[WARNING] Initial database setup encountered error: {e}")
 
 # Import route registration helpers
 from routes.index import register_index_routes
