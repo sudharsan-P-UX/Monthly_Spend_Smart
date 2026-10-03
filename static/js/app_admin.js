@@ -6,26 +6,8 @@ function initAdminTabs() {
     const adminTabs = document.querySelectorAll('.admin-tab');
     adminTabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            adminTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-
             const targetTab = tab.getAttribute('data-tab');
-            document.querySelectorAll('.admin-sub-section').forEach(sec => {
-                sec.classList.add('hidden');
-            });
-            const subSec = document.getElementById(`tab-${targetTab}`);
-            if (subSec) {
-                subSec.classList.remove('hidden');
-            }
-            if (targetTab === 'admin-emis') {
-                adminFetchEmiColumns();
-            }
-            if (targetTab === 'admin-roles') {
-                adminFetchRoles();
-            }
-            if (targetTab === 'admin-expense-control') {
-                adminFetchManageListsMaster();
-            }
+            switchAdminTab(targetTab);
         });
     });
 }
@@ -48,16 +30,21 @@ function switchAdminTab(tabName) {
     if (subSec) {
         subSec.classList.remove('hidden');
     }
-    if (tabName === 'admin-emis') {
+
+    if (tabName === 'admin-users') {
+        adminFetchUsers();
+    } else if (tabName === 'admin-emis') {
         adminFetchEmiColumns();
-    }
-    if (tabName === 'admin-roles') {
+    } else if (tabName === 'admin-roles') {
         adminFetchRoles();
-    }
-    if (tabName === 'admin-expense-control') {
+    } else if (tabName === 'admin-expense-control') {
         adminFetchManageListsMaster();
-    }
-    if (tabName === 'admin-labels') {
+    } else if (tabName === 'admin-excel-columns') {
+        adminFetchExcelColumns();
+    } else if (tabName === 'admin-currencies') {
+        if (typeof fetchCurrencies === 'function') fetchCurrencies();
+        if (typeof adminFetchCurrencies === 'function') adminFetchCurrencies();
+    } else if (tabName === 'admin-labels') {
         adminFetchLabels();
     }
 }

@@ -94,10 +94,10 @@ async function applyUserPrivileges() {
     const adminTabs = document.querySelectorAll('.admin-tab');
     adminTabs.forEach(tab => {
         const targetTab = tab.getAttribute('data-tab');
-        if (targetTab === 'admin-expense-control' || targetTab === 'admin-currencies' || targetTab === 'admin-expense-columns' || targetTab === 'admin-emis') {
+        if (currentUserPrivileges.is_admin) {
             tab.classList.remove('hidden');
         } else {
-            if (currentUserPrivileges.is_admin) {
+            if (targetTab === 'admin-expense-control' || targetTab === 'admin-currencies' || targetTab === 'admin-excel-columns' || targetTab === 'admin-emis' || targetTab === 'admin-labels') {
                 tab.classList.remove('hidden');
             } else {
                 tab.classList.add('hidden');
