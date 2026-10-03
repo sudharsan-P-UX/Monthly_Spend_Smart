@@ -20,6 +20,9 @@ function initAdminTabs() {
             if (targetTab === 'admin-emis') {
                 adminFetchEmiColumns();
             }
+            if (targetTab === 'admin-roles') {
+                adminFetchRoles();
+            }
             if (targetTab === 'admin-expense-control') {
                 adminFetchManageListsMaster();
             }
@@ -47,6 +50,9 @@ function switchAdminTab(tabName) {
     }
     if (tabName === 'admin-emis') {
         adminFetchEmiColumns();
+    }
+    if (tabName === 'admin-roles') {
+        adminFetchRoles();
     }
     if (tabName === 'admin-expense-control') {
         adminFetchManageListsMaster();
