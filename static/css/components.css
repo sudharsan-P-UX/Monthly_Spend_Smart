@@ -194,7 +194,7 @@ background: rgba(244, 63, 94, 0.15);
 /* Administration Panel Layout */
 .admin-layout-wrapper {
     display: flex;
-    gap: 25px;
+    gap: 20px;
     align-items: flex-start;
     width: 100%;
     position: relative;
@@ -202,7 +202,7 @@ background: rgba(244, 63, 94, 0.15);
 }
 
 .admin-sidebar-menu {
-    width: 230px;
+    width: 210px;
     flex-shrink: 0;
     position: sticky;
     top: 15px;
@@ -213,10 +213,10 @@ background: rgba(244, 63, 94, 0.15);
     display: flex;
     flex-direction: column;
     gap: 6px;
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(15, 23, 42, 0.75);
     border: 1px solid var(--border-glass);
     border-radius: var(--radius-md);
-    padding: 12px;
+    padding: 10px;
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
     margin-top: 0;
@@ -229,8 +229,8 @@ background: rgba(244, 63, 94, 0.15);
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    padding: 10px 14px;
-    font-size: 0.88rem;
+    padding: 10px 12px;
+    font-size: 0.86rem;
     font-weight: 500;
     font-family: var(--font-family);
     cursor: pointer;
@@ -240,6 +240,7 @@ background: rgba(244, 63, 94, 0.15);
     gap: 10px;
     text-align: left;
     width: 100%;
+    white-space: nowrap;
 }
 
 .admin-tab:hover {
@@ -259,14 +260,15 @@ background: rgba(244, 63, 94, 0.15);
 }
 
 .admin-content-area {
-    flex-grow: 1;
+    flex: 1;
     min-width: 0;
+    width: calc(100% - 230px);
 }
 
 .admin-grid {
     display: grid;
-    grid-template-columns: 1.6fr 1fr;
-    gap: 30px;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 20px;
     align-items: start;
 }
 

@@ -23,8 +23,11 @@
     height: 100%;
 }
 
-/* Header/Top Navigation Styling */
+/* Header/Top Navigation Styling (Frozen Sticky Top Header) */
 .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--border-glass);
@@ -33,7 +36,9 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 20px;
-    background: rgba(10, 15, 28, 0.45);
+    background: rgba(10, 15, 28, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 .sidebar-header {
