@@ -96,7 +96,8 @@ Once the deploy is complete, your SpendSmart instance will be live, and all expe
 ---
 
 ## 5. Manage List Master Table & Expandable Sub-Lists
-- **Consolidated Sidebar Menu**: Merged `Expense Control List` and `Expense Columns` into a single, unified **Expense Control List** sidebar menu tab. Both the Manage List Master table and Expense Columns List table live inside this consolidated view for unified system administration.
+- **Removed Menu**: Completely removed the redundant `Expense Columns` sidebar button and section from the Administration Panel.
+- **Streamlined Manage List Tab**: `Expense Control List` is now strictly focused on the master **Manage List** table (`Categories`, `Bank Modes`, `Payment Gateways`, `Payment Source`, and custom lists) with status checkboxes, actions, and Eye Icon sub-item drawers.
 - **Master Table Columns**:
   - `Manage List Name`: Name of the parent control list.
   - `Status`: Checkbox toggle for active/inactive status.

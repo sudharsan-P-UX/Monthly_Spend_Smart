@@ -20,12 +20,8 @@ function initAdminTabs() {
             if (targetTab === 'admin-emis') {
                 adminFetchEmiColumns();
             }
-            if (targetTab === 'admin-expense-columns') {
-                adminFetchExpenseColumnsTab();
-            }
-            if (targetTab === 'admin-expense-control' || targetTab === 'admin-expense-columns') {
+            if (targetTab === 'admin-expense-control') {
                 adminFetchManageListsMaster();
-                adminFetchExpenseColumnsTab();
             }
         });
     });
@@ -52,9 +48,8 @@ function switchAdminTab(tabName) {
     if (tabName === 'admin-emis') {
         adminFetchEmiColumns();
     }
-    if (tabName === 'admin-expense-control' || tabName === 'admin-expense-columns') {
+    if (tabName === 'admin-expense-control') {
         adminFetchManageListsMaster();
-        adminFetchExpenseColumnsTab();
     }
     if (tabName === 'admin-labels') {
         adminFetchLabels();
@@ -77,8 +72,7 @@ async function loadAdminPanel() {
         adminFetchExcelColumns(),
         adminFetchSettings(),
         adminFetchLabels(),
-        adminFetchManageListsMaster(),
-        adminFetchExpenseColumnsTab()
+        adminFetchManageListsMaster()
     ]);
 }
 
