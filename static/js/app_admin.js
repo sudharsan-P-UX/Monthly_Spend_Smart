@@ -2360,7 +2360,7 @@ document.addEventListener('change', (e) => {
 
 // MANAGE LIST MASTER TABLE LOGIC
 let adminManageListsLocal = [];
-let openSubListKeys = new Set(['categories']); // Open Categories by default
+let openSubListKeys = new Set(); // No sub list open by default
 
 async function adminFetchManageListsMaster() {
     try {
@@ -2410,12 +2410,19 @@ function renderAdminManageListMasterTable() {
             </td>
             <td class="text-center">${finalActions}</td>
             <td class="text-center">
-                <button type="button" class="btn-icon" onclick="adminToggleSubListRow('${item.list_key}')" title="View Sub List" style="color: ${eyeColor}; margin: 0;">
-                    <i class="fa-solid ${isSubOpen ? 'fa-eye-slash' : 'fa-eye'}" id="eye-icon-${item.list_key}"></i>
-                </button>
+                <div class="view-sublist-cell" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; position: relative;">
+                    <button type="button" class="btn-icon" onclick="adminToggleSubListRow('${item.list_key}')" title="View Sub List" style="color: ${eyeColor}; margin: 0;">
+                        <i class="fa-solid ${isSubOpen ? 'fa-eye-slash' : 'fa-eye'}" id="eye-icon-${item.list_key}"></i>
+                    </button>
+                    <span class="sub-info-icon" title="Hover to view sub-items">!</span>
+                    <div class="sub-tooltip-popup" id="sub-tooltip-${item.list_key}">Loading...</div>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
+
+        // Fetch sub-items preview for tooltip
+        adminFetchSubItemsTooltip(item.list_key);
 
         // Expandable Sub-List Row
         const subTr = document.createElement('tr');
@@ -2461,6 +2468,26 @@ function renderAdminManageListMasterTable() {
             adminFetchAndRenderSubItems(item.list_key);
         }
     });
+}
+
+async function adminFetchSubItemsTooltip(key) {
+    const tooltipEl = document.getElementById(`sub-tooltip-${key}`);
+    if (!tooltipEl) return;
+    try {
+        const response = await fetch(`/api/admin/manage_lists/subitems/${key}`);
+        if (response.ok) {
+            const subItems = await response.json();
+            if (Array.isArray(subItems) && subItems.length > 0) {
+                tooltipEl.textContent = subItems.map(s => s.name).join(', ');
+            } else {
+                tooltipEl.textContent = 'No sub-items available.';
+            }
+        } else {
+            tooltipEl.textContent = 'No sub-items available.';
+        }
+    } catch (err) {
+        if (tooltipEl) tooltipEl.textContent = 'No sub-items available.';
+    }
 }
 
 async function adminToggleSubListRow(key) {
@@ -2541,6 +2568,7 @@ async function adminAddSubListItem(key) {
             nameInput.value = '';
             if (orderInput) orderInput.value = '0';
             await adminFetchAndRenderSubItems(key);
+            adminFetchSubItemsTooltip(key);
             if (typeof fetchCategories === 'function') fetchCategories();
             if (typeof fetchBankModes === 'function') fetchBankModes();
             if (typeof fetchPaymentTypes === 'function') fetchPaymentTypes();
@@ -2576,6 +2604,7 @@ async function adminSaveSubListItem(key, subId) {
         if (response.ok && result.success) {
             showAppAlert('Sub-item updated successfully!', true);
             await adminFetchAndRenderSubItems(key);
+            adminFetchSubItemsTooltip(key);
             if (typeof fetchCategories === 'function') fetchCategories();
             if (typeof fetchBankModes === 'function') fetchBankModes();
             if (typeof fetchPaymentTypes === 'function') fetchPaymentTypes();
@@ -2599,6 +2628,7 @@ async function adminDeleteSubListItem(key, subId, name) {
         if (response.ok && result.success) {
             showAppAlert('Sub-item deleted successfully!', true);
             await adminFetchAndRenderSubItems(key);
+            adminFetchSubItemsTooltip(key);
             if (typeof fetchCategories === 'function') fetchCategories();
             if (typeof fetchBankModes === 'function') fetchBankModes();
             if (typeof fetchPaymentTypes === 'function') fetchPaymentTypes();
