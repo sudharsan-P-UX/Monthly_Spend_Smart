@@ -103,6 +103,9 @@
                 <button class="btn-primary btn-sm hidden" id="btn-selected-emi-overview" onclick="openSelectedEmiOverviewModal()" title="View Overview of Selected EMIs">
                     <i class="fa-solid fa-chart-pie"></i> <span>Overview</span>
                 </button>
+                <button class="btn-secondary btn-sm" onclick="toggleEmiFilters()" title="Filter EMIs">
+                    <i class="fa-solid fa-filter"></i> <span>Filter</span>
+                </button>
                 <button class="btn-secondary btn-sm" onclick="toggleEmiOverview()" title="Toggle Overview Statistics">
                     <i class="fa-solid fa-chart-simple"></i> <span>Overview</span>
                 </button>
@@ -115,6 +118,50 @@
                 <button class="btn-primary btn-sm" onclick="openEmiModal()">
                     <i class="fa-solid fa-plus"></i> <span>Add EMI</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- EMI Filters Panel (collapsible) -->
+        <div id="emi-filters-panel" class="filters-panel hidden" style="background: rgba(15, 23, 42, 0.4); border-bottom: 1px solid var(--border-color); padding: 15px 20px; margin-bottom: 15px; border-radius: 8px;">
+            <div class="filters-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; align-items: end;">
+                <div class="filter-group">
+                    <label for="emi-filter-status" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block;">Active Status</label>
+                    <select id="emi-filter-status" class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 6px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color);" onchange="applyEmiFilters()">
+                        <option value="">All Statuses</option>
+                        <option value="Open">Open (Active)</option>
+                        <option value="Closed">Closed (Completed)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="emi-filter-bank" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block;">Payment Bank</label>
+                    <select id="emi-filter-bank" class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 6px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color);" onchange="applyEmiFilters()">
+                        <option value="">All Banks</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="emi-filter-dueday" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block;">Due Day</label>
+                    <select id="emi-filter-dueday" class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 6px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color);" onchange="applyEmiFilters()">
+                        <option value="">All Days</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="emi-filter-type" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block;">Payment Type</label>
+                    <select id="emi-filter-type" class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 6px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color);" onchange="applyEmiFilters()">
+                        <option value="">All Types</option>
+                        <option value="Auto">Auto</option>
+                        <option value="Manual">Manual</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="grid-column: span 2;">
+                    <label for="emi-filter-search" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block;">Search Name</label>
+                    <input type="text" id="emi-filter-search" placeholder="Search by EMI Name..." class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 6px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color);" oninput="applyEmiFilters()">
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button class="btn-secondary btn-sm" onclick="resetEmiFilters()" style="height: 38px;">Reset</button>
+                    <button class="btn-primary btn-sm" onclick="applyEmiFilters()" style="height: 38px;">Apply</button>
+                </div>
             </div>
         </div>
 

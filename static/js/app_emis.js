@@ -28,6 +28,7 @@ async function fetchUserEMIs() {
             renderUserEMIsTable(userEMIs);
             updateEmiSummaryCards(userEMIs);
             populateEmiBankDropdowns();
+            populateEmiFilterDropdowns();
         }
     } catch (err) {
         console.error('Error fetching user EMIs:', err);
@@ -1320,6 +1321,120 @@ function calculateEndDate(startDateStr, months) {
 }
 
 // EMI Actions and Calendars
+function populateEmiFilterDropdowns() {
+    const filterBankSelect = document.getElementById('emi-filter-bank');
+    if (filterBankSelect) {
+        let bankOptions = '<option value="">All Banks</option>';
+        const setOfBanks = new Set();
+        (userEMIs || []).forEach(e => {
+            if (e.payment_bank && e.payment_bank.trim()) {
+                setOfBanks.add(e.payment_bank.trim());
+            }
+        });
+        (typeof systemBankModes !== 'undefined' ? systemBankModes : []).forEach(bm => {
+            if (bm.name && bm.name.trim()) {
+                setOfBanks.add(bm.name.trim());
+            }
+        });
+        Array.from(setOfBanks).sort().forEach(b => {
+            bankOptions += `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`;
+        });
+        filterBankSelect.innerHTML = bankOptions;
+    }
+
+    const filterDueDaySelect = document.getElementById('emi-filter-dueday');
+    if (filterDueDaySelect && filterDueDaySelect.options.length <= 1) {
+        let dayOptions = '<option value="">All Days</option>';
+        for (let d = 1; d <= 31; d++) {
+            dayOptions += `<option value="${d}">${d}${getOrdinalSuffix(d)} of Month</option>`;
+        }
+        filterDueDaySelect.innerHTML = dayOptions;
+    }
+}
+
+function toggleEmiFilters() {
+    const panel = document.getElementById('emi-filters-panel');
+    if (panel) {
+        panel.classList.toggle('hidden');
+        if (!panel.classList.contains('hidden')) {
+            populateEmiFilterDropdowns();
+        }
+    }
+}
+
+function applyEmiFilters() {
+    if (!userEMIs) return;
+
+    const statusEl = document.getElementById('emi-filter-status');
+    const bankEl = document.getElementById('emi-filter-bank');
+    const dueDayEl = document.getElementById('emi-filter-dueday');
+    const typeEl = document.getElementById('emi-filter-type');
+    const searchEl = document.getElementById('emi-filter-search');
+
+    const statusVal = statusEl ? statusEl.value.trim() : '';
+    const bankVal = bankEl ? bankEl.value.trim() : '';
+    const dueDayVal = dueDayEl ? dueDayEl.value.trim() : '';
+    const typeVal = typeEl ? typeEl.value.trim() : '';
+    const searchVal = searchEl ? searchEl.value.trim().toLowerCase() : '';
+
+    const filtered = userEMIs.filter(emi => {
+        const tenure = parseInt(emi.tenure_months) || 12;
+        const monthsElapsed = getEmiMonthsElapsed(emi);
+        const isOpen = monthsElapsed < tenure;
+
+        // 1. Active Status (Open / Closed)
+        if (statusVal === 'Open' && !isOpen) return false;
+        if (statusVal === 'Closed' && isOpen) return false;
+
+        // 2. Bank Filter
+        if (bankVal) {
+            const emiBank = (emi.payment_bank && emi.payment_bank.trim()) ? emi.payment_bank.trim() : 'Unassigned / N/A';
+            if (emiBank !== bankVal) return false;
+        }
+
+        // 3. Due Day Filter
+        if (dueDayVal) {
+            const dayNum = parseInt(dueDayVal, 10);
+            const emiDueDay = parseDueDay(emi.due_date, emi.start_date);
+            if (emiDueDay !== dayNum) return false;
+        }
+
+        // 4. Payment Type Filter
+        if (typeVal) {
+            const emiType = (emi.payment_type || 'Manual').trim();
+            if (emiType.toLowerCase() !== typeVal.toLowerCase()) return false;
+        }
+
+        // 5. Search Filter
+        if (searchVal) {
+            const nameMatch = emi.name && emi.name.toLowerCase().includes(searchVal);
+            if (!nameMatch) return false;
+        }
+
+        return true;
+    });
+
+    renderUserEMIsTable(filtered);
+    updateEmiSummaryCards(filtered);
+}
+
+function resetEmiFilters() {
+    const statusEl = document.getElementById('emi-filter-status');
+    const bankEl = document.getElementById('emi-filter-bank');
+    const dueDayEl = document.getElementById('emi-filter-dueday');
+    const typeEl = document.getElementById('emi-filter-type');
+    const searchEl = document.getElementById('emi-filter-search');
+
+    if (statusEl) statusEl.value = '';
+    if (bankEl) bankEl.value = '';
+    if (dueDayEl) dueDayEl.value = '';
+    if (typeEl) typeEl.value = '';
+    if (searchEl) searchEl.value = '';
+
+    renderUserEMIsTable(userEMIs);
+    updateEmiSummaryCards(userEMIs);
+}
+
 function toggleEmiOverview() {
     const checkedBoxes = document.querySelectorAll('.user-emi-row-checkbox:checked');
     if (checkedBoxes.length > 0) {
