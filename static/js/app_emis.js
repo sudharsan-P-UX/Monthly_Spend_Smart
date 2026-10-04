@@ -505,7 +505,9 @@ function updateEmiSummaryCards(emis) {
             monthlyEmi: isCurrentActive ? emiAmount : 0,
             tenure: tenure,
             monthsElapsed: monthsElapsed,
-            due_date: emi.due_date
+            due_date: emi.due_date,
+            start_date: emi.start_date,
+            payment_bank: emi.payment_bank
         });
     });
 
@@ -586,8 +588,9 @@ function renderEmiBreakdownLists(emisList, bankContainerIds, dueDayContainerIds,
         bankHtml = `<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 12px;">No bank breakdown data available</div>`;
     } else {
         sortedBanks.forEach(b => {
+            const bankParam = encodeURIComponent(b.bank);
             bankHtml += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                <div class="clickable-breakdown-row" onclick="showEmiOverviewDetails('bank', decodeURIComponent('${bankParam}'))" title="Click to view details list for ${escapeHTML(b.bank)}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255, 255, 255, 0.08)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.03)'">
                     <div>
                         <span style="font-weight: 600; color: var(--text-primary); font-size: 0.88rem;">${escapeHTML(b.bank)}</span>
                         <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 6px;">(${b.count} ${b.count === 1 ? 'EMI' : 'EMIs'})</span>
@@ -604,7 +607,7 @@ function renderEmiBreakdownLists(emisList, bankContainerIds, dueDayContainerIds,
     } else {
         sortedDueDays.forEach(d => {
             dueDayHtml += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                <div class="clickable-breakdown-row" onclick="showEmiOverviewDetails('dueday', ${d.dayNum})" title="Click to view details list for Due Date ${d.dayNum}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255, 255, 255, 0.08)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.03)'">
                     <div>
                         <span style="font-weight: 600; color: var(--text-primary); font-size: 0.88rem;">Due Date: ${d.dayNum}${getOrdinalSuffix(d.dayNum)} of Month</span>
                         <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 6px;">(${d.count} ${d.count === 1 ? 'EMI' : 'EMIs'})</span>
@@ -715,7 +718,7 @@ function renderEmiOverviewCharts() {
 }
 
 // Show specific EMI Details popup matching the clicked Overview category
-function showEmiOverviewDetails(type) {
+function showEmiOverviewDetails(type, filterParam = null) {
     const modal = document.getElementById('emi-overview-details-modal');
     const titleEl = document.getElementById('emi-overview-details-title');
     const headersEl = document.getElementById('emi-overview-details-headers');
@@ -724,14 +727,19 @@ function showEmiOverviewDetails(type) {
     if (!modal || !titleEl || !headersEl || !listEl) return;
 
     if (!window.currentEmiDetails || window.currentEmiDetails.length === 0) {
-        showAppAlert('No EMI data available.');
-        return;
+        if (userEMIs && userEMIs.length > 0) {
+            updateEmiSummaryCards(userEMIs);
+        } else {
+            showAppAlert('No EMI data available.');
+            return;
+        }
     }
 
     let titleText = '';
     let headerHtml = '';
     let rowsHtml = '';
     let totalSum = 0;
+    let colCount = 4;
 
     switch (type) {
         case 'total-loan':
@@ -744,6 +752,7 @@ function showEmiOverviewDetails(type) {
                     <th class="text-center">Elapsed</th>
                 </tr>
             `;
+            colCount = 4;
             window.currentEmiDetails.forEach(item => {
                 totalSum += item.principal;
                 rowsHtml += `
@@ -766,6 +775,7 @@ function showEmiOverviewDetails(type) {
                     <th class="text-center">Progress</th>
                 </tr>
             `;
+            colCount = 4;
             window.currentEmiDetails.forEach(item => {
                 totalSum += item.pendingPrincipal;
                 const progressPct = item.tenure > 0 ? ((item.monthsElapsed / item.tenure) * 100).toFixed(0) : '0';
@@ -789,6 +799,7 @@ function showEmiOverviewDetails(type) {
                     <th class="text-center">Progress</th>
                 </tr>
             `;
+            colCount = 4;
             window.currentEmiDetails.forEach(item => {
                 totalSum += item.principalPaid;
                 const progressPct = item.tenure > 0 ? ((item.monthsElapsed / item.tenure) * 100).toFixed(0) : '0';
@@ -812,6 +823,7 @@ function showEmiOverviewDetails(type) {
                     <th class="text-center">Tenure (Months)</th>
                 </tr>
             `;
+            colCount = 4;
             window.currentEmiDetails.forEach(item => {
                 totalSum += item.totalInterest;
                 rowsHtml += `
@@ -834,6 +846,7 @@ function showEmiOverviewDetails(type) {
                     <th class="text-center">Elapsed</th>
                 </tr>
             `;
+            colCount = 4;
             window.currentEmiDetails.forEach(item => {
                 totalSum += item.paidInterest;
                 rowsHtml += `
@@ -856,6 +869,7 @@ function showEmiOverviewDetails(type) {
                     <th class="text-center">Status</th>
                 </tr>
             `;
+            colCount = 4;
             window.currentEmiDetails.forEach(item => {
                 totalSum += item.monthlyEmi;
                 const statusHtml = item.monthsElapsed < item.tenure
@@ -871,14 +885,89 @@ function showEmiOverviewDetails(type) {
                 `;
             });
             break;
+        case 'bank':
+            const bankName = filterParam || 'Unassigned / N/A';
+            titleText = `EMI Details: Bank - ${bankName}`;
+            headerHtml = `
+                <tr>
+                    <th>EMI Name</th>
+                    <th class="text-right">Monthly EMI</th>
+                    <th class="text-right">Loan Amount</th>
+                    <th class="text-right">Pending Balance</th>
+                    <th class="text-center">Due Day</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            `;
+            colCount = 6;
+            window.currentEmiDetails.forEach(item => {
+                const itemBank = (item.payment_bank && item.payment_bank.trim()) ? item.payment_bank.trim() : 'Unassigned / N/A';
+                if (itemBank === bankName || (bankName === 'Unassigned / N/A' && itemBank === 'Unassigned / N/A')) {
+                    totalSum += item.monthlyEmi;
+                    const statusHtml = item.monthsElapsed < item.tenure
+                        ? `<span class="badge badge-admin">Active</span>`
+                        : `<span class="badge badge-viewer">Completed</span>`;
+                    const dueDayNum = parseDueDay(item.due_date, item.start_date);
+                    rowsHtml += `
+                        <tr>
+                            <td><span style="font-weight: 500;">${escapeHTML(item.name)}</span></td>
+                            <td class="text-right" style="color: var(--color-primary); font-weight: 600;">${activeCurrencySymbol}${item.monthlyEmi.toFixed(2)}</td>
+                            <td class="text-right">${activeCurrencySymbol}${item.principal.toFixed(2)}</td>
+                            <td class="text-right" style="color: var(--color-secondary);">${activeCurrencySymbol}${item.pendingPrincipal.toFixed(2)}</td>
+                            <td class="text-center">${dueDayNum}${getOrdinalSuffix(dueDayNum)}</td>
+                            <td class="text-center">${statusHtml}</td>
+                        </tr>
+                    `;
+                }
+            });
+            break;
+        case 'dueday':
+            const dayNum = parseInt(filterParam, 10);
+            titleText = `EMI Details: Due Date ${dayNum}${getOrdinalSuffix(dayNum)} of Month`;
+            headerHtml = `
+                <tr>
+                    <th>EMI Name</th>
+                    <th class="text-right">Monthly EMI</th>
+                    <th class="text-right">Loan Amount</th>
+                    <th class="text-right">Pending Balance</th>
+                    <th>Payment Bank</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            `;
+            colCount = 6;
+            window.currentEmiDetails.forEach(item => {
+                const itemDueDay = parseDueDay(item.due_date, item.start_date);
+                if (itemDueDay === dayNum) {
+                    totalSum += item.monthlyEmi;
+                    const statusHtml = item.monthsElapsed < item.tenure
+                        ? `<span class="badge badge-admin">Active</span>`
+                        : `<span class="badge badge-viewer">Completed</span>`;
+                    const bName = (item.payment_bank && item.payment_bank.trim()) ? item.payment_bank.trim() : 'N/A';
+                    rowsHtml += `
+                        <tr>
+                            <td><span style="font-weight: 500;">${escapeHTML(item.name)}</span></td>
+                            <td class="text-right" style="color: var(--color-accent); font-weight: 600;">${activeCurrencySymbol}${item.monthlyEmi.toFixed(2)}</td>
+                            <td class="text-right">${activeCurrencySymbol}${item.principal.toFixed(2)}</td>
+                            <td class="text-right" style="color: var(--color-secondary);">${activeCurrencySymbol}${item.pendingPrincipal.toFixed(2)}</td>
+                            <td>${escapeHTML(bName)}</td>
+                            <td class="text-center">${statusHtml}</td>
+                        </tr>
+                    `;
+                }
+            });
+            break;
+    }
+
+    let emptyTds = '';
+    const emptyTdCount = Math.max(0, colCount - 2);
+    for (let i = 0; i < emptyTdCount; i++) {
+        emptyTds += '<td></td>';
     }
 
     rowsHtml += `
         <tr style="border-top: 2px solid var(--border-color); font-weight: bold; background: rgba(255,255,255,0.02);">
             <td>Total Sum</td>
             <td class="text-right" style="font-size: 1rem;">${activeCurrencySymbol}${totalSum.toFixed(2)}</td>
-            <td></td>
-            <td></td>
+            ${emptyTds}
         </tr>
     `;
 
