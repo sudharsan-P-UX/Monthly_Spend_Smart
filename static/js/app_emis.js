@@ -25,10 +25,9 @@ async function fetchUserEMIs() {
         const response = await fetch('/api/emis');
         if (response.ok) {
             userEMIs = await response.json();
-            renderUserEMIsTable(userEMIs);
-            updateEmiSummaryCards(userEMIs);
             populateEmiBankDropdowns();
             populateEmiFilterDropdowns();
+            applyEmiFilters();
         }
     } catch (err) {
         console.error('Error fetching user EMIs:', err);
@@ -217,8 +216,29 @@ function openSelectedEmiOverviewModal() {
         tbody.appendChild(tr);
     });
 
+    // Unselected EMIs calculation
+    const unselectedEMIs = (userEMIs || []).filter(e => !selectedIds.includes(String(e.id)));
+    let unselectedMonthlyEmi = 0;
+    let unselectedRemainingPrincipal = 0;
+
+    unselectedEMIs.forEach(emi => {
+        const tenure = parseInt(emi.tenure_months) || 12;
+        const monthsElapsed = getEmiMonthsElapsed(emi);
+        const isCurrentActive = monthsElapsed < tenure;
+        const emiAmt = parseFloat(emi.emi_amount || 0);
+
+        if (isCurrentActive) {
+            unselectedMonthlyEmi += emiAmt;
+        }
+
+        const pending = calculateEmiPendingDetails(emi);
+        unselectedRemainingPrincipal += pending.pendingPrincipal;
+    });
+
     const totalEmiEl = document.getElementById('selected-emi-total-amount');
     const remainingPrincipalEl = document.getElementById('selected-emi-remaining-principal');
+    const unselectedEmiEl = document.getElementById('unselected-emi-total-amount');
+    const unselectedRemainingPrincipalEl = document.getElementById('unselected-emi-remaining-principal');
     const totalPrincipalEl = document.getElementById('selected-emi-total-principal');
     const paidPrincipalEl = document.getElementById('selected-emi-paid-principal');
     const totalInterestEl = document.getElementById('selected-emi-total-interest');
@@ -226,10 +246,55 @@ function openSelectedEmiOverviewModal() {
 
     if (totalEmiEl) totalEmiEl.textContent = `${activeCurrencySymbol}${totalMonthlyEmi.toFixed(2)}`;
     if (remainingPrincipalEl) remainingPrincipalEl.textContent = `${activeCurrencySymbol}${totalRemainingPrincipal.toFixed(2)}`;
+    if (unselectedEmiEl) unselectedEmiEl.textContent = `${activeCurrencySymbol}${unselectedMonthlyEmi.toFixed(2)}`;
+    if (unselectedRemainingPrincipalEl) unselectedRemainingPrincipalEl.textContent = `${activeCurrencySymbol}${unselectedRemainingPrincipal.toFixed(2)}`;
     if (totalPrincipalEl) totalPrincipalEl.textContent = `${activeCurrencySymbol}${totalPrincipalAmount.toFixed(2)}`;
     if (paidPrincipalEl) paidPrincipalEl.textContent = `${activeCurrencySymbol}${totalPaidPrincipal.toFixed(2)}`;
     if (totalInterestEl) totalInterestEl.textContent = `${activeCurrencySymbol}${totalInterest.toFixed(2)}`;
     if (paidInterestEl) paidInterestEl.textContent = `${activeCurrencySymbol}${totalPaidInterest.toFixed(2)}`;
+
+    // Add comparative summary rows at bottom of table
+    const grandTotalMonthly = totalMonthlyEmi + unselectedMonthlyEmi;
+    const grandTotalRemainingPr = totalRemainingPrincipal + unselectedRemainingPrincipal;
+
+    const summaryRow1 = document.createElement('tr');
+    summaryRow1.style.borderTop = '2px solid var(--border-color)';
+    summaryRow1.style.fontWeight = 'bold';
+    summaryRow1.style.background = 'rgba(167, 139, 250, 0.08)';
+    summaryRow1.innerHTML = `
+        <td>Selected Total (${selectedEMIs.length} ${selectedEMIs.length === 1 ? 'EMI' : 'EMIs'})</td>
+        <td class="text-right" style="color: #a78bfa;">${activeCurrencySymbol}${totalMonthlyEmi.toFixed(2)}</td>
+        <td class="text-right">${activeCurrencySymbol}${totalPrincipalAmount.toFixed(2)}</td>
+        <td class="text-right" style="color: var(--color-secondary);">${activeCurrencySymbol}${totalRemainingPrincipal.toFixed(2)}</td>
+        <td colspan="3"></td>
+    `;
+    tbody.appendChild(summaryRow1);
+
+    if (unselectedEMIs.length > 0) {
+        const summaryRow2 = document.createElement('tr');
+        summaryRow2.style.fontWeight = 'bold';
+        summaryRow2.style.background = 'rgba(192, 132, 252, 0.05)';
+        summaryRow2.innerHTML = `
+            <td style="color: var(--text-muted);">Unselected Total (${unselectedEMIs.length} ${unselectedEMIs.length === 1 ? 'EMI' : 'EMIs'})</td>
+            <td class="text-right" style="color: #c084fc;">${activeCurrencySymbol}${unselectedMonthlyEmi.toFixed(2)}</td>
+            <td class="text-right">-</td>
+            <td class="text-right" style="color: #fb7185;">${activeCurrencySymbol}${unselectedRemainingPrincipal.toFixed(2)}</td>
+            <td colspan="3"></td>
+        `;
+        tbody.appendChild(summaryRow2);
+
+        const summaryRow3 = document.createElement('tr');
+        summaryRow3.style.fontWeight = 'bold';
+        summaryRow3.style.background = 'rgba(255, 255, 255, 0.03)';
+        summaryRow3.innerHTML = `
+            <td>Grand Total (All ${userEMIs.length} EMIs)</td>
+            <td class="text-right" style="color: var(--color-primary); font-size: 1rem;">${activeCurrencySymbol}${grandTotalMonthly.toFixed(2)}</td>
+            <td class="text-right">-</td>
+            <td class="text-right" style="color: var(--color-secondary); font-size: 1rem;">${activeCurrencySymbol}${grandTotalRemainingPr.toFixed(2)}</td>
+            <td colspan="3"></td>
+        `;
+        tbody.appendChild(summaryRow3);
+    }
 
     renderEmiBreakdownLists(selectedEMIs, ['selected-emi-bank-breakdown-list'], ['selected-emi-dueday-breakdown-list'], false);
 
@@ -1425,14 +1490,13 @@ function resetEmiFilters() {
     const typeEl = document.getElementById('emi-filter-type');
     const searchEl = document.getElementById('emi-filter-search');
 
-    if (statusEl) statusEl.value = '';
+    if (statusEl) statusEl.value = 'Open';
     if (bankEl) bankEl.value = '';
     if (dueDayEl) dueDayEl.value = '';
     if (typeEl) typeEl.value = '';
     if (searchEl) searchEl.value = '';
 
-    renderUserEMIsTable(userEMIs);
-    updateEmiSummaryCards(userEMIs);
+    applyEmiFilters();
 }
 
 function toggleEmiOverview() {
