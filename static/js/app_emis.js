@@ -1463,17 +1463,15 @@ function applyEmiFilters() {
             if (!nameMatch) return false;
         }
 
-        // 3. From Date Filter
+        // 3. Start Date Between From Date and To Date Filter
+        const emiStart = emi.start_date ? emi.start_date.trim() : '';
+
         if (fromDateVal) {
-            const emiStart = emi.start_date ? emi.start_date.trim() : '';
-            const emiEnd = emi.end_date ? emi.end_date.trim() : emiStart;
-            if ((emiEnd || emiStart) < fromDateVal) return false;
+            if (!emiStart || emiStart < fromDateVal) return false;
         }
 
-        // 4. To Date Filter
         if (toDateVal) {
-            const emiStart = emi.start_date ? emi.start_date.trim() : '';
-            if (emiStart && emiStart > toDateVal) return false;
+            if (!emiStart || emiStart > toDateVal) return false;
         }
 
         // 5. Bank Filter
