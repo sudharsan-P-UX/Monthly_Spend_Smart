@@ -1431,6 +1431,7 @@ function applyEmiFilters() {
     if (!userEMIs) return;
 
     const statusEl = document.getElementById('emi-filter-status');
+    const nameLikeEl = document.getElementById('emi-filter-name-like');
     const fromDateEl = document.getElementById('emi-filter-from-date');
     const toDateEl = document.getElementById('emi-filter-to-date');
     const bankEl = document.getElementById('emi-filter-bank');
@@ -1439,6 +1440,7 @@ function applyEmiFilters() {
     const searchEl = document.getElementById('emi-filter-search');
 
     const statusVal = statusEl ? statusEl.value.trim() : '';
+    const nameLikeVal = nameLikeEl ? nameLikeEl.value.trim().toLowerCase() : '';
     const fromDateVal = fromDateEl ? fromDateEl.value.trim() : '';
     const toDateVal = toDateEl ? toDateEl.value.trim() : '';
     const bankVal = bankEl ? bankEl.value.trim() : '';
@@ -1455,39 +1457,45 @@ function applyEmiFilters() {
         if (statusVal === 'Open' && !isOpen) return false;
         if (statusVal === 'Closed' && isOpen) return false;
 
-        // 2. From Date Filter
+        // 2. EMI Name Like Filter
+        if (nameLikeVal) {
+            const nameMatch = emi.name && emi.name.toLowerCase().includes(nameLikeVal);
+            if (!nameMatch) return false;
+        }
+
+        // 3. From Date Filter
         if (fromDateVal) {
             const emiStart = emi.start_date ? emi.start_date.trim() : '';
             const emiEnd = emi.end_date ? emi.end_date.trim() : emiStart;
             if ((emiEnd || emiStart) < fromDateVal) return false;
         }
 
-        // 3. To Date Filter
+        // 4. To Date Filter
         if (toDateVal) {
             const emiStart = emi.start_date ? emi.start_date.trim() : '';
             if (emiStart && emiStart > toDateVal) return false;
         }
 
-        // 4. Bank Filter
+        // 5. Bank Filter
         if (bankVal) {
             const emiBank = (emi.payment_bank && emi.payment_bank.trim()) ? emi.payment_bank.trim() : 'Unassigned / N/A';
             if (emiBank !== bankVal) return false;
         }
 
-        // 5. Due Day Filter
+        // 6. Due Day Filter
         if (dueDayVal) {
             const dayNum = parseInt(dueDayVal, 10);
             const emiDueDay = parseDueDay(emi.due_date, emi.start_date);
             if (emiDueDay !== dayNum) return false;
         }
 
-        // 6. Payment Type Filter
+        // 7. Payment Type Filter
         if (typeVal) {
             const emiType = (emi.payment_type || 'Manual').trim();
             if (emiType.toLowerCase() !== typeVal.toLowerCase()) return false;
         }
 
-        // 7. Search Filter
+        // 8. Search Filter
         if (searchVal) {
             const nameMatch = emi.name && emi.name.toLowerCase().includes(searchVal);
             if (!nameMatch) return false;
@@ -1502,6 +1510,7 @@ function applyEmiFilters() {
 
 function resetEmiFilters() {
     const statusEl = document.getElementById('emi-filter-status');
+    const nameLikeEl = document.getElementById('emi-filter-name-like');
     const fromDateEl = document.getElementById('emi-filter-from-date');
     const toDateEl = document.getElementById('emi-filter-to-date');
     const bankEl = document.getElementById('emi-filter-bank');
@@ -1510,6 +1519,7 @@ function resetEmiFilters() {
     const searchEl = document.getElementById('emi-filter-search');
 
     if (statusEl) statusEl.value = 'Open';
+    if (nameLikeEl) nameLikeEl.value = '';
     if (fromDateEl) fromDateEl.value = '';
     if (toDateEl) toDateEl.value = '';
     if (bankEl) bankEl.value = '';
