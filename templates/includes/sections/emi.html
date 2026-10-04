@@ -133,6 +133,14 @@
                     </select>
                 </div>
                 <div class="filter-group">
+                    <label for="emi-filter-from-date" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block;">From Date</label>
+                    <input type="date" id="emi-filter-from-date" class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 6px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color);" onchange="applyEmiFilters()">
+                </div>
+                <div class="filter-group">
+                    <label for="emi-filter-to-date" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block;">To Date</label>
+                    <input type="date" id="emi-filter-to-date" class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 6px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color);" onchange="applyEmiFilters()">
+                </div>
+                <div class="filter-group">
                     <label for="emi-filter-bank" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block;">Payment Bank</label>
                     <select id="emi-filter-bank" class="form-control" style="width: 100%; padding: 8px 12px; border-radius: 6px; background-color: #ffffff; color: #000000; border: 1px solid var(--border-color);" onchange="applyEmiFilters()">
                         <option value="">All Banks</option>
