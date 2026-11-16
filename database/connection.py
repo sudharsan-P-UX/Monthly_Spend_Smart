@@ -39,24 +39,43 @@ def init_db():
         conn.commit()
     except Exception:
         pass
+    finally:
+        conn.close()
+
+    # ------------------------------------------------------------------
+    # EMI column migrations – run in a dedicated connection so a failure
+    # in a previous statement cannot block this transaction.
+    # PostgreSQL 9.6+ supports ADD COLUMN IF NOT EXISTS.
+    # SQLite try/except handles the case where the column already exists.
+    # ------------------------------------------------------------------
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    is_pg = DATABASE_URL is not None  # True when running on Vercel/Neon
     try:
-        # Migration: add is_active column to emis table (1 = Active, 0 = Inactive)
-        cursor.execute("ALTER TABLE emis ADD COLUMN is_active INTEGER DEFAULT 1")
+        if is_pg:
+            cursor.execute("ALTER TABLE emis ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1")
+        else:
+            cursor.execute("ALTER TABLE emis ADD COLUMN is_active INTEGER DEFAULT 1")
         conn.commit()
     except Exception:
-        pass
+        try: conn.rollback()
+        except Exception: pass
     try:
         # Backfill: ensure all existing EMIs are marked as active
         cursor.execute("UPDATE emis SET is_active = 1 WHERE is_active IS NULL")
         conn.commit()
     except Exception:
-        pass
+        try: conn.rollback()
+        except Exception: pass
     try:
-        # Migration: add last_transaction_type column to emis table
-        cursor.execute("ALTER TABLE emis ADD COLUMN last_transaction_type VARCHAR(50)")
+        if is_pg:
+            cursor.execute("ALTER TABLE emis ADD COLUMN IF NOT EXISTS last_transaction_type VARCHAR(50)")
+        else:
+            cursor.execute("ALTER TABLE emis ADD COLUMN last_transaction_type VARCHAR(50)")
         conn.commit()
     except Exception:
-        pass
+        try: conn.rollback()
+        except Exception: pass
     finally:
         conn.close()
     
