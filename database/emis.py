@@ -147,3 +147,59 @@ def delete_emis_bulk(emi_ids, user_id=None):
     rows_affected = cursor.rowcount
     conn.close()
     return rows_affected > 0
+
+# ------------------------------------------------------------------
+# EMI status rules driven by transaction type (business requirement)
+#
+#   Foreclosure    → is_active = 0  (Inactive)
+#   Part Payment   → is_active = 1  (Active, no change)
+#   Regular Close  → is_active = 0  (Inactive)
+#   Settlement     → is_active = 0  (Inactive)
+# ------------------------------------------------------------------
+
+INACTIVE_TRANSACTION_TYPES = {'Foreclosure', 'Regular Close', 'Settlement'}
+
+def record_emi_payment(emi_id, user_id, transaction_type):
+    """
+    Record a payment action against an EMI.
+    - If the transaction_type causes the EMI to become Inactive, sets is_active = 0.
+    - If the EMI is already inactive, raises ValueError (guard).
+    - If the save fails for any reason, the status is left unchanged (atomic).
+    Returns a dict: {'deactivated': bool, 'transaction_type': str}
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Fetch current EMI – scoped to user
+        row = cursor.execute(
+            'SELECT id, is_active FROM emis WHERE id = ? AND user_id = ?',
+            (emi_id, user_id)
+        ).fetchone()
+
+        if not row:
+            raise LookupError('EMI not found or access denied.')
+
+        current_is_active = row['is_active'] if hasattr(row, '__getitem__') else row[1]
+        if current_is_active == 0:
+            raise ValueError('Cannot record a payment against an inactive EMI.')
+
+        should_deactivate = transaction_type in INACTIVE_TRANSACTION_TYPES
+        new_is_active = 0 if should_deactivate else 1
+
+        cursor.execute(
+            'UPDATE emis SET is_active = ?, last_transaction_type = ? WHERE id = ? AND user_id = ?',
+            (new_is_active, transaction_type, emi_id, user_id)
+        )
+        if cursor.rowcount == 0:
+            raise LookupError('EMI update failed – no rows affected.')
+        conn.commit()
+        return {'deactivated': should_deactivate, 'transaction_type': transaction_type}
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        conn.close()
+

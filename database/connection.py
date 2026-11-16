@@ -39,6 +39,24 @@ def init_db():
         conn.commit()
     except Exception:
         pass
+    try:
+        # Migration: add is_active column to emis table (1 = Active, 0 = Inactive)
+        cursor.execute("ALTER TABLE emis ADD COLUMN is_active INTEGER DEFAULT 1")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        # Backfill: ensure all existing EMIs are marked as active
+        cursor.execute("UPDATE emis SET is_active = 1 WHERE is_active IS NULL")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        # Migration: add last_transaction_type column to emis table
+        cursor.execute("ALTER TABLE emis ADD COLUMN last_transaction_type VARCHAR(50)")
+        conn.commit()
+    except Exception:
+        pass
     finally:
         conn.close()
     

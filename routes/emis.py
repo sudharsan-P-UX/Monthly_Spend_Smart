@@ -125,6 +125,52 @@ def register_emi_routes(app):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+    # ------------------------------------------------------------------
+    # Record EMI Payment – transaction-type drives EMI status
+    #
+    # POST /api/emis/<emi_id>/record-payment
+    # Body: { "transaction_type": "Foreclosure|Part Payment|Regular Close|Settlement" }
+    #
+    # Rules:
+    #   Foreclosure    → EMI becomes Inactive after save
+    #   Part Payment   → EMI remains Active
+    #   Regular Close  → EMI becomes Inactive after save  (default)
+    #   Settlement     → EMI becomes Inactive after save
+    # ------------------------------------------------------------------
+    VALID_TRANSACTION_TYPES = {'Foreclosure', 'Part Payment', 'Regular Close', 'Settlement'}
+
+    @app.route('/api/emis/<int:emi_id>/record-payment', methods=['POST'])
+    @require_privilege('can_edit')
+    def record_emi_payment_api(emi_id):
+        data = request.get_json() or {}
+        transaction_type = (data.get('transaction_type') or 'Regular Close').strip()
+
+        if transaction_type not in VALID_TRANSACTION_TYPES:
+            return jsonify({
+                'error': f'Invalid transaction type. Must be one of: {", ".join(sorted(VALID_TRANSACTION_TYPES))}'
+            }), 400
+
+        try:
+            result = database.record_emi_payment(emi_id, session['user_id'], transaction_type)
+            if result['deactivated']:
+                msg = f'EMI marked as Inactive after {transaction_type}.'
+            else:
+                msg = f'Part Payment recorded. EMI remains Active.'
+            return jsonify({
+                'success': True,
+                'message': msg,
+                'deactivated': result['deactivated'],
+                'transaction_type': result['transaction_type']
+            })
+        except ValueError as e:
+            # Guard: attempting to record against an already-inactive EMI
+            return jsonify({'error': str(e)}), 400
+        except LookupError as e:
+            return jsonify({'error': str(e)}), 404
+        except Exception as e:
+            return jsonify({'error': f'Failed to record payment: {str(e)}'}), 500
+
+
     @app.route('/api/admin/emis', methods=['GET'])
     @require_privilege('can_admin')
     def admin_get_emis():

@@ -1227,6 +1227,135 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         data = json.loads(resp.data)
         self.assertEqual(len(data), 0)
 
+    def test_emi_payment_recording(self):
+        """Test EMI record-payment endpoint: transaction-type drives is_active status"""
+        # Register and login a user
+        self.app.post('/register', data=json.dumps({
+            'username': 'emipayuser',
+            'password': 'password123'
+        }), content_type='application/json')
+
+        # Add an EMI (Car Loan)
+        resp = self.app.post('/api/emis/add', data=json.dumps({
+            'name': 'Test Loan for Payment',
+            'principal_amount': 15000.0,
+            'emi_amount': 400.0,
+            'start_date': '2026-01-01',
+            'end_date': '2027-12-01',
+            'tenure_months': 24,
+            'interest_rate': 9.0,
+            'due_date': '5',
+            'payment_type': 'Auto',
+            'payment_gateway': 'GPay',
+            'payment_bank': 'SBI'
+        }), content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        emi_id = json.loads(resp.data)['id']
+
+        # --- Test 1: Part Payment keeps EMI Active ---
+        resp = self.app.post(f'/api/emis/{emi_id}/record-payment',
+                             data=json.dumps({'transaction_type': 'Part Payment'}),
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        result = json.loads(resp.data)
+        self.assertTrue(result['success'])
+        self.assertFalse(result['deactivated'])
+        # Verify EMI is still active in the DB
+        emi = database.get_emi_by_id(emi_id)
+        self.assertEqual(emi['is_active'], 1)
+        self.assertEqual(emi['last_transaction_type'], 'Part Payment')
+
+        # --- Test 2: Foreclosure deactivates the EMI ---
+        resp = self.app.post(f'/api/emis/{emi_id}/record-payment',
+                             data=json.dumps({'transaction_type': 'Foreclosure'}),
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        result = json.loads(resp.data)
+        self.assertTrue(result['success'])
+        self.assertTrue(result['deactivated'])
+        # Verify EMI is now inactive
+        emi = database.get_emi_by_id(emi_id)
+        self.assertEqual(emi['is_active'], 0)
+        self.assertEqual(emi['last_transaction_type'], 'Foreclosure')
+
+        # --- Test 3: Guard – cannot record payment against inactive EMI ---
+        resp = self.app.post(f'/api/emis/{emi_id}/record-payment',
+                             data=json.dumps({'transaction_type': 'Part Payment'}),
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+        result = json.loads(resp.data)
+        self.assertIn('inactive', result['error'].lower())
+
+        # --- Test 4: Regular Close and Settlement also deactivate ---
+        # Add a second EMI for Regular Close
+        resp2 = self.app.post('/api/emis/add', data=json.dumps({
+            'name': 'Regular Close Loan',
+            'principal_amount': 10000.0,
+            'emi_amount': 300.0,
+            'start_date': '2026-02-01',
+            'end_date': '2027-01-01',
+            'tenure_months': 12,
+            'interest_rate': 8.0,
+            'due_date': '10',
+            'payment_type': 'Manual',
+            'payment_gateway': '',
+            'payment_bank': 'Kotak'
+        }), content_type='application/json')
+        emi_id2 = json.loads(resp2.data)['id']
+
+        resp = self.app.post(f'/api/emis/{emi_id2}/record-payment',
+                             data=json.dumps({'transaction_type': 'Regular Close'}),
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(json.loads(resp.data)['deactivated'])
+        self.assertEqual(database.get_emi_by_id(emi_id2)['is_active'], 0)
+
+        # Add a third EMI for Settlement
+        resp3 = self.app.post('/api/emis/add', data=json.dumps({
+            'name': 'Settlement Loan',
+            'principal_amount': 8000.0,
+            'emi_amount': 250.0,
+            'start_date': '2026-03-01',
+            'end_date': '2027-02-01',
+            'tenure_months': 12,
+            'interest_rate': 7.5,
+            'due_date': '15',
+            'payment_type': 'Auto',
+            'payment_gateway': 'PhonePe',
+            'payment_bank': 'ICICI'
+        }), content_type='application/json')
+        emi_id3 = json.loads(resp3.data)['id']
+
+        resp = self.app.post(f'/api/emis/{emi_id3}/record-payment',
+                             data=json.dumps({'transaction_type': 'Settlement'}),
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(json.loads(resp.data)['deactivated'])
+        self.assertEqual(database.get_emi_by_id(emi_id3)['is_active'], 0)
+
+        # --- Test 5: Invalid transaction type ---
+        resp4 = self.app.post('/api/emis/add', data=json.dumps({
+            'name': 'Validation Loan',
+            'principal_amount': 5000.0,
+            'emi_amount': 200.0,
+            'start_date': '2026-04-01',
+            'end_date': '2027-03-01',
+            'tenure_months': 12,
+            'interest_rate': 7.0,
+            'due_date': '20',
+            'payment_type': 'Manual',
+            'payment_gateway': '',
+            'payment_bank': 'Canara'
+        }), content_type='application/json')
+        emi_id4 = json.loads(resp4.data)['id']
+
+        resp = self.app.post(f'/api/emis/{emi_id4}/record-payment',
+                             data=json.dumps({'transaction_type': 'InvalidType'}),
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, 400)
+
+
+
     def test_currency_flow(self):
         # 1. Fetch default active currency
         resp = self.app.get('/api/active-currency')

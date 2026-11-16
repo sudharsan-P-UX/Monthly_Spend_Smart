@@ -212,7 +212,9 @@ CREATE TABLE IF NOT EXISTS emis (
     payment_gateway VARCHAR(100),
     payment_bank VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    createddate VARCHAR(20)
+    createddate VARCHAR(20),
+    is_active INTEGER DEFAULT 1,
+    last_transaction_type VARCHAR(50)
 );
 
 CREATE TABLE IF NOT EXISTS otps (

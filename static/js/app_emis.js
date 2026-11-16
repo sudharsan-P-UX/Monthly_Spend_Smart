@@ -449,15 +449,38 @@ function renderUserEMIsTable(emis) {
 
     emis.forEach(emi => {
         const tr = document.createElement('tr');
-        
+
+        // ── Status badge ─────────────────────────────────────────
+        const isActive = (emi.is_active === 1 || emi.is_active === true || emi.is_active === undefined);
+        const statusBadge = isActive
+            ? `<span class="role-badge badge-active" style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);font-size:0.72rem;">
+                   <i class="fa-solid fa-circle" style="font-size:0.5rem;"></i> Active
+               </span>`
+            : `<span class="role-badge badge-inactive" style="background:rgba(100,116,139,0.15);color:#94a3b8;border:1px solid rgba(100,116,139,0.3);font-size:0.72rem;">
+                   <i class="fa-solid fa-ban" style="font-size:0.5rem;"></i> Inactive
+               </span>`;
+
+        // Apply row-level dimming for inactive EMIs
+        if (!isActive) {
+            tr.style.opacity = '0.65';
+            tr.style.filter = 'grayscale(0.4)';
+        }
+
         let actionsHtml = '';
         actionsHtml += `
             <button class="btn-icon btn-icon-info" onclick="openEmiCalendar(${emi.id}, false)" title="View EMI Calendar Schedule" style="color: var(--color-success);">
                 <i class="fa-solid fa-circle-info"></i>
             </button>`;
+        // Record Payment button – only for active EMIs
+        if (canEdit && isActive) {
+            actionsHtml += `
+                <button class="btn-icon" onclick="openEmiPaymentModal(${emi.id}, '${escapeHTML(emi.name)}')" title="Record Payment" style="color:#a78bfa;">
+                    <i class="fa-solid fa-money-bill-wave"></i>
+                </button>`;
+        }
         if (canEdit) {
             actionsHtml += `
-                <button class="btn-icon btn-icon-edit" onclick="openEmiModal(${emi.id})" title="Edit EMI" style="color: var(--color-primary);">
+                <button class="btn-icon btn-icon-edit" onclick="openEmiModal(${emi.id})" title="Edit EMI" style="color: var(--color-primary);${ !isActive ? 'opacity:0.4;pointer-events:none;' : '' }">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </button>`;
         }
@@ -504,6 +527,7 @@ function renderUserEMIsTable(emis) {
             }
         });
 
+        rowHtml += `<td class="text-center">${statusBadge}</td>`;
         rowHtml += `<td class="actions-cell">${actionsHtml}</td>`;
         tr.innerHTML = rowHtml;
         tbody.appendChild(tr);
@@ -532,6 +556,10 @@ function updateEmiSummaryCards(emis) {
         const emiAmount = parseFloat(emi.emi_amount || 0);
         const r = rate / 12 / 100;
 
+        // is_active is the authoritative status (from server).
+        // Undefined means legacy record before the column existed → treat as active.
+        const emiIsActive = (emi.is_active === 1 || emi.is_active === true || emi.is_active === undefined);
+
         const monthsElapsed = getEmiMonthsElapsed(emi);
 
         let currentBalance = principal;
@@ -555,9 +583,9 @@ function updateEmiSummaryCards(emis) {
         totalPrincipalPaid += (principal - currentBalance);
         totalInterest += calculatedTotalInterest;
         totalPaidInterest += calculatedPaidInterest;
-        
-        const isCurrentActive = monthsElapsed < tenure;
-        if (isCurrentActive) {
+
+        // Only active EMIs contribute to monthly total (requirement #4)
+        if (emiIsActive) {
             totalMonthlyEmi += emiAmount;
         }
 
@@ -1171,6 +1199,112 @@ async function deleteUserEmi(emiId, name) {
 }
 
 // ==========================================
+// RECORD PAYMENT MODAL
+// Status rules (driven by transaction type):
+//   Foreclosure    → EMI becomes Inactive
+//   Part Payment   → EMI stays Active
+//   Regular Close  → EMI becomes Inactive  (default)
+//   Settlement     → EMI becomes Inactive
+// ==========================================
+
+const EMI_INACTIVE_TYPES = new Set(['Foreclosure', 'Regular Close', 'Settlement']);
+
+/**
+ * Open the Record Payment modal for a specific EMI.
+ * @param {number} emiId - The EMI record ID.
+ * @param {string} emiName - Display name shown in the modal.
+ */
+function openEmiPaymentModal(emiId, emiName) {
+    const modal = document.getElementById('emi-payment-modal');
+    if (!modal) return;
+
+    // Populate modal fields
+    document.getElementById('emi-payment-emi-id').value = emiId;
+    document.getElementById('emi-payment-name').textContent = emiName;
+
+    // Reset dropdown to default (Regular Close)
+    const sel = document.getElementById('emi-payment-transaction-type');
+    if (sel) sel.value = 'Regular Close';
+
+    // Show the status preview for the default selection
+    updateEmiPaymentStatusPreview();
+
+    modal.classList.remove('hidden');
+}
+
+/** Close the Record Payment modal. */
+function closeEmiPaymentModal() {
+    const modal = document.getElementById('emi-payment-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+/**
+ * Update the status-consequence preview badge inside the modal
+ * whenever the user changes the Payment Action dropdown.
+ */
+function updateEmiPaymentStatusPreview() {
+    const sel = document.getElementById('emi-payment-transaction-type');
+    const preview = document.getElementById('emi-payment-status-preview');
+    if (!sel || !preview) return;
+
+    const txType = sel.value;
+    const willDeactivate = EMI_INACTIVE_TYPES.has(txType);
+
+    if (willDeactivate) {
+        preview.style.background = 'rgba(239,68,68,0.08)';
+        preview.style.border = '1px solid rgba(239,68,68,0.25)';
+        preview.style.color = '#f87171';
+        preview.innerHTML = `
+            <i class="fa-solid fa-ban" style="font-size:1.1rem;"></i>
+            <span>After saving, this EMI will be marked <strong>Inactive</strong> and excluded from monthly totals, reminders, and projections.</span>`;
+    } else {
+        preview.style.background = 'rgba(16,185,129,0.08)';
+        preview.style.border = '1px solid rgba(16,185,129,0.25)';
+        preview.style.color = '#34d399';
+        preview.innerHTML = `
+            <i class="fa-solid fa-circle-check" style="font-size:1.1rem;"></i>
+            <span>EMI will remain <strong>Active</strong>. Regular EMI tracking continues.</span>`;
+    }
+}
+
+/**
+ * Submit the Record Payment request to the backend.
+ * On success the modal closes and the EMI list refreshes.
+ * On failure the modal stays open so no data is lost.
+ */
+async function submitEmiPayment() {
+    const emiId = document.getElementById('emi-payment-emi-id').value;
+    const txType = document.getElementById('emi-payment-transaction-type').value;
+    if (!emiId || !txType) return;
+
+    const btn = document.getElementById('emi-payment-submit-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
+
+    try {
+        const response = await fetch(`/api/emis/${emiId}/record-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transaction_type: txType })
+        });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            closeEmiPaymentModal();
+            showAppAlert(result.message || 'Payment recorded successfully.', true);
+            await fetchUserEMIs();
+        } else {
+            showAppAlert(result.error || 'Failed to record payment.');
+        }
+    } catch (err) {
+        showAppAlert('Network error. Please try again.');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Record Payment'; }
+    }
+}
+
+
+
+// ==========================================
 // ADMIN EMI CONTROLS
 // ==========================================
 
@@ -1449,13 +1583,13 @@ function applyEmiFilters() {
     const searchVal = searchEl ? searchEl.value.trim().toLowerCase() : '';
 
     const filtered = userEMIs.filter(emi => {
-        const tenure = parseInt(emi.tenure_months) || 12;
-        const monthsElapsed = getEmiMonthsElapsed(emi);
-        const isOpen = monthsElapsed < tenure;
+        // is_active is the server-authoritative status.
+        // Legacy records without the column are treated as Active.
+        const emiIsActive = (emi.is_active === 1 || emi.is_active === true || emi.is_active === undefined);
 
-        // 1. Active Status (Open / Closed)
-        if (statusVal === 'Open' && !isOpen) return false;
-        if (statusVal === 'Closed' && isOpen) return false;
+        // 1. Active Status filter uses server is_active (not date math)
+        if (statusVal === 'Open' && !emiIsActive) return false;
+        if (statusVal === 'Closed' && emiIsActive) return false;
 
         // 2. EMI Name Like Filter
         if (nameLikeVal) {

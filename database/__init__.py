@@ -37,7 +37,8 @@ from database.emis import (
     get_emi_by_id,
     update_emi,
     delete_emi,
-    delete_emis_bulk
+    delete_emis_bulk,
+    record_emi_payment
 )
 from database.settings import (
     get_setting,
